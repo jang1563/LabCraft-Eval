@@ -303,6 +303,11 @@ with `TASK_PRESET=snapshot`, `current`, `discovery`, `safety_case`, or `all`. Th
 `labcraft_suite()` Inspect entry point is kept only as a backwards-compatible
 single-task smoke alias.
 
+For larger seed sweeps or release-candidate bundles, use the HPC-only workflow
+in [hpc/README.md](hpc/README.md) and the v0.2 execution plan in
+[docs/hpc_plan.md](docs/hpc_plan.md). Keep the frozen April 2026 snapshot
+separate from new HPC bundles.
+
 For a minimal manual expert-baseline workflow on the two most informative snapshot tasks, see [docs/human_baseline.md](docs/human_baseline.md). That CLI reuses the same seeded task instances and deterministic scorer for `transform_01` and `growth_01`, now includes a pilot launcher at [scripts/run_human_baseline_pilot.py](scripts/run_human_baseline_pilot.py), and safely resumes `in_progress` session files instead of overwriting them. The recommended first-pass seed set is documented in [results/human_baseline_seed_plan.md](results/human_baseline_seed_plan.md), and aggregated pilot outputs now include [results/human_baseline_pilot.md](results/human_baseline_pilot.md), [results/human_baseline_pilot.json](results/human_baseline_pilot.json), and the companion plots in [results/human_baseline_plots](results/human_baseline_plots).
 
 ## Repository layout
@@ -367,15 +372,18 @@ in [docs/release_checklist.md](docs/release_checklist.md).
 
 ## Related work
 
-See **[results/positioning.md](results/positioning.md)** for a full literature-grounded comparison against 11 biology-agent and protocol benchmarks published in 2024–2026, including where this repo is genuinely novel (interactive simulator + deterministic multi-axis rubric) and where it is honestly weaker (scale, real wet-lab grounding, human baselines).
+See **[results/positioning.md](results/positioning.md)** for a literature-grounded comparison against biology-agent and protocol benchmarks published in 2024–2026, including where this repo is genuinely novel (benign wet-lab protocol simulator + deterministic multi-axis trajectory scoring) and where it is honestly weaker (scale, real wet-lab grounding, human baselines).
 
 Key references:
 
 - [LAB-Bench / ProtocolQA](https://arxiv.org/abs/2407.10362) (FutureHouse, 2024): 2,400 text-only MCQ.
+- [LABBench2](https://arxiv.org/abs/2604.09554) (FutureHouse/Edison Scientific, 2026): nearly 1,900 more realistic biology research tasks.
 - [BioLP-bench](https://www.biorxiv.org/content/10.1101/2024.08.21.608694v1) (Ivanov, 2024): mistake-identification on real lab protocols.
 - [BioProBench](https://arxiv.org/abs/2505.07889) (Liu et al., 2025): 556K text instances across 5 tasks on 27K protocols.
 - [BoxingGym](https://arxiv.org/abs/2501.01540) (Gandhi/Goodman et al., 2025): interactive probabilistic environments scored by expected information gain.
 - [BioAgent Bench](https://arxiv.org/abs/2601.21800) (Fa et al., 2026): end-to-end bioinformatics pipelines scored by LLM-as-judge.
+- [BioMysteryBench](https://www.anthropic.com/research/Evaluating-Claude-For-Bioinformatics-With-BioMysteryBench) (Anthropic, 2026): real-world bioinformatics questions with objective ground truth and repeated-attempt reliability analysis.
+- [GeneBench](https://www.biorxiv.org/content/10.64898/2026.04.22.720113) (Li/Ho, 2026): multi-stage inference in genomics and quantitative biology.
 - [OpenAI × Red Queen Bio wet-lab framework](https://openai.com/index/accelerating-biological-research-in-the-wet-lab/) (2025): GPT-5 iteratively optimised a real molecular-cloning protocol, scored by physical assay (79× efficiency gain).
 - [GPT-5 System Card](https://cdn.openai.com/gpt-5-system-card.pdf): ProtocolQA Open-Ended (108 questions) + TroubleshootingBench (52 non-public protocols × 3 questions; 80th-percentile PhD expert scores 36.4%).
 - [PaperBench](https://openai.com/index/paperbench/) (OpenAI, 2025): hierarchical rubric-tree methodology this repo's scorer follows.

@@ -16,6 +16,10 @@ snapshot.
 
 ## Required checks
 
+Run these checks on HPC for compute-constrained development. Do not use a local
+laptop as the source of release verification when the project is in HPC-only
+execution mode.
+
 ```bash
 uv run pytest
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
@@ -31,6 +35,9 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
   repository and issue tracker.
 - Include the commit SHA and log/result directory when reporting benchmark
   numbers.
+- For HPC bundles, include the `RUN_ID`, `results/hpc/<RUN_ID>/aggregate_manifest.json`,
+  Slurm array range, model matrix, task matrix, seed range, and aggregation
+  command.
 
 ## Result bundle checks
 
@@ -39,5 +46,7 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
 - Newer wet-lab task bundles should remain in their `results/current_*`
   directories unless intentionally promoted.
 - Discovery Decision Track bundles should remain in `results/discovery_*`.
+- HPC-scale candidate bundles should remain under `results/hpc/<RUN_ID>/` until
+  intentionally promoted into a named public result page.
 - Do not overwrite existing `.eval` logs when extending a seed range; use
   `SEED_START` and a separate `LOG_DIR` when needed.

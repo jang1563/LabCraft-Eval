@@ -55,6 +55,7 @@ docs/company_briefs/private/
 
 # Ad-hoc Inspect eval logs (results/logs/ IS tracked for reproducibility)
 /logs/
+/results/hpc/
 
 # Local plotting cache
 .matplotlib/

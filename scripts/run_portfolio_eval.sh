@@ -66,9 +66,17 @@ if [ -f "$HOME/.api_keys" ]; then
   source "$HOME/.api_keys" >/dev/null 2>&1
 fi
 
-export HOME=/tmp/inspect_ai_home
-export XDG_DATA_HOME="$HOME/.local/share"
-export XDG_CACHE_HOME="$HOME/.cache"
+if [ -n "${INSPECT_HOME:-}" ]; then
+  :
+elif [ -n "${SLURM_JOB_ID:-}" ]; then
+  INSPECT_HOME="${TMPDIR:-/tmp}/inspect_ai_home/${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID:-0}"
+else
+  INSPECT_HOME=/tmp/inspect_ai_home
+fi
+
+export HOME="$INSPECT_HOME"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 mkdir -p "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$LOG_DIR"
 
 if [ -n "${INSPECT_BIN:-}" ]; then
