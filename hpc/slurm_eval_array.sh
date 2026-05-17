@@ -30,6 +30,22 @@ if [ -z "${INSPECT_BIN:-}" ] && [ -x "${VENV_DIR}/bin/inspect" ]; then
   export INSPECT_BIN="${VENV_DIR}/bin/inspect"
 fi
 
+python_exec() {
+  if [ -n "${PYTHON_BIN:-}" ]; then
+    "${PYTHON_BIN}" "$@"
+    return
+  fi
+  if [ -x "${VENV_DIR}/bin/python" ]; then
+    "${VENV_DIR}/bin/python" "$@"
+    return
+  fi
+  if [ -x "${REPO_ROOT}/.venv/bin/python" ]; then
+    "${REPO_ROOT}/.venv/bin/python" "$@"
+    return
+  fi
+  python3 "$@"
+}
+
 TASKS="${TASKS:-}"
 if [ -z "$TASKS" ]; then
   TASK_SOURCE="preset:${TASK_PRESET}"
@@ -118,3 +134,11 @@ SEED_START="${SEED}" \
 LOG_DIR="${LOG_DIR}" \
 INSPECT_HOME="${INSPECT_HOME}" \
   bash scripts/run_portfolio_eval.sh
+
+if [ "${VALIDATE_EVAL_CELL:-1}" != "0" ]; then
+  python_exec scripts/validate_eval_cell.py \
+    --log-dir "${LOG_DIR}" \
+    --task "${TASK}" \
+    --model "${MODEL}" \
+    --seed "${SEED}"
+fi
