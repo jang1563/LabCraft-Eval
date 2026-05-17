@@ -4,15 +4,25 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import re
 import sys
 from pathlib import Path
 from typing import Any
+
+_SAMPLE_SEED_RE = re.compile(r"_seed_(\d+)$")
 
 
 def expected_sample_id(task: str, seed: int) -> str:
     if seed == 0:
         return "{}_seeded".format(task)
     return "{}_seeded_seed_{:02d}".format(task, seed)
+
+
+def sample_id_matches_seed(sample_id: str, seed: int) -> bool:
+    match = _SAMPLE_SEED_RE.search(sample_id)
+    if seed == 0:
+        return match is None or int(match.group(1)) == 0
+    return match is not None and int(match.group(1)) == seed
 
 
 def parse_created_timestamp(value: object) -> datetime:
@@ -49,7 +59,7 @@ def error_message(log: Any) -> str:
     return str(err)
 
 
-def matching_rows(log_dir: Path, task: str, model: str, sample_id: str) -> tuple[list[dict[str, Any]], list[str]]:
+def matching_logs(log_dir: Path, task: str, model: str, seed: int) -> tuple[list[dict[str, Any]], list[str]]:
     from inspect_ai.log import read_eval_log
 
     rows: list[dict[str, Any]] = []
@@ -67,18 +77,30 @@ def matching_rows(log_dir: Path, task: str, model: str, sample_id: str) -> tuple
         if getattr(log_eval, "task", None) != task:
             continue
 
-        for sample in getattr(log, "samples", []) or []:
-            if getattr(sample, "id", None) != sample_id:
-                continue
-            rows.append(
-                {
-                    "eval_path": eval_path,
-                    "created": getattr(log_eval, "created", "") or "",
-                    "status": getattr(log, "status", "unknown"),
-                    "score": score_value(sample),
-                    "error": error_message(log),
-                }
-            )
+        samples = list(getattr(log, "samples", []) or [])
+        if not samples:
+            continue
+        sample_ids = [str(getattr(sample, "id", "")) for sample in samples]
+        if not all(sample_id_matches_seed(sample_id, seed) for sample_id in sample_ids):
+            continue
+        scores_by_sample = [
+            (sample_id, score_value(sample))
+            for sample_id, sample in zip(sample_ids, samples)
+        ]
+        unscored_sample_ids = [
+            sample_id for sample_id, score in scores_by_sample if score is None
+        ]
+        rows.append(
+            {
+                "eval_path": eval_path,
+                "created": getattr(log_eval, "created", "") or "",
+                "status": getattr(log, "status", "unknown"),
+                "sample_count": len(samples),
+                "scored_count": len(samples) - len(unscored_sample_ids),
+                "unscored_sample_ids": unscored_sample_ids,
+                "error": error_message(log),
+            }
+        )
     return rows, read_errors
 
 
@@ -98,12 +120,11 @@ def latest_row(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def validate_cell(log_dir: Path, task: str, model: str, seed: int) -> int:
-    sample_id = expected_sample_id(task, seed)
-    rows, read_errors = matching_rows(log_dir, task, model, sample_id)
+    rows, read_errors = matching_logs(log_dir, task, model, seed)
     if not rows:
         print(
-            "No Inspect eval log found for task={} model={} sample_id={} in {}".format(
-                task, model, sample_id, log_dir
+            "No Inspect eval log found for task={} model={} seed={} in {}".format(
+                task, model, seed, log_dir
             ),
             file=sys.stderr,
         )
@@ -114,8 +135,8 @@ def validate_cell(log_dir: Path, task: str, model: str, seed: int) -> int:
     row = latest_row(rows)
     if row["status"] != "success":
         print(
-            "Inspect eval log has status={} for task={} model={} sample_id={} ({})".format(
-                row["status"], task, model, sample_id, row["eval_path"]
+            "Inspect eval log has status={} for task={} model={} seed={} ({})".format(
+                row["status"], task, model, seed, row["eval_path"]
             ),
             file=sys.stderr,
         )
@@ -123,18 +144,25 @@ def validate_cell(log_dir: Path, task: str, model: str, seed: int) -> int:
             print(row["error"], file=sys.stderr)
         return 1
 
-    if row["score"] is None:
+    if row["scored_count"] != row["sample_count"]:
         print(
-            "Inspect eval log has no scored sample for task={} model={} sample_id={} ({})".format(
-                task, model, sample_id, row["eval_path"]
+            "Inspect eval log scored {}/{} samples for task={} model={} seed={} ({})".format(
+                row["scored_count"],
+                row["sample_count"],
+                task,
+                model,
+                seed,
+                row["eval_path"],
             ),
             file=sys.stderr,
         )
+        for sample_id in row["unscored_sample_ids"][:10]:
+            print("Unscored sample: {}".format(sample_id), file=sys.stderr)
         return 1
 
     print(
-        "Validated eval cell: task={} model={} sample_id={} log={}".format(
-            task, model, sample_id, row["eval_path"]
+        "Validated eval cell: task={} model={} seed={} samples={} log={}".format(
+            task, model, seed, row["sample_count"], row["eval_path"]
         )
     )
     return 0
