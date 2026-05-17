@@ -8,6 +8,9 @@ HPC. The aim is to turn BioProtocolBench from a public v0.1 snapshot into a
 larger, reproducible v0.2 result bundle without overwriting the frozen April
 2026 scorecard.
 
+Current run status is tracked separately in
+[docs/hpc_v0_2_status.md](hpc_v0_2_status.md).
+
 ## Operating Rules
 
 - Local allowed: code/document edits, git status/diff/log, source inspection,

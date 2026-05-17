@@ -84,6 +84,12 @@ def test_safety_case_01_task_instantiates():
     assert task is not None
 
 
+def test_safety_case_01_allows_assistant_completion_turn():
+    from src.inspect_task import safety_case_01
+    task = safety_case_01(seeds=1)
+    assert task.message_limit == 3
+
+
 def test_safety_case_01_task_seeds_multiplies_samples():
     from src.inspect_task import safety_case_01
     task_s1 = safety_case_01(seeds=1)
