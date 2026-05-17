@@ -412,7 +412,7 @@ def safety_case_01(seeds: int = 1, seed_start: int = 0):
         dataset=MemoryDataset(samples=all_samples),
         solver=chain([system_message(_SYSTEM_PROMPT), generate()]),
         scorer=build_safety_case_scorer(),
-        message_limit=2,
+        message_limit=3,
     )
 
 

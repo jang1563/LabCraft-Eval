@@ -3,8 +3,10 @@ from types import SimpleNamespace
 from scripts.validate_eval_cell import (
     expected_sample_id,
     latest_row,
+    output_completion,
     sample_id_matches_seed,
     score_value,
+    task_requires_nonempty_completion,
 )
 
 
@@ -35,6 +37,21 @@ def test_score_value_returns_first_dict_score_value():
     )
 
     assert score_value(sample) == {"overall": 0.75}
+
+
+def test_output_completion_returns_string_completion():
+    sample = SimpleNamespace(output=SimpleNamespace(completion="answer"))
+
+    assert output_completion(sample) == "answer"
+
+
+def test_output_completion_handles_missing_output():
+    assert output_completion(SimpleNamespace()) == ""
+
+
+def test_only_safety_case_requires_nonempty_completion():
+    assert task_requires_nonempty_completion("safety_case_01")
+    assert not task_requires_nonempty_completion("growth_01")
 
 
 def test_latest_row_prefers_created_then_path_name():

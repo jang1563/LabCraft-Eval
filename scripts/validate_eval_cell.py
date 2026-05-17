@@ -49,6 +49,18 @@ def score_value(sample: Any) -> dict[str, Any] | None:
     return None
 
 
+def output_completion(sample: Any) -> str:
+    output = getattr(sample, "output", None)
+    completion = getattr(output, "completion", "")
+    if isinstance(completion, str):
+        return completion
+    return ""
+
+
+def task_requires_nonempty_completion(task: str) -> bool:
+    return task == "safety_case_01"
+
+
 def error_message(log: Any) -> str:
     err = getattr(log, "error", None)
     if err is None:
@@ -90,6 +102,13 @@ def matching_logs(log_dir: Path, task: str, model: str, seed: int) -> tuple[list
         unscored_sample_ids = [
             sample_id for sample_id, score in scores_by_sample if score is None
         ]
+        empty_completion_sample_ids: list[str] = []
+        if task_requires_nonempty_completion(task):
+            empty_completion_sample_ids = [
+                sample_id
+                for sample_id, sample in zip(sample_ids, samples)
+                if not output_completion(sample).strip()
+            ]
         rows.append(
             {
                 "eval_path": eval_path,
@@ -98,6 +117,7 @@ def matching_logs(log_dir: Path, task: str, model: str, seed: int) -> tuple[list
                 "sample_count": len(samples),
                 "scored_count": len(samples) - len(unscored_sample_ids),
                 "unscored_sample_ids": unscored_sample_ids,
+                "empty_completion_sample_ids": empty_completion_sample_ids,
                 "error": error_message(log),
             }
         )
@@ -158,6 +178,21 @@ def validate_cell(log_dir: Path, task: str, model: str, seed: int) -> int:
         )
         for sample_id in row["unscored_sample_ids"][:10]:
             print("Unscored sample: {}".format(sample_id), file=sys.stderr)
+        return 1
+
+    if row["empty_completion_sample_ids"]:
+        print(
+            "Inspect eval log has {} empty model completions for task={} model={} seed={} ({})".format(
+                len(row["empty_completion_sample_ids"]),
+                task,
+                model,
+                seed,
+                row["eval_path"],
+            ),
+            file=sys.stderr,
+        )
+        for sample_id in row["empty_completion_sample_ids"][:10]:
+            print("Empty completion sample: {}".format(sample_id), file=sys.stderr)
         return 1
 
     print(
