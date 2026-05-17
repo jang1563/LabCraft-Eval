@@ -20,7 +20,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_DIR = REPO_ROOT / "results" / "logs"
 DEFAULT_OUT = REPO_ROOT / "results" / "results.md"
 
-AXES = ("overall", "task_success", "decision_quality", "troubleshooting", "efficiency")
+DEFAULT_AXES = ("overall", "task_success", "decision_quality", "troubleshooting", "efficiency")
+SAFETY_CASE_AXES = (
+    "aggregate",
+    "legitimate_helpfulness",
+    "boundary_precision",
+    "provenance_grounding",
+    "monitor_coverage",
+    "residual_risk_framing",
+)
+AXIS_ORDER = DEFAULT_AXES + SAFETY_CASE_AXES
 
 
 def resolve_repo_path(path_str: str) -> Path:
@@ -111,8 +120,9 @@ def extract_scores(eval_path: Path):
             "created": created,
             "tokens": tokens,
         }
-        for axis in AXES:
-            row[axis] = float(value_block.get(axis, 0.0))
+        for axis, value in value_block.items():
+            if isinstance(value, (int, float)):
+                row[axis] = float(value)
         rows.append(row)
     return rows
 
@@ -149,7 +159,14 @@ def dedupe_rows(rows):
     )
 
 
-def aggregate(rows):
+def discover_axes(rows):
+    present = {key for row in rows for key, value in row.items() if isinstance(value, float)}
+    ordered = [axis for axis in AXIS_ORDER if axis in present]
+    ordered.extend(sorted(present - set(ordered)))
+    return ordered
+
+
+def aggregate(rows, axes):
     groups = defaultdict(list)
     for row in rows:
         groups[(row["model"], row["task"])].append(row)
@@ -160,7 +177,7 @@ def aggregate(rows):
             "task": task,
             "n": len(cell_rows),
         }
-        for axis in AXES:
+        for axis in axes:
             values = [row[axis] for row in cell_rows if axis in row]
             if not values:
                 continue
@@ -178,7 +195,9 @@ def format_markdown(
     out_path: Path,
     log_dirs: list[Path],
     deduped_count: int,
+    axes=None,
 ):
+    axes = axes or discover_axes(per_sample_rows)
     rel_links = [_format_log_dir_reference(log_dir) for log_dir in log_dirs]
     lines = [
         "# BioProtocolBench Evaluation Results",
@@ -201,27 +220,23 @@ def format_markdown(
         [
         "## Per-model per-task summary",
         "",
-        "Mean overall score across the seed samples run for each (model, task) cell. `n` is the number of samples in that cell.",
+        "Mean score across the seed samples run for each (model, task) cell. `n` is the number of samples in that cell.",
         "",
-        "| Model | Task | n | overall (mean±std) | task_success | decision_quality | troubleshooting | efficiency |",
-        "|---|---|---:|---:|---:|---:|---:|---:|",
+        "| Model | Task | n | {} |".format(" | ".join("{} (mean±std)".format(axis) for axis in axes)),
+        "|---|---|---:|{}|".format("|".join("---:" for _ in axes)),
         ]
     )
     for entry in summary:
-        line = "| {model} | `{task}` | {n} | {ov_mean:.3f} ± {ov_std:.3f} | {ts_mean:.3f} ± {ts_std:.3f} | {dq_mean:.3f} ± {dq_std:.3f} | {tr_mean:.3f} ± {tr_std:.3f} | {ef_mean:.3f} ± {ef_std:.3f} |".format(
+        cells = []
+        for axis in axes:
+            mean = entry.get("{}_mean".format(axis))
+            std = entry.get("{}_std".format(axis))
+            cells.append("n/a" if mean is None or std is None else "{:.3f} ± {:.3f}".format(mean, std))
+        line = "| {model} | `{task}` | {n} | {cells} |".format(
             model=entry["model"],
             task=entry["task"],
             n=entry["n"],
-            ov_mean=entry.get("overall_mean", 0.0),
-            ov_std=entry.get("overall_std", 0.0),
-            ts_mean=entry.get("task_success_mean", 0.0),
-            ts_std=entry.get("task_success_std", 0.0),
-            dq_mean=entry.get("decision_quality_mean", 0.0),
-            dq_std=entry.get("decision_quality_std", 0.0),
-            tr_mean=entry.get("troubleshooting_mean", 0.0),
-            tr_std=entry.get("troubleshooting_std", 0.0),
-            ef_mean=entry.get("efficiency_mean", 0.0),
-            ef_std=entry.get("efficiency_std", 0.0),
+            cells=" | ".join(cells),
         )
         lines.append(line)
 
@@ -230,21 +245,21 @@ def format_markdown(
             "",
             "## Per-sample detail",
             "",
-            "| Model | Task | Sample | overall | task | decision | trouble | efficiency |",
-            "|---|---|---|---:|---:|---:|---:|---:|",
+            "| Model | Task | Sample | {} |".format(" | ".join(axes)),
+            "|---|---|---|{}|".format("|".join("---:" for _ in axes)),
         ]
     )
     for row in per_sample_rows:
+        cells = [
+            "" if row.get(axis) is None else "{:.3f}".format(row[axis])
+            for axis in axes
+        ]
         lines.append(
-            "| {model} | `{task}` | `{sample}` | {overall:.3f} | {task_success:.3f} | {decision_quality:.3f} | {troubleshooting:.3f} | {efficiency:.3f} |".format(
+            "| {model} | `{task}` | `{sample}` | {cells} |".format(
                 model=row["model"],
                 task=row["task"],
                 sample=row["sample_id"],
-                overall=row["overall"],
-                task_success=row["task_success"],
-                decision_quality=row["decision_quality"],
-                troubleshooting=row["troubleshooting"],
-                efficiency=row["efficiency"],
+                cells=" | ".join(cells),
             )
         )
     lines.append("")
@@ -281,13 +296,15 @@ def main(argv=None):
         return 1
 
     deduped_rows = dedupe_rows(all_rows)
-    summary = aggregate(deduped_rows)
+    axes = discover_axes(deduped_rows)
+    summary = aggregate(deduped_rows, axes)
     format_markdown(
         summary,
         deduped_rows,
         out_path,
         log_dirs,
         deduped_count=len(all_rows) - len(deduped_rows),
+        axes=axes,
     )
     print("Wrote {} rows to {}".format(len(deduped_rows), out_path))
     return 0

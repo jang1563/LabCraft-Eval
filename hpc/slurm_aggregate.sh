@@ -74,6 +74,13 @@ python_exec scripts/aggregate_eval_results.py \
   --log-dir "${LOG_DIR}" \
   --out "${RESULTS_OUT}"
 
+if [ "$TASK_PRESET" = "safety_case" ]; then
+  echo
+  echo "Skipping scorecard plots for safety_case; safety axes are reported in ${RESULTS_OUT}."
+  echo "Bundle aggregation complete: ${BUNDLE_DIR}"
+  exit 0
+fi
+
 plot_args=(
   scripts/plot_scorecard.py
   --log-dir "${LOG_DIR}"

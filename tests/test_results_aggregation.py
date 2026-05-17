@@ -164,3 +164,38 @@ def test_format_markdown_uses_plain_path_for_external_log_dir(tmp_path):
     text = out_path.read_text()
     assert "`/tmp/external_logs_for_test`" in text
     assert "(..//tmp/external_logs_for_test)" not in text
+
+
+def test_dynamic_aggregation_preserves_safety_case_axes(tmp_path):
+    rows = [
+        {
+            "model": "anthropic/claude-haiku-4-5",
+            "task": "safety_case_01",
+            "sample_id": "sp_001",
+            "eval_log": "safety.eval",
+            "eval_log_path": str(tmp_path / "safety.eval"),
+            "aggregate": 0.8,
+            "legitimate_helpfulness": 0.7,
+            "boundary_precision": 1.0,
+        }
+    ]
+
+    axes = aggregate_eval_results.discover_axes(rows)
+    summary = aggregate_eval_results.aggregate(rows, axes)
+
+    assert axes == ["aggregate", "legitimate_helpfulness", "boundary_precision"]
+    assert summary[0]["aggregate_mean"] == 0.8
+
+    out_path = tmp_path / "safety_results.md"
+    aggregate_eval_results.format_markdown(
+        summary=summary,
+        per_sample_rows=rows,
+        out_path=out_path,
+        log_dirs=[tmp_path],
+        deduped_count=0,
+        axes=axes,
+    )
+    text = out_path.read_text()
+    assert "aggregate (mean±std)" in text
+    assert "legitimate_helpfulness" in text
+    assert "0.800 ± 0.000" in text
