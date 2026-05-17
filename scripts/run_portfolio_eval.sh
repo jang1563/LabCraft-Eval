@@ -30,6 +30,7 @@ ALL_TASKS="${CURRENT_TASKS} ${DISCOVERY_TASKS}"
 : "${TASK_PRESET:=snapshot}"
 : "${MODELS:=openai/gpt-4o-mini openai/gpt-4o anthropic/claude-haiku-4-5}"
 : "${LOG_DIR:=${REPO_ROOT}/results/logs}"
+: "${INSPECT_EVAL_ARGS:=}"
 
 TASKS="${TASKS:-}"
 if [ -z "$TASKS" ]; then
@@ -107,7 +108,12 @@ echo "  Models: $MODELS"
 echo "  Seeds:  $SEEDS"
 echo "  Seed start: $SEED_START"
 echo "  Logs:   $LOG_DIR"
+if [ -n "$INSPECT_EVAL_ARGS" ]; then
+  echo "  Inspect args: $INSPECT_EVAL_ARGS"
+fi
 echo
+
+read -r -a INSPECT_EVAL_ARGS_ARRAY <<< "$INSPECT_EVAL_ARGS"
 
 attempted_runs=0
 failed_runs=0
@@ -121,6 +127,7 @@ for task in $TASKS; do
       --model "$model" \
       -T "seeds=${SEEDS}" \
       -T "seed_start=${SEED_START}" \
+      "${INSPECT_EVAL_ARGS_ARRAY[@]}" \
       --log-dir "$LOG_DIR"; then
       :
     else

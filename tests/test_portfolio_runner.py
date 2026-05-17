@@ -170,6 +170,30 @@ def test_run_portfolio_eval_supports_discovery_preset(tmp_path):
     assert "src/inspect_task.py@target_validate_01" in log_text
 
 
+def test_run_portfolio_eval_passes_extra_inspect_args(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="safety_case_01",
+        MODELS="anthropic/claude-haiku-4-5",
+        INSPECT_EVAL_ARGS="--max-samples 2 --max-connections 2",
+    )
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0
+    assert "Inspect args: --max-samples 2 --max-connections 2" in proc.stdout
+    log_text = Path(env["FAKE_INSPECT_LOG"]).read_text()
+    assert "--max-samples 2 --max-connections 2" in log_text
+
+
 def test_run_discovery_bundle_wires_runner_aggregation_and_plotting(tmp_path):
     fake_runner = _write_fake_runner(tmp_path)
     fake_aggregate = _write_fake_python_script(tmp_path, "fake_aggregate.py", "aggregate")
