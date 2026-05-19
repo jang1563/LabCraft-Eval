@@ -17,6 +17,8 @@ Public release surfaces:
 | Frozen simulator scorecard | [results/results.md](results/results.md) |
 | Failure-mode analysis | [results/analysis.md](results/analysis.md) |
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |
+| HPC v0.2 current-task candidate | [results/hpc_v0_2_current_n10.md](results/hpc_v0_2_current_n10.md) |
+| Safety-case live smoke | [results/safety_case_live_v0_2.md](results/safety_case_live_v0_2.md) |
 | Public snapshot checklist | [docs/release_checklist.md](docs/release_checklist.md) |
 
 Recommended reading path: start with the frozen simulator scorecard, then the failure-mode analysis, then the Discovery Decision Track. The Safety Case Track is separate and optional; it is not merged into the simulator leaderboard.
@@ -90,6 +92,10 @@ For the stronger 5-seed version of that same newer-task cross-provider slice, se
 For the discovery-decision bundle, see **[results/discovery_track.md](results/discovery_track.md)**. That track keeps the frozen microbiology snapshot untouched and adds three perturbation-driven discovery tasks in a shared synthetic environment.
 
 For the safety-case fixture bundle, see **[results/safety_case_track.md](results/safety_case_track.md)**. That track keeps model-helpfulness and boundary precision visible without merging its conversational safeguard scores into the simulator scorecard.
+
+For a larger HPC-only v0.2 current-task candidate, see **[results/hpc_v0_2_current_n10.md](results/hpc_v0_2_current_n10.md)**. That bundle covers 11 current tasks across 4 models and 10 seeds per cell, but remains separate from the frozen April 2026 scorecard.
+
+For live Safety Case Track model results, see **[results/safety_case_live_v0_2.md](results/safety_case_live_v0_2.md)**. Those scores are conversational safeguard-quality scores and are not merged into the wet-lab simulator leaderboard.
 
 ![Overall score by model and task](results/scorecard.png)
 

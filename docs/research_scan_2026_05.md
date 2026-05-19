@@ -1,6 +1,6 @@
 # May 2026 Biology-Agent Benchmark Scan
 
-Prepared: 2026-05-16
+Prepared: 2026-05-19
 
 This note records the current public landscape relevant to BioProtocolBench. It
 is deliberately separate from the README so the public entry point can stay
@@ -9,13 +9,28 @@ compact while the research positioning remains auditable.
 ## BioProtocolBench Public Surface
 
 - GitHub repository: <https://github.com/jang1563/BioProtocolBench>
-- Current remote `main` during scan: `151319ac734c65c0fe86e8f1f6296334fde13b2d`
-- Public release: `v0.1.0`, published 2026-04-25
-- No newer GitHub release, tag, issue, or pull request was found during the
-  scan.
+- Current remote `main` during the original scan:
+  `151319ac734c65c0fe86e8f1f6296334fde13b2d`
+- Public tag: `v0.1.0`, published 2026-04-25. GitHub's releases panel did not
+  show a separately published release object during the 2026-05-19 spot check.
+- No newer GitHub tag, issue, pull request, or separate release page was found
+  during the scan.
 - Search for the exact project name mainly returns this repository or is
   confounded with BioProBench. I did not find an additional public paper or blog
   post for this exact BioProtocolBench project.
+
+## 2026-05-19 Spot Check
+
+- Exact-name searches for `BioProtocolBench` and `jang1563/BioProtocolBench`
+  still did not surface a public paper, blog post, or release announcement beyond
+  the repository/tag.
+- The most relevant new comparables remain LABBench2, BioMysteryBench, and
+  PromptBio-Bench. These strengthen the case for positioning BioProtocolBench as
+  narrow, seeded, deterministic, and protocol-simulation focused rather than as a
+  broad biology-research-agent benchmark.
+- I did not add unverified social or secondary claims about newer model
+  scoreboards. Claims below are limited to primary sources or stable preprint
+  mirrors.
 
 ## Important New or Updated Comparables
 
