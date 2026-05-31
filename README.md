@@ -1,4 +1,6 @@
-# BioProtocolBench
+# LabCraft-Eval
+
+_Formerly **BioProtocolBench**; renamed 2026-05-31 to avoid a name collision with the unrelated [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) NLP corpus (Liu et al. 2025). The old GitHub URL auto-redirects here._
 
 [![Code License: Apache-2.0](https://img.shields.io/badge/code%20license-Apache--2.0-blue.svg)](LICENSE)
 [![Benchmark Content: CC BY-NC 4.0](https://img.shields.io/badge/benchmark%20content-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE-DATA)
@@ -7,13 +9,13 @@ An [Inspect AI](https://inspect.aisi.org.uk/) evaluation environment for measuri
 
 Built on **LabCraft**, the underlying framework in [`src/`](src/). Each task places the agent in a seeded stochastic environment with a fixed tool set, a public protocol, and a citation-backed ground truth.
 
-> Not to be confused with [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) (Liu et al., 2025), an NLP corpus of 556K instances. BioProtocolBench is an agent evaluation environment with four-axis trajectory scoring.
+> Not to be confused with [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) (Liu et al., 2025), an NLP corpus of 556K instances. LabCraft-Eval is an agent evaluation environment with four-axis trajectory scoring.
 
 Public release surfaces:
 
 | Surface | Link |
 |---------|------|
-| Code and benchmark repository | <https://github.com/jang1563/BioProtocolBench> |
+| Code and benchmark repository | <https://github.com/jang1563/LabCraft-Eval> |
 | Frozen simulator scorecard | [results/results.md](results/results.md) |
 | Failure-mode analysis | [results/analysis.md](results/analysis.md) |
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |
@@ -35,7 +37,7 @@ The agent must plan the experiment, call tools in the right order, interpret obs
 
 ## Discovery Decision Track
 
-BioProtocolBench now also includes a separate **Discovery Decision Track** for perturbation-driven discovery decisions. Instead of executing a microbiology workflow end to end, these tasks evaluate whether an agent can inspect candidate-target evidence, choose the right next experiment, and interpret one orthogonal follow-up with an auditable scorer.
+LabCraft-Eval now also includes a separate **Discovery Decision Track** for perturbation-driven discovery decisions. Instead of executing a microbiology workflow end to end, these tasks evaluate whether an agent can inspect candidate-target evidence, choose the right next experiment, and interpret one orthogonal follow-up with an auditable scorer.
 
 Current discovery-track tasks:
 
@@ -52,7 +54,7 @@ Quick discovery links:
 
 ## Optional Safety Case Track
 
-BioProtocolBench also includes a separate **Safety Case Track** for measuring
+LabCraft-Eval also includes a separate **Safety Case Track** for measuring
 deployment-safeguard quality on legitimate bio-research requests. This track is
 not a stochastic lab simulator and not a harmful-biology capability benchmark:
 it is a single-turn conversational eval that checks whether a model stays
@@ -252,13 +254,13 @@ $$S = \frac{\sum_j w_j \cdot s_j}{\sum_j w_j}$$
 ## Installation
 
 ```bash
-git clone https://github.com/jang1563/BioProtocolBench.git
-cd BioProtocolBench
+git clone https://github.com/jang1563/LabCraft-Eval.git
+cd LabCraft-Eval
 pip install -e ".[dev]"
 ```
 
 The installable Python distribution is currently named `labcraft`, because
-LabCraft is the simulator framework underneath BioProtocolBench. For v0.1.x,
+LabCraft is the simulator framework underneath LabCraft-Eval. For v0.1.x,
 direct Python imports remain internal `src.*` imports to preserve the existing
 Inspect task paths; the public execution surface is the Inspect task file and
 the runner scripts below.
@@ -319,7 +321,7 @@ For a minimal manual expert-baseline workflow on the two most informative snapsh
 ## Repository layout
 
 ```
-BioProtocolBench/
+LabCraft-Eval/
 ├── README.md
 ├── CITATION.cff
 ├── LICENSE
@@ -356,7 +358,7 @@ BioProtocolBench/
 
 ## Safety scope
 
-BioProtocolBench is deliberately limited to BSL-1/BSL-2 benign molecular microbiology with standard *E. coli* strains, standard cloning vectors, and routine reagents. Select agents, gain-of-function work, mammalian virology, and any content aimed at increasing real-world capability for harmful biology are explicitly excluded. Full policy in [SAFETY.md](SAFETY.md).
+LabCraft-Eval is deliberately limited to BSL-1/BSL-2 benign molecular microbiology with standard *E. coli* strains, standard cloning vectors, and routine reagents. Select agents, gain-of-function work, mammalian virology, and any content aimed at increasing real-world capability for harmful biology are explicitly excluded. Full policy in [SAFETY.md](SAFETY.md).
 
 Every stochastic parameter, ground-truth value, and safety statement traces to a public, citable source. The citation-tier system (Gold / Silver / Bronze / Copper) is documented in [SAFETY.md](SAFETY.md) and enforced by [tests/test_citations.py](tests/test_citations.py).
 
@@ -371,7 +373,7 @@ Tests cover the stochastic environment (determinism under seed, sample isolation
 
 ## Citation
 
-If you use BioProtocolBench, cite the repository URL, the commit SHA, and the
+If you use LabCraft-Eval, cite the repository URL, the commit SHA, and the
 result bundle or log directory you used. Machine-readable citation metadata is
 available in [CITATION.cff](CITATION.cff), and the public snapshot checklist is
 in [docs/release_checklist.md](docs/release_checklist.md).
@@ -397,7 +399,7 @@ Key references:
 
 ## License
 
-BioProtocolBench is dual-licensed:
+LabCraft-Eval is dual-licensed:
 
 - **Source code** (everything under `src/`, `tests/`, `environments/`, `docs/`, build config): [Apache License 2.0](LICENSE). Commercial use permitted.
 - **Benchmark content** (everything under `task_data/` and `data/`: rubrics, ground-truth values, parameter distributions, citations, reagent/enzyme/safety databases): [Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)](LICENSE-DATA). Free for research, teaching, and other non-commercial use with attribution.
