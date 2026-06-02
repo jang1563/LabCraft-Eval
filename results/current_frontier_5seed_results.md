@@ -1,4 +1,4 @@
-# BioProtocolBench Evaluation Results
+# LabCraft-Eval Evaluation Results
 
 Automatically aggregated from Inspect AI `.eval` logs in [results/current_openai_logs](../results/current_openai_logs), [results/current_anthropic_logs](../results/current_anthropic_logs), [results/current_openai_logs_seed34](../results/current_openai_logs_seed34), [results/current_anthropic_logs_seed34](../results/current_anthropic_logs_seed34).
 

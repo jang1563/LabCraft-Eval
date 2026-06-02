@@ -1,19 +1,19 @@
 cff-version: 1.2.0
 message: >-
-  If you use BioProtocolBench, please cite the repository URL, commit SHA, and
+  If you use LabCraft-Eval, please cite the repository URL, commit SHA, and
   result bundle used. Source code is Apache-2.0; benchmark content is
   CC-BY-NC-4.0.
-title: "BioProtocolBench: A stochastic agent evaluation environment for benign molecular-microbiology protocols"
+title: "LabCraft-Eval: A stochastic agent evaluation environment for benign molecular-microbiology protocols"
 type: software
 authors:
-  - name: "The BioProtocolBench Authors"
-repository-code: "https://github.com/jang1563/BioProtocolBench"
-url: "https://github.com/jang1563/BioProtocolBench"
+  - name: "The LabCraft-Eval Authors"
+repository-code: "https://github.com/jang1563/LabCraft-Eval"
+url: "https://github.com/jang1563/LabCraft-Eval"
 version: "0.1.0"
 date-released: "2026-04-25"
 license: "Apache-2.0"
 abstract: >-
-  BioProtocolBench is an Inspect AI evaluation environment for measuring how
+  LabCraft-Eval is an Inspect AI evaluation environment for measuring how
   well AI agents execute benign molecular-microbiology protocols inside a
   seeded stochastic laboratory simulator, with deterministic four-axis
   trajectory scoring and citation-backed task data.

@@ -273,7 +273,7 @@ def plot_scorecard(agg, tasks: list[str], models: list[str], out_dir: Path):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_title(
-        "BioProtocolBench overall score by model and task ({})".format(n_label),
+        "LabCraft-Eval overall score by model and task ({})".format(n_label),
         fontsize=12,
         pad=12,
     )

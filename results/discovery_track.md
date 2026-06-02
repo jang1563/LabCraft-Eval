@@ -13,7 +13,7 @@ What this track measures:
 - whether it interprets that result correctly
 - whether it avoids wasted tool use
 
-This track is intentionally small and auditable. It is not trying to be a general biomedical agent benchmark. The point is to create a compact, recruiter-readable demonstration that BioProtocolBench can evaluate discovery-decision quality as well as wet-lab execution reliability.
+This track is intentionally small and auditable. It is not trying to be a general biomedical agent benchmark. The point is to create a compact, recruiter-readable demonstration that LabCraft-Eval can evaluate discovery-decision quality as well as wet-lab execution reliability.
 
 Current 2-model / 3-seed bundle:
 

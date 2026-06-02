@@ -4,7 +4,7 @@ Prepared: 2026-05-16
 
 This plan treats the local machine as an editing and review surface only.
 Benchmark execution, aggregation, plotting, tests, and package builds belong on
-HPC. The aim is to turn BioProtocolBench from a public v0.1 snapshot into a
+HPC. The aim is to turn LabCraft-Eval from a public v0.1 snapshot into a
 larger, reproducible v0.2 result bundle without overwriting the frozen April
 2026 scorecard.
 
@@ -134,10 +134,10 @@ Promote only after the following are complete on HPC:
 
 ## Recommended Public Framing
 
-BioProtocolBench should not claim to compete with large bioinformatics agent
+LabCraft-Eval should not claim to compete with large bioinformatics agent
 benchmarks on breadth. The defensible v0.2 claim is narrower:
 
-> BioProtocolBench is a compact, reproducible, interactive benchmark for benign
+> LabCraft-Eval is a compact, reproducible, interactive benchmark for benign
 > wet-lab protocol execution and discovery-decision reliability. Its distinctive
 > contribution is seeded stochastic simulation plus deterministic multi-axis
 > trajectory scoring.

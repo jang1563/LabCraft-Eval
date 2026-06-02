@@ -1,4 +1,4 @@
-# BioProtocolBench Evaluation — Analysis
+# LabCraft-Eval Evaluation — Analysis
 
 100 scored sample rows across 5 tasks × 4 frontier models × 5 stochastic seeds, April 2026.
 This document analyzes the frozen April 2026 portfolio snapshot only: `transform_01`, `growth_01`, `pcr_01`, `screen_01`, and `clone_01`. The repo now implements additional tasks, including `golden_gate_01`, `gibson_01`, `miniprep_01`, `express_01`, and `purify_01`, but those are not part of the headline tables below. A separate appendix near the end summarizes the newer-task 5-seed frontier extension without merging it into the frozen snapshot. The repo also now includes a human-baseline workflow and pilot reporting for `transform_01` and `growth_01`, but no completed expert sessions are analyzed in this document yet.

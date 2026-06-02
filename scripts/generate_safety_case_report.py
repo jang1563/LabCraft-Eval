@@ -106,7 +106,7 @@ def generate_report(results: List[FixtureResult], loader: SafetyCaseLoader, scor
     lines: List[str] = []
 
     lines += [
-        "# Safety Case Track — BioProtocolBench Fixture Results",
+        "# Safety Case Track — LabCraft-Eval Fixture Results",
         "",
         f"*Generated: {today} | Dataset: {len(loader.scenarios)} scenarios × 2 fixtures = {len(results)} total*",
         "",

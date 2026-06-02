@@ -116,7 +116,7 @@ cat > "$MANIFEST_PATH" <<EOF
 }
 EOF
 
-echo "BioProtocolBench HPC eval cell"
+echo "LabCraft-Eval HPC eval cell"
 echo "  run_id:      ${RUN_ID}"
 echo "  array_id:    ${ARRAY_ID}/${TOTAL_CELLS}"
 echo "  commit_sha:  ${COMMIT_SHA}"

@@ -1,11 +1,11 @@
 # Release Checklist
 
-Use this checklist before tagging or announcing a public BioProtocolBench
+Use this checklist before tagging or announcing a public LabCraft-Eval
 snapshot.
 
 ## Scope and naming
 
-- Keep the public benchmark name as BioProtocolBench and the v0.1.x installable
+- Keep the public benchmark name as LabCraft-Eval and the v0.1.x installable
   distribution name as `labcraft`.
 - Treat direct `src.*` imports as internal compatibility paths for v0.1.x.
   Avoid introducing a second public import namespace in a patch release.

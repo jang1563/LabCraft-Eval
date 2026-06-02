@@ -1,4 +1,4 @@
-"""Inspect AI task entry points for BioProtocolBench/LabCraft.
+"""Inspect AI task entry points for LabCraft-Eval/LabCraft.
 
 Each public task is registered separately so Inspect can attach the task-specific
 setup hook, solver, scorer, and cleanup hook. Multi-task suites are orchestrated
@@ -420,7 +420,7 @@ def safety_case_01(seeds: int = 1, seed_start: int = 0):
 def labcraft_suite(seeds: int = 1, seed_start: int = 0):
     """Backward-compatible single-task smoke entry point.
 
-    Heterogeneous BioProtocolBench suites need different setup, solver, scorer,
+    Heterogeneous LabCraft-Eval suites need different setup, solver, scorer,
     and cleanup contracts per task. Use ``scripts/run_portfolio_eval.sh`` with
     ``TASK_PRESET=snapshot``, ``current``, ``discovery``, or ``all`` for real
     portfolio runs.

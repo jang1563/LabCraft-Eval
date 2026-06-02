@@ -1,6 +1,6 @@
 # Company Brief Template
 
-BioProtocolBench has two complementary layers.
+LabCraft-Eval has two complementary layers.
 
 The original LabCraft benchmark asks whether an agent can execute benign wet-lab workflows reliably inside a seeded stochastic simulator. The Discovery Decision Track asks a different question: whether a biomedical agent can inspect perturbation-style evidence, choose the right next experiment, and interpret that result with an auditable scorer.
 
@@ -27,7 +27,7 @@ Use this template for company-specific positioning outside the public benchmark 
 - It is not a production drug-discovery platform.
 - It does not claim real-world therapeutic efficacy or wet-lab uplift.
 
-## Relevant BioProtocolBench Links
+## Relevant LabCraft-Eval Links
 
 - [README](../../README.md)
 - [Discovery Decision Track](../../results/discovery_track.md)

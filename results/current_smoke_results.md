@@ -1,4 +1,4 @@
-# BioProtocolBench Evaluation Results
+# LabCraft-Eval Evaluation Results
 
 Automatically aggregated from Inspect AI `.eval` logs in [results/current_smoke_logs](../results/current_smoke_logs).
 

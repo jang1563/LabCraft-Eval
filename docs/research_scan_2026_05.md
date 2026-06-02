@@ -2,13 +2,13 @@
 
 Prepared: 2026-05-19
 
-This note records the current public landscape relevant to BioProtocolBench. It
+This note records the current public landscape relevant to LabCraft-Eval. It
 is deliberately separate from the README so the public entry point can stay
 compact while the research positioning remains auditable.
 
-## BioProtocolBench Public Surface
+## LabCraft-Eval Public Surface
 
-- GitHub repository: <https://github.com/jang1563/BioProtocolBench>
+- GitHub repository: <https://github.com/jang1563/LabCraft-Eval>
 - Current remote `main` during the original scan:
   `151319ac734c65c0fe86e8f1f6296334fde13b2d`
 - Public tag: `v0.1.0`, published 2026-04-25. GitHub's releases panel did not
@@ -17,15 +17,15 @@ compact while the research positioning remains auditable.
   during the scan.
 - Search for the exact project name mainly returns this repository or is
   confounded with BioProBench. I did not find an additional public paper or blog
-  post for this exact BioProtocolBench project.
+  post for this exact LabCraft-Eval project.
 
 ## 2026-05-19 Spot Check
 
-- Exact-name searches for `BioProtocolBench` and `jang1563/BioProtocolBench`
+- Exact-name searches for `LabCraft-Eval` and `jang1563/LabCraft-Eval`
   still did not surface a public paper, blog post, or release announcement beyond
   the repository/tag.
 - The most relevant new comparables remain LABBench2, BioMysteryBench, and
-  PromptBio-Bench. These strengthen the case for positioning BioProtocolBench as
+  PromptBio-Bench. These strengthen the case for positioning LabCraft-Eval as
   narrow, seeded, deterministic, and protocol-simulation focused rather than as a
   broad biology-research-agent benchmark.
 - I did not add unverified social or secondary claims about newer model
@@ -42,8 +42,8 @@ LABBench2 is a May 2026-revised continuation of LAB-Bench with nearly 1,900
 biology research tasks in more realistic contexts. It is now a primary
 reference for "AI systems performing useful biology research tasks."
 
-Impact on BioProtocolBench: avoid broad claims about measuring biology research
-capability. Position BioProtocolBench as wet-lab protocol simulation and
+Impact on LabCraft-Eval: avoid broad claims about measuring biology research
+capability. Position LabCraft-Eval as wet-lab protocol simulation and
 trajectory reliability.
 
 ### BioProBench v3
@@ -55,7 +55,7 @@ BioProCorpus, more than 550,000 task instances, quantitative precision, safety
 awareness, and ProAgent.
 
 Impact: keep the README distinction clear. BioProBench is large-scale
-procedural-text understanding; BioProtocolBench is small-scale interactive
+procedural-text understanding; LabCraft-Eval is small-scale interactive
 execution in a stochastic simulator.
 
 ### BioAgent Bench
@@ -75,7 +75,7 @@ Source: <https://arxiv.org/abs/2601.01678>
 HeurekaBench constructs open-ended research questions grounded in scientific
 studies and code repositories, with a single-cell instantiation.
 
-Impact: raises the bar for "AI co-scientist" claims. BioProtocolBench should
+Impact: raises the bar for "AI co-scientist" claims. LabCraft-Eval should
 stay in the narrower protocol-execution and discovery-decision lane.
 
 ### BioMysteryBench
@@ -87,7 +87,7 @@ from real-world datasets with objective ground truth and repeated attempts. The
 post emphasizes reliability: easy tasks tend to be solved consistently, while
 hard-task wins are often brittle.
 
-Impact: BioProtocolBench should report seed-level reliability, not just mean
+Impact: LabCraft-Eval should report seed-level reliability, not just mean
 score. This directly motivates an HPC N=10-20 v0.2 bundle.
 
 ### CompBioBench
@@ -100,7 +100,7 @@ verifiable computational biology problems, with public Hugging Face data and a
 leaderboard.
 
 Impact: another reason to avoid broad computational-biology-agent claims.
-BioProtocolBench remains complementary only if framed around simulated wet-lab
+LabCraft-Eval remains complementary only if framed around simulated wet-lab
 protocol trajectories.
 
 ### GeneBench
@@ -112,7 +112,7 @@ biology. It emphasizes inferential forks where plausible wrong choices
 propagate into wrong final answers.
 
 Impact: its "noticing versus acting" failure mode maps well onto
-BioProtocolBench's separated troubleshooting and task-success axes.
+LabCraft-Eval's separated troubleshooting and task-success axes.
 
 ### PromptBio-Bench
 
@@ -134,25 +134,25 @@ analysis tasks, with more than 50 scenarios and nearly 300 open-answer
 questions.
 
 Impact: cite as a stronger benchmark for computational biology; position
-BioProtocolBench elsewhere.
+LabCraft-Eval elsewhere.
 
 ### SciGym
 
 Source: <https://arxiv.org/abs/2507.02083>
 
 SciGym uses systems-biology dry labs for iterative experiment design and
-analysis. It is closer to BioProtocolBench's simulator idea than many
+analysis. It is closer to LabCraft-Eval's simulator idea than many
 bioinformatics benchmarks, but targets hidden mechanism discovery rather than
 routine molecular-microbiology protocol execution.
 
-Impact: BioProtocolBench can honestly say it is smaller and narrower, with a
+Impact: LabCraft-Eval can honestly say it is smaller and narrower, with a
 different simulator domain and deterministic trajectory rubric.
 
 ## Revised Claim
 
 Recommended one-sentence claim:
 
-> BioProtocolBench is a compact, reproducible, interactive benchmark for benign
+> LabCraft-Eval is a compact, reproducible, interactive benchmark for benign
 > wet-lab protocol execution and discovery-decision reliability, distinguished
 > by seeded stochastic simulation and deterministic multi-axis trajectory
 > scoring.

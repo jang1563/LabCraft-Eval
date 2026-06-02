@@ -2,7 +2,7 @@
 
 Small discovery-facing extension built on the existing growth toolchain.
 
-This page is intentionally separate from the frozen April 2026 5-task portfolio snapshot. It adds one new task, `followup_01`, that shifts BioProtocolBench from pure assay execution toward **next-experiment choice after ambiguous intervention data**.
+This page is intentionally separate from the frozen April 2026 5-task portfolio snapshot. It adds one new task, `followup_01`, that shifts LabCraft-Eval from pure assay execution toward **next-experiment choice after ambiguous intervention data**.
 
 ## Why this task exists
 

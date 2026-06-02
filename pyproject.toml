@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [
-    { name = "The BioProtocolBench Authors" },
+    { name = "The LabCraft-Eval Authors" },
 ]
 keywords = [
     "agent-evaluation",
@@ -31,9 +31,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jang1563/BioProtocolBench"
-Repository = "https://github.com/jang1563/BioProtocolBench"
-Issues = "https://github.com/jang1563/BioProtocolBench/issues"
+Homepage = "https://github.com/jang1563/LabCraft-Eval"
+Repository = "https://github.com/jang1563/LabCraft-Eval"
+Issues = "https://github.com/jang1563/LabCraft-Eval/issues"
 
 [project.optional-dependencies]
 dev = [

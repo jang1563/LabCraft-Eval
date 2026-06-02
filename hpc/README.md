@@ -1,7 +1,7 @@
-# BioProtocolBench HPC Workflow
+# LabCraft-Eval HPC Workflow
 
 This directory contains the recommended HPC-only execution surface for
-BioProtocolBench. Local machines should be used for editing, review, and git
+LabCraft-Eval. Local machines should be used for editing, review, and git
 operations only; tests, builds, Inspect runs, aggregation, and plotting should be
 submitted to the cluster.
 
@@ -15,7 +15,7 @@ Clone or sync the repository on the HPC filesystem, then create a Python
 environment with the project installed:
 
 ```bash
-cd /path/to/BioProtocolBench
+cd /path/to/LabCraft-Eval
 python3.13 -m venv /path/to/labcraft-py313
 /path/to/labcraft-py313/bin/python -m pip install -e ".[dev,analysis]"
 /path/to/labcraft-py313/bin/python -m pip install openai anthropic

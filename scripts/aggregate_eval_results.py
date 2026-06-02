@@ -200,7 +200,7 @@ def format_markdown(
     axes = axes or discover_axes(per_sample_rows)
     rel_links = [_format_log_dir_reference(log_dir) for log_dir in log_dirs]
     lines = [
-        "# BioProtocolBench Evaluation Results",
+        "# LabCraft-Eval Evaluation Results",
         "",
         "Automatically aggregated from Inspect AI `.eval` logs in {}.".format(
             ", ".join(rel_links)

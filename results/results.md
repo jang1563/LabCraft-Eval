@@ -1,4 +1,4 @@
-# BioProtocolBench Evaluation Results
+# LabCraft-Eval Evaluation Results
 
 Automatically aggregated from Inspect AI `.eval` logs in [results/logs](../results/logs).
 

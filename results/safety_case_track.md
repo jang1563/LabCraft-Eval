@@ -1,6 +1,6 @@
-# Safety Case Track — BioProtocolBench Fixture Results
+# Safety Case Track — LabCraft-Eval Fixture Results
 
-*Generated: 2026-04-27 | Dataset: 30 scenarios × 2 fixtures = 60 total*
+*Generated: 2026-06-02 | Dataset: 30 scenarios × 2 fixtures = 60 total*
 
 > **Scope statement**: This evaluation measures safeguard quality on **legitimate
 > bio-research requests**. It does not test, elicit, or score harmful biology

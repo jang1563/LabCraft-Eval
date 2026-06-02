@@ -127,7 +127,7 @@ for task in $TASKS; do
       --model "$model" \
       -T "seeds=${SEEDS}" \
       -T "seed_start=${SEED_START}" \
-      "${INSPECT_EVAL_ARGS_ARRAY[@]}" \
+      "${INSPECT_EVAL_ARGS_ARRAY[@]+"${INSPECT_EVAL_ARGS_ARRAY[@]}"}" \
       --log-dir "$LOG_DIR"; then
       :
     else

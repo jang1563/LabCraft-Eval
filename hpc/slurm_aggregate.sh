@@ -61,7 +61,7 @@ cat > "${BUNDLE_DIR}/aggregate_manifest.json" <<EOF
 }
 EOF
 
-echo "Aggregating BioProtocolBench HPC bundle"
+echo "Aggregating LabCraft-Eval HPC bundle"
 echo "  run_id:         ${RUN_ID}"
 echo "  commit_sha:     ${COMMIT_SHA}"
 echo "  log_dir:        ${LOG_DIR}"

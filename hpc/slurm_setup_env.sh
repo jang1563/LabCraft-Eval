@@ -27,7 +27,7 @@ fi
 
 mkdir -p "${REPO_ROOT}/results/hpc/slurm"
 
-echo "Preparing BioProtocolBench HPC Python environment"
+echo "Preparing LabCraft-Eval HPC Python environment"
 echo "  repo:     ${REPO_ROOT}"
 echo "  venv:     ${VENV_DIR}"
 echo "  module:   ${PYTHON_MODULE}"
