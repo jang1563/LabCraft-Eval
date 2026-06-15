@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jang1563/LabCraft-Eval/schemas/hf_result_record.schema.json",
+  "title": "LabCraft-Eval Hugging Face result record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source_commit",
+    "model",
+    "task",
+    "sample_id",
+    "eval_log",
+    "scores"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "source_commit": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "sample_id": {
+      "type": "string"
+    },
+    "eval_log": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string"
+    },
+    "scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
+  },
+  "additionalProperties": true
+}

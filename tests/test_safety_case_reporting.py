@@ -16,10 +16,23 @@ EXCLUSION_KW_PATH = ROOT / "tests" / "scope_exclusion_keywords.txt"
 
 
 @pytest.fixture(scope="module")
-def report_bundle():
+def report_bundle(tmp_path_factory):
     """Generate reports before the test module runs, return the JSON bundle."""
+    global REPORT_MD, REPORT_JSON
+    out_dir = tmp_path_factory.mktemp("safety_case_report")
+    REPORT_MD = out_dir / "safety_case_track.md"
+    REPORT_JSON = out_dir / "safety_case_track.json"
     result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "generate_safety_case_report.py")],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "generate_safety_case_report.py"),
+            "--out-md",
+            str(REPORT_MD),
+            "--out-json",
+            str(REPORT_JSON),
+            "--generated-date",
+            "2026-06-02",
+        ],
         capture_output=True,
         text=True,
         cwd=str(ROOT),
@@ -172,7 +185,16 @@ def test_json_bundle_is_reproducible(report_bundle):
     """Re-run generator; check JSON output is byte-for-byte identical."""
     first_run = REPORT_JSON.read_text(encoding="utf-8")
     subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "generate_safety_case_report.py")],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "generate_safety_case_report.py"),
+            "--out-md",
+            str(REPORT_MD),
+            "--out-json",
+            str(REPORT_JSON),
+            "--generated-date",
+            "2026-06-02",
+        ],
         capture_output=True, cwd=str(ROOT), check=True,
     )
     second_run = REPORT_JSON.read_text(encoding="utf-8")
