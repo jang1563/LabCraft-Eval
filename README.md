@@ -18,6 +18,9 @@ Public release surfaces:
 |---------|------|
 | Code and benchmark repository | <https://github.com/jang1563/LabCraft-Eval> |
 | Hugging Face dataset export | <https://huggingface.co/datasets/jang1563/LabCraft-Eval> |
+| Architecture overview | [docs/architecture.md](docs/architecture.md) |
+| Trajectory walkthrough | [docs/trajectory_walkthrough.md](docs/trajectory_walkthrough.md) |
+| HF export data dictionary | [docs/hf_data_dictionary.md](docs/hf_data_dictionary.md) |
 | Frozen simulator scorecard | [results/results.md](results/results.md) |
 | Failure-mode analysis | [results/analysis.md](results/analysis.md) |
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |
@@ -27,7 +30,10 @@ Public release surfaces:
 | Public artifact roadmap | [docs/publication_roadmap.md](docs/publication_roadmap.md) |
 | Hugging Face release plan | [docs/hf_release.md](docs/hf_release.md) |
 
-Recommended reading path: start with the frozen simulator scorecard, then the failure-mode analysis, then the Discovery Decision Track. The Safety Case Track is separate and optional; it is not merged into the simulator leaderboard.
+Recommended reading path: start with the architecture overview and trajectory
+walkthrough, then the frozen simulator scorecard, then the failure-mode
+analysis, then the Discovery Decision Track. The Safety Case Track is separate
+and optional; it is not merged into the simulator leaderboard.
 
 Machine-readable path: use the Hugging Face export script to write JSONL files,
 checksums, a release manifest, and a dataset-card `README.md` without scraping

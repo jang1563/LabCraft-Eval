@@ -33,6 +33,8 @@ def test_dataset_card_text_includes_hf_metadata_and_manifest_pointers():
     assert "license: cc-by-nc-4.0" in text
     assert "- inspect-ai" in text
     assert "release_manifest.json" in text
+    assert "## Data Fields" in text
+    assert "`result_rows.jsonl` | one row per deduplicated scored sample" in text
     assert "omitted from this metadata-only export" in text
     assert "`plots/`: omitted" in text
     assert "metadata license field reflects the uploaded benchmark-content" in text
