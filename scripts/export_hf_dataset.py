@@ -454,6 +454,21 @@ This Hugging Face dataset export is generated from the GitHub repository:
 - `citations.jsonl`: extracted citation objects from task and parameter files.
 - `eval_log_manifest.jsonl`: checksums and sizes for included `.eval` logs.
 {result_line}{plot_line}
+## Data Fields
+
+| File | Grain | Key fields |
+| --- | --- | --- |
+| `tasks.jsonl` | one row per task | `task_id`, `track`, `task_title`, `domain`, `objective`, `paths`, `licenses` |
+| `rubrics.jsonl` | one row per task with a rubric | `task_id`, `track`, `path`, `rubric` |
+| `ground_truth.jsonl` | one row per task with ground truth | `task_id`, `track`, `path`, `ground_truth` |
+| `citations.jsonl` | one row per citation object | `citation_id`, `source_file`, `json_path`, `task_id`, `citation` |
+| `eval_log_manifest.jsonl` | one row per included `.eval` log | `path`, `log_dir`, `filename`, `sha256`, `bytes` |
+| `result_rows.jsonl` | one row per deduplicated scored sample | `model`, `task`, `track`, `status`, `sample_id`, `eval_log_path`, `created`, `tokens`, `scores` |
+
+All JSONL records include `schema_version` and `source_commit` unless the file
+is a copied binary plot. Use `release_manifest.json` to verify SHA-256 checksums,
+byte counts, record counts, and the source GitHub commit for the snapshot.
+
 ## Benchmark Tracks
 
 - Frozen simulator snapshot: the April 2026 five-task scorecard.

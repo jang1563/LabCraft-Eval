@@ -105,6 +105,7 @@ The Hugging Face dataset card should include:
 - Dataset summary.
 - Benchmark tracks and task inventory.
 - Data files and field descriptions.
+- Link or inline summary for the Hugging Face export data dictionary.
 - Intended use.
 - Out-of-scope use.
 - Safety scope.
