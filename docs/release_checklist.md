@@ -39,6 +39,41 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
   Slurm array range, model matrix, task matrix, seed range, and aggregation
   command.
 
+## Hugging Face export checks
+
+Before uploading or tagging a Hugging Face dataset snapshot, generate and
+validate the export bundle:
+
+```bash
+uv run python scripts/export_hf_dataset.py \
+  --out-dir build/hf_dataset \
+  --release-name <release_name> \
+  --copy-plots
+uv run python scripts/validate_hf_export.py build/hf_dataset
+```
+
+Do not upload bundles with empty `result_rows.jsonl`, checksum mismatches, or
+missing plot assets.
+
+Before performing a network upload, inspect the dry-run plan:
+
+```bash
+uv run python scripts/upload_hf_dataset.py \
+  build/hf_dataset \
+  --repo-id jang1563/LabCraft-Eval
+```
+
+Only upload after the plan matches the intended file set:
+
+```bash
+uv pip install 'huggingface-hub>=0.36,<1.0'
+uv run python scripts/upload_hf_dataset.py \
+  build/hf_dataset \
+  --repo-id jang1563/LabCraft-Eval \
+  --create-repo \
+  --execute
+```
+
 ## Result bundle checks
 
 - Frozen snapshot results should stay tied to `results/logs`,

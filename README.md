@@ -4,6 +4,7 @@ _Formerly **BioProtocolBench**; renamed 2026-05-31 to avoid a name collision wit
 
 [![Code License: Apache-2.0](https://img.shields.io/badge/code%20license-Apache--2.0-blue.svg)](LICENSE)
 [![Benchmark Content: CC BY-NC 4.0](https://img.shields.io/badge/benchmark%20content-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE-DATA)
+[![CI](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml/badge.svg)](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml)
 
 An [Inspect AI](https://inspect.aisi.org.uk/) evaluation environment for measuring how well AI agents execute benign molecular-microbiology protocols inside a stochastic laboratory simulator.
 
@@ -16,14 +17,53 @@ Public release surfaces:
 | Surface | Link |
 |---------|------|
 | Code and benchmark repository | <https://github.com/jang1563/LabCraft-Eval> |
+| Hugging Face dataset export | <https://huggingface.co/datasets/jang1563/LabCraft-Eval> |
 | Frozen simulator scorecard | [results/results.md](results/results.md) |
 | Failure-mode analysis | [results/analysis.md](results/analysis.md) |
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |
 | HPC v0.2 current-task candidate | [results/hpc_v0_2_current_n10.md](results/hpc_v0_2_current_n10.md) |
 | Safety-case live smoke | [results/safety_case_live_v0_2.md](results/safety_case_live_v0_2.md) |
 | Public snapshot checklist | [docs/release_checklist.md](docs/release_checklist.md) |
+| Public artifact roadmap | [docs/publication_roadmap.md](docs/publication_roadmap.md) |
+| Hugging Face release plan | [docs/hf_release.md](docs/hf_release.md) |
 
 Recommended reading path: start with the frozen simulator scorecard, then the failure-mode analysis, then the Discovery Decision Track. The Safety Case Track is separate and optional; it is not merged into the simulator leaderboard.
+
+Machine-readable path: use the Hugging Face export script to write JSONL files,
+checksums, a release manifest, and a dataset-card `README.md` without scraping
+Markdown result pages.
+
+```bash
+uv run python scripts/export_hf_dataset.py \
+  --out-dir build/hf_dataset \
+  --release-name local_export \
+  --copy-plots
+uv run python scripts/validate_hf_export.py build/hf_dataset
+```
+
+The export includes task records, rubrics, ground-truth records, citations,
+`.eval` log checksums, deduplicated result rows, optional scorecard plots, and
+`release_manifest.json`. The validator checks checksums, byte counts, JSONL
+record counts, required fields, and non-empty scored result rows when
+`result_rows.jsonl` is present.
+
+Before uploading a dataset snapshot, inspect the dry-run upload plan:
+
+```bash
+uv run python scripts/upload_hf_dataset.py \
+  build/hf_dataset \
+  --repo-id jang1563/LabCraft-Eval
+```
+
+For actual upload with `--execute`, install `huggingface-hub>=0.36,<1.0` in the
+active environment first.
+
+Quickly inspect the public Hugging Face snapshot without extra dependencies:
+
+```bash
+python3 examples/hf_quickstart.py
+python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
+```
 
 ## What the agent does
 
@@ -353,6 +393,9 @@ LabCraft-Eval/
 ├── environments/             # Docker sandbox
 ├── docs/schemas.md           # JSON schema contract
 ├── docs/release_checklist.md  # Public snapshot checklist
+├── docs/publication_roadmap.md # GitHub/HF public artifact roadmap
+├── docs/hf_release.md        # Hugging Face dataset and leaderboard plan
+├── schemas/                  # Machine-readable export schema drafts
 └── tests/                    # Unit tests (environment, scorer, tools, rubrics)
 ```
 

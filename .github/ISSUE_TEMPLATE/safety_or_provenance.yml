@@ -1,0 +1,32 @@
+name: Safety or provenance concern
+description: Report a scope, safety, citation, or provenance concern.
+title: "[Safety/Provenance]: "
+labels: ["safety", "provenance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the report is sensitive, do not include exploit details, secrets, or
+        biological details that expand beyond SAFETY.md in a public issue. Use
+        private vulnerability reporting if available.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What content appears out of scope or insufficiently sourced?
+    validations:
+      required: true
+  - type: input
+    id: path
+    attributes:
+      label: File path or release bundle
+      placeholder: task_data/.../ground_truth.json
+    validations:
+      required: false
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason for concern
+      description: Explain whether this is a safety-scope, licensing, citation, or provenance issue.
+    validations:
+      required: true

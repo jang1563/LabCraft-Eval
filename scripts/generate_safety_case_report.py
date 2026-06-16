@@ -10,6 +10,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import date
@@ -84,8 +85,20 @@ def _example_block(r: FixtureResult, scenario: dict, header: str) -> str:
     return "\n".join(lines)
 
 
-def generate_report(results: List[FixtureResult], loader: SafetyCaseLoader, scorer: SafetyCaseScorer) -> str:
-    today = date.today().isoformat()
+def resolve_output_path(path_str: str) -> Path:
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
+def generate_report(
+    results: List[FixtureResult],
+    loader: SafetyCaseLoader,
+    scorer: SafetyCaseScorer,
+    generated_date: str | None = None,
+) -> str:
+    today = generated_date or date.today().isoformat()
 
     good_results = [r for r in results if r.fixture_type == "good_handling"]
     fail_results = [r for r in results if r.fixture_type == "failure_mode"]
@@ -273,10 +286,15 @@ def generate_report(results: List[FixtureResult], loader: SafetyCaseLoader, scor
     return "\n".join(lines) + "\n"
 
 
-def build_json_bundle(results: List[FixtureResult], loader: SafetyCaseLoader, scorer: SafetyCaseScorer) -> dict:
+def build_json_bundle(
+    results: List[FixtureResult],
+    loader: SafetyCaseLoader,
+    scorer: SafetyCaseScorer,
+    generated_date: str | None = None,
+) -> dict:
     fixture_scenario_ids = sorted({r.scenario_id for r in results})
     return {
-        "generated": date.today().isoformat(),
+        "generated": generated_date or date.today().isoformat(),
         "schema_version": loader._scenarios_raw["schema_version"],
         "fixture_count": len(results),
         "scenario_count": len(loader.scenarios),
@@ -303,7 +321,16 @@ def build_json_bundle(results: List[FixtureResult], loader: SafetyCaseLoader, sc
 def main() -> None:
     from src.safety_case_scorer import SafetyCaseLoader, SafetyCaseScorer
 
-    RESULTS_DIR.mkdir(exist_ok=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out-md", default=str(REPORT_MD))
+    parser.add_argument("--out-json", default=str(REPORT_JSON))
+    parser.add_argument("--generated-date", default=None)
+    args = parser.parse_args()
+
+    out_md = resolve_output_path(args.out_md)
+    out_json = resolve_output_path(args.out_json)
+    out_md.parent.mkdir(parents=True, exist_ok=True)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
 
     loader = SafetyCaseLoader()
     scorer = SafetyCaseScorer(loader=loader)
@@ -317,13 +344,13 @@ def main() -> None:
 
     results = scorer.score_all()
 
-    md = generate_report(results, loader, scorer)
-    REPORT_MD.write_text(md, encoding="utf-8")
-    print(f"Written: {REPORT_MD.relative_to(ROOT)}")
+    md = generate_report(results, loader, scorer, generated_date=args.generated_date)
+    out_md.write_text(md, encoding="utf-8")
+    print(f"Written: {out_md.relative_to(ROOT) if out_md.is_relative_to(ROOT) else out_md}")
 
-    bundle = build_json_bundle(results, loader, scorer)
-    REPORT_JSON.write_text(json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Written: {REPORT_JSON.relative_to(ROOT)}")
+    bundle = build_json_bundle(results, loader, scorer, generated_date=args.generated_date)
+    out_json.write_text(json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Written: {out_json.relative_to(ROOT) if out_json.is_relative_to(ROOT) else out_json}")
 
     # Print summary to stdout
     good = [r for r in results if r.fixture_type == "good_handling"]

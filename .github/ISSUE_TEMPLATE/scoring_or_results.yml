@@ -1,0 +1,41 @@
+name: Scoring or results issue
+description: Report a scorer, aggregation, release bundle, or result-table concern.
+title: "[Scoring]: "
+labels: ["scoring", "results"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the suspected scoring or result issue.
+    validations:
+      required: true
+  - type: input
+    id: task
+    attributes:
+      label: Task ID
+      placeholder: transform_01
+    validations:
+      required: false
+  - type: input
+    id: model_seed
+    attributes:
+      label: Model and seed
+      placeholder: openai/gpt-4o-mini, seed 03
+    validations:
+      required: false
+  - type: input
+    id: result_bundle
+    attributes:
+      label: Result bundle or log path
+      placeholder: results/logs/... or results/hpc/<RUN_ID>/...
+    validations:
+      required: false
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include the relevant score row, `.eval` filename, or transcript excerpt.
+      render: text
+    validations:
+      required: false

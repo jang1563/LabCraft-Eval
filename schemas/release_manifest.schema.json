@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jang1563/LabCraft-Eval/schemas/release_manifest.schema.json",
+  "title": "LabCraft-Eval release manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "source_commit",
+    "source_repository",
+    "exporter",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "source_commit": {
+      "type": "string"
+    },
+    "source_repository": {
+      "type": "string"
+    },
+    "exporter": {
+      "type": "string"
+    },
+    "release_name": {
+      "type": "string"
+    },
+    "result_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "bytes", "record_count"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "source_path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "record_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

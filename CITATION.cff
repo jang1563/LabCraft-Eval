@@ -1,19 +1,27 @@
 cff-version: 1.2.0
 message: >-
-  If you use LabCraft-Eval, please cite the repository URL, commit SHA, and
-  result bundle used. Source code is Apache-2.0; benchmark content is
-  CC-BY-NC-4.0.
+  If you use LabCraft-Eval, please cite the repository URL, source commit SHA,
+  and release manifest or result bundle used. Source code is Apache-2.0;
+  benchmark content is CC-BY-NC-4.0.
 title: "LabCraft-Eval: A stochastic agent evaluation environment for benign molecular-microbiology protocols"
 type: software
 authors:
   - name: "The LabCraft-Eval Authors"
 repository-code: "https://github.com/jang1563/LabCraft-Eval"
 url: "https://github.com/jang1563/LabCraft-Eval"
-version: "0.1.0"
-date-released: "2026-04-25"
+version: "0.1.1"
+date-released: "2026-06-16"
 license: "Apache-2.0"
 abstract: >-
   LabCraft-Eval is an Inspect AI evaluation environment for measuring how
   well AI agents execute benign molecular-microbiology protocols inside a
-  seeded stochastic laboratory simulator, with deterministic four-axis
-  trajectory scoring and citation-backed task data.
+  seeded stochastic laboratory simulator, with deterministic multi-axis
+  trajectory scoring, citation-backed task data, and manifest-backed public
+  dataset exports.
+keywords:
+  - agent evaluation
+  - AI safety
+  - bioinformatics
+  - Inspect AI
+  - microbiology
+  - protocol evaluation

@@ -76,14 +76,18 @@ def _parse_created_timestamp(value: object) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def extract_scores(eval_path: Path):
+def extract_scores(eval_path: Path, *, strict: bool = False):
     """Return a list of per-sample dicts: {task, model, status, axis -> float, tokens}."""
     rows = []
     try:
         from inspect_ai.log import read_eval_log
 
         log = read_eval_log(str(eval_path))
-    except Exception:
+    except Exception as exc:
+        if strict:
+            raise RuntimeError(
+                "Failed to read Inspect eval log {}: {}".format(eval_path, exc)
+            ) from exc
         return rows
 
     model = getattr(getattr(log, "eval", None), "model", "unknown")
