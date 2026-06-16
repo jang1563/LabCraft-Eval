@@ -69,6 +69,30 @@ can pull a `click` version outside Inspect AI's supported range.
 Authentication should come from the standard Hugging Face token mechanisms; do
 not commit tokens or `.env` files.
 
+## Consumer Quickstart
+
+The repository includes a no-dependency example that reads the public dataset
+files from Hugging Face or an existing local export directory:
+
+```bash
+python3 examples/hf_quickstart.py
+python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
+```
+
+For notebook or analysis workflows that already use `huggingface_hub`, load the
+full snapshot and then parse the JSONL files:
+
+```python
+import json
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+
+snapshot_dir = Path(snapshot_download("jang1563/LabCraft-Eval", repo_type="dataset"))
+tasks = [json.loads(line) for line in (snapshot_dir / "tasks.jsonl").open()]
+results = [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]
+```
+
 ## Dataset Card Sections
 
 The export script generates a first-pass dataset card. Before public upload,

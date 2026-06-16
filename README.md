@@ -58,6 +58,13 @@ uv run python scripts/upload_hf_dataset.py \
 For actual upload with `--execute`, install `huggingface-hub>=0.36,<1.0` in the
 active environment first.
 
+Quickly inspect the public Hugging Face snapshot without extra dependencies:
+
+```bash
+python3 examples/hf_quickstart.py
+python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
+```
+
 ## What the agent does
 
 Each task gives the agent:

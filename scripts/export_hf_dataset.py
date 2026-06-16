@@ -470,6 +470,21 @@ Use this export to inspect task metadata, rubrics, source provenance, and
 published result rows. Use the GitHub repository to run the benchmark,
 reproduce logs, inspect implementation details, and report issues.
 
+## Quickstart
+
+Load the full public snapshot with `huggingface_hub` and parse the JSONL files:
+
+```python
+import json
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+
+snapshot_dir = Path(snapshot_download("jang1563/LabCraft-Eval", repo_type="dataset"))
+tasks = [json.loads(line) for line in (snapshot_dir / "tasks.jsonl").open()]
+results = [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]
+```
+
 ## Out-of-Scope Use
 
 LabCraft-Eval is not a real wet-lab capability benchmark, not a harmful-biology
