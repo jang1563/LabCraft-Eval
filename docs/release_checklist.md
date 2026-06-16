@@ -33,6 +33,8 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
   and [LICENSE-DATA](../LICENSE-DATA) describe the same licensing split.
 - Confirm [pyproject.toml](../pyproject.toml) metadata points to the current
   repository and issue tracker.
+- Confirm the Hugging Face dataset has a tag matching the GitHub release tag
+  and that its `release_manifest.json` source commit matches the release notes.
 - Include the commit SHA and log/result directory when reporting benchmark
   numbers.
 - For HPC bundles, include the `RUN_ID`, `results/hpc/<RUN_ID>/aggregate_manifest.json`,

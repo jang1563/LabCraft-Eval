@@ -145,11 +145,17 @@ Every HF release should correspond to:
 
 - A GitHub commit SHA.
 - A GitHub tag or release, when available.
+- A matching Hugging Face dataset tag created from the uploaded snapshot commit.
 - A `release_manifest.json` generated from that exact commit.
 - A named result bundle such as `v0.1_frozen_snapshot` or `hpc_v0_2_current_n10`.
 
 Do not overwrite existing HF tags. Publish corrected bundles with a new patch
 tag and a changelog entry.
+
+After uploading the dataset snapshot, verify the Hub refs and create the
+matching dataset tag before announcing the release. The tag should point at the
+Hub commit that contains the exported files for that release, not a later
+working commit.
 
 ## Leaderboard Space
 

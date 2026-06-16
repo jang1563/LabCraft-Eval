@@ -51,10 +51,12 @@ analysis = [
 labcraft = "src.inspect_task"
 
 [tool.setuptools.packages.find]
-include = ["src*"]
+include = ["src*", "task_data*", "data*"]
+namespaces = true
 
 [tool.setuptools.package-data]
-src = ["../task_data/**/*.json", "../task_data/**/*.md", "../data/**/*.json", "../data/**/*.bib"]
+task_data = ["**/*.json", "**/*.md"]
+data = ["**/*.json", "**/*.bib"]
 
 [tool.ruff]
 line-length = 100

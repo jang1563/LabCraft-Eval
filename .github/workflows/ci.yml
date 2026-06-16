@@ -40,6 +40,18 @@ jobs:
       - name: Full unit test suite
         run: uv run pytest
 
+      - name: Build wheel
+        run: uv build --wheel
+
+      - name: Package smoke
+        run: |
+          wheel_path="$(pwd)/$(find dist -name 'labcraft-*.whl' -print -quit)"
+          test -n "$wheel_path"
+          mkdir -p build/package_smoke
+          cp scripts/package_smoke.py build/package_smoke/package_smoke.py
+          cd build/package_smoke
+          uv run --isolated --with "$wheel_path" python package_smoke.py
+
       - name: Hugging Face export smoke
         run: >
           uv run python scripts/export_hf_dataset.py
