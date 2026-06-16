@@ -6,6 +6,10 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
+- Nothing yet.
+
+## 0.1.1 - 2026-06-16
+
 - Add a public artifact roadmap for GitHub and Hugging Face release quality.
 - Add GitHub community-health files and CI scaffolding.
 - Add initial Hugging Face export documentation, schemas, and export skeleton.
@@ -15,6 +19,8 @@ recorded rather than silently rewriting history.
   counts, required fields, and scored result rows.
 - Add a dry-run-first Hugging Face dataset upload helper that validates bundles
   before any network write.
+- Add citation metadata and a no-dependency Hugging Face quickstart example.
+- Refresh GitHub Actions versions for the public CI workflow.
 - Publish the first Hugging Face dataset export at
   `https://huggingface.co/datasets/jang1563/LabCraft-Eval`.
 
