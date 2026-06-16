@@ -499,8 +499,9 @@ The project uses a license split:
 - Source code: Apache-2.0.
 - Benchmark content under `task_data/` and `data/`: CC BY-NC 4.0.
 
-The Hugging Face metadata lists both licenses, but users should follow the
-repository `LICENSE`, `LICENSE-DATA`, and `NOTICE` files for the exact split.
+The Hugging Face metadata license field reflects the uploaded benchmark-content
+license. Users should follow the repository `LICENSE`, `LICENSE-DATA`, and
+`NOTICE` files for the exact code/content split.
 
 ## Citation
 

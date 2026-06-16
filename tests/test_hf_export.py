@@ -35,6 +35,7 @@ def test_dataset_card_text_includes_hf_metadata_and_manifest_pointers():
     assert "release_manifest.json" in text
     assert "omitted from this metadata-only export" in text
     assert "`plots/`: omitted" in text
+    assert "metadata license field reflects the uploaded benchmark-content" in text
     assert "abc123" in text
 
 
