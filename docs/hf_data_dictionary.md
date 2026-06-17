@@ -5,6 +5,11 @@ intended for inspection, lightweight analysis, and reproducible citation of
 published result rows. It is not the executable benchmark runtime; use the
 GitHub repository for code, tests, and reruns.
 
+The generated dataset card declares separate Hugging Face viewer configs for
+the JSONL tables. Use the `result_rows` config for score analysis, and use
+`tasks`, `rubrics`, `ground_truth`, `citations`, and `eval_log_manifest` for
+audit context.
+
 ## Files
 
 | File | Grain | Purpose |
@@ -56,3 +61,5 @@ scores.
 5. Use `eval_log_manifest.jsonl` to map reported rows back to source logs.
 6. Use `tasks.jsonl`, `rubrics.jsonl`, and `ground_truth.jsonl` to inspect the
    task contract behind a score.
+7. Keep tracks separate when aggregating results; the Safety Case Track and
+   wet-lab simulator tracks use different score semantics.
