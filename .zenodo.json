@@ -1,0 +1,35 @@
+{
+  "title": "LabCraft-Eval: A stochastic agent evaluation environment for benign molecular-microbiology protocols",
+  "upload_type": "software",
+  "publication_date": "2026-06-16",
+  "version": "0.1.1",
+  "creators": [
+    {
+      "name": "Kim, Jihoon",
+      "affiliation": "Weill Cornell Medicine"
+    }
+  ],
+  "description": "LabCraft-Eval is an Inspect AI evaluation environment for measuring how well AI agents execute benign molecular-microbiology protocols inside a seeded stochastic laboratory simulator, with deterministic multi-axis trajectory scoring, citation-backed task data, and manifest-backed public Hugging Face dataset exports. Source code is Apache-2.0; benchmark content under task_data/ and data/ is CC BY-NC 4.0.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "agent evaluation",
+    "AI safety",
+    "bioinformatics",
+    "Inspect AI",
+    "microbiology",
+    "protocol evaluation",
+    "stochastic simulation"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/jang1563/LabCraft-Eval",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://huggingface.co/datasets/jang1563/LabCraft-Eval",
+      "relation": "isSupplementedBy",
+      "scheme": "url"
+    }
+  ]
+}
