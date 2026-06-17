@@ -171,3 +171,8 @@ Markdown pages. Minimum views:
 
 Each displayed number should link to the matching release manifest and result
 row source.
+
+Current Space:
+
+- Live app: <https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard>
+- Source scaffold: [`spaces/leaderboard/`](../spaces/leaderboard/)

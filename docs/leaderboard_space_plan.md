@@ -4,6 +4,10 @@ This plan defines the optional interactive Hugging Face Space for
 LabCraft-Eval. The Space should be a read-only visualization layer over the
 exported dataset files, not a second benchmark implementation.
 
+Live Space: <https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard>
+
+Source scaffold: [`spaces/leaderboard/`](../spaces/leaderboard/)
+
 ## Source Contract
 
 The Space must read only these files from the Hugging Face dataset snapshot:
@@ -47,5 +51,5 @@ Use a small Gradio or Streamlit app:
 4. Build score tables from `result_rows.jsonl`.
 5. Render copied plot files as static visual anchors.
 
-The first Space version can be static and pinned to `v0.1.1`. A later version
-can add a release selector once multiple manifest-backed snapshots exist.
+The first Space version is static and pinned to `v0.1.1`. A later version can
+add a release selector once multiple manifest-backed snapshots exist.

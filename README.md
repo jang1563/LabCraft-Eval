@@ -19,6 +19,7 @@ Public release surfaces:
 |---------|------|
 | Code and benchmark repository | <https://github.com/jang1563/LabCraft-Eval> |
 | Hugging Face dataset export | <https://huggingface.co/datasets/jang1563/LabCraft-Eval> |
+| Hugging Face leaderboard Space | <https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard> |
 | Architecture overview | [docs/architecture.md](docs/architecture.md) |
 | Trajectory walkthrough | [docs/trajectory_walkthrough.md](docs/trajectory_walkthrough.md) |
 | HF export data dictionary | [docs/hf_data_dictionary.md](docs/hf_data_dictionary.md) |
