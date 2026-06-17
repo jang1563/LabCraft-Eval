@@ -32,13 +32,40 @@ def test_dataset_card_text_includes_hf_metadata_and_manifest_pointers():
     assert "pretty_name: LabCraft-Eval" in text
     assert "license: cc-by-nc-4.0" in text
     assert "- inspect-ai" in text
+    assert "configs:" in text
+    assert "config_name: tasks" in text
+    assert "config_name: eval_log_manifest" in text
+    assert "config_name: result_rows" not in text
     assert "release_manifest.json" in text
+    assert "## Dataset Viewer" in text
+    assert "## Provenance and Verification" in text
     assert "## Data Fields" in text
+    assert "## Known Limitations" in text
+    assert "## Contact" in text
     assert "`result_rows.jsonl` | one row per deduplicated scored sample" in text
     assert "omitted from this metadata-only export" in text
     assert "`plots/`: omitted" in text
     assert "metadata license field reflects the uploaded benchmark-content" in text
     assert "abc123" in text
+
+
+def test_dataset_card_text_includes_result_viewer_config_when_results_present():
+    text = export_hf_dataset.dataset_card_text(
+        release_name="unit_test",
+        commit="abc123",
+        repository="https://github.com/jang1563/LabCraft-Eval.git",
+        task_count=14,
+        citation_count=178,
+        result_count=100,
+        plot_count=2,
+        include_results=True,
+        include_plots=True,
+    )
+
+    assert "config_name: result_rows" in text
+    assert "path: result_rows.jsonl" in text
+    assert "Exported result rows: 100" in text
+    assert "`plots/`: copied PNG plot files" in text
 
 
 def test_build_export_metadata_only_writes_card_jsonl_and_manifest(tmp_path):

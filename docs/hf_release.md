@@ -27,6 +27,11 @@ The first export implementation writes JSONL, a dataset-card `README.md`, an
 optional `plots/` directory, and a manifest. Parquet files can be added later
 once the field contracts settle.
 
+The generated dataset card now declares separate Hugging Face viewer configs
+for each JSONL table. This keeps the public Hub surface readable for humans
+while preserving machine-friendly schemas for tasks, rubrics, ground truth,
+citations, eval-log manifests, and result rows.
+
 Recommended local export:
 
 ```bash
@@ -102,6 +107,7 @@ The Hugging Face dataset card should include:
 
 - YAML metadata: license, tags, task categories, language, pretty name, and
   source repository.
+- Dataset viewer configs that map each JSONL file to its own named config.
 - Dataset summary.
 - Benchmark tracks and task inventory.
 - Data files and field descriptions.
@@ -109,6 +115,7 @@ The Hugging Face dataset card should include:
 - Intended use.
 - Out-of-scope use.
 - Safety scope.
+- Provenance and manifest-verification instructions.
 - Citation and license split.
 - Reproducibility instructions.
 - Known limitations.
@@ -133,6 +140,15 @@ tags:
 task_categories:
   - text-generation
   - question-answering
+configs:
+  - config_name: tasks
+    data_files:
+      - split: data
+        path: tasks.jsonl
+  - config_name: result_rows
+    data_files:
+      - split: data
+        path: result_rows.jsonl
 ```
 
 The dataset metadata uses `cc-by-nc-4.0` because the uploaded benchmark content

@@ -394,10 +394,45 @@ def dataset_card_text(
     include_results: bool,
     include_plots: bool,
 ) -> str:
+    viewer_configs = [
+        ("tasks", "tasks.jsonl"),
+        ("rubrics", "rubrics.jsonl"),
+        ("ground_truth", "ground_truth.jsonl"),
+        ("citations", "citations.jsonl"),
+        ("eval_log_manifest", "eval_log_manifest.jsonl"),
+    ]
+    if include_results:
+        viewer_configs.append(("result_rows", "result_rows.jsonl"))
+    viewer_config_lines = []
+    for config_name, path in viewer_configs:
+        viewer_config_lines.extend(
+            [
+                "- config_name: {}".format(config_name),
+                "  data_files:",
+                "  - split: data",
+                "    path: {}".format(path),
+            ]
+        )
+    viewer_config_block = "\n".join(viewer_config_lines)
     result_line = (
         "- `result_rows.jsonl`: one row per deduplicated scored sample.\n"
         if include_results
         else "- `result_rows.jsonl`: omitted from this metadata-only export.\n"
+    )
+    result_viewer_sentence = (
+        "Use the `result_rows` config for benchmark scores and the `tasks`, "
+        "`rubrics`, `ground_truth`, and `citations` configs for audit context."
+        if include_results
+        else "This metadata-only export omits the `result_rows` viewer config; "
+        "use the `tasks`, `rubrics`, `ground_truth`, and `citations` configs "
+        "for audit context."
+    )
+    result_verification_line = (
+        "3. Published scores in `result_rows.jsonl` can be traced back to\n"
+        "   `eval_log_manifest.jsonl`.\n"
+        if include_results
+        else "3. This metadata-only export has no published score rows; use\n"
+        "   `eval_log_manifest.jsonl` only to inspect available log checksums.\n"
     )
     plot_line = (
         "- `plots/`: copied PNG plot files for quick visual review.\n"
@@ -421,6 +456,8 @@ tags:
 task_categories:
 - text-generation
 - question-answering
+configs:
+{viewer_config_block}
 ---
 
 # LabCraft-Eval
@@ -433,6 +470,9 @@ operations with deterministic, multi-axis trajectory scoring.
 This Hugging Face dataset export is generated from the GitHub repository:
 {repository}
 
+Use the companion leaderboard Space for a visual summary:
+https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard
+
 ## Release
 
 - Release name: `{release_name}`
@@ -442,6 +482,12 @@ This Hugging Face dataset export is generated from the GitHub repository:
 - Exported citation records: {citation_count}
 - Exported result rows: {result_count}
 - Exported plot files: {plot_count}
+
+## Dataset Viewer
+
+The card declares separate Hugging Face viewer configs for each JSONL table so
+large, differently shaped records do not get collapsed into one mixed schema.
+{result_viewer_sentence}
 
 ## Files
 
@@ -469,6 +515,16 @@ All JSONL records include `schema_version` and `source_commit` unless the file
 is a copied binary plot. Use `release_manifest.json` to verify SHA-256 checksums,
 byte counts, record counts, and the source GitHub commit for the snapshot.
 
+## Provenance and Verification
+
+This export is manifest-backed. Before citing or comparing scores, verify:
+
+1. `release_manifest.json` points to the intended GitHub source commit.
+2. Each consumed file's SHA-256 and record count match the manifest.
+{result_verification_line.rstrip()}
+4. Task contracts can be audited through `tasks.jsonl`, `rubrics.jsonl`,
+   `ground_truth.jsonl`, and `citations.jsonl`.
+
 ## Benchmark Tracks
 
 - Frozen simulator snapshot: the April 2026 five-task scorecard.
@@ -484,6 +540,10 @@ byte counts, record counts, and the source GitHub commit for the snapshot.
 Use this export to inspect task metadata, rubrics, source provenance, and
 published result rows. Use the GitHub repository to run the benchmark,
 reproduce logs, inspect implementation details, and report issues.
+
+Appropriate uses include benchmark-card inspection, lightweight score analysis,
+provenance checks, reproducibility review, and building read-only dashboards
+over published result rows.
 
 ## Quickstart
 
@@ -507,6 +567,21 @@ capability benchmark, and not a substitute for physical validation. The
 benchmark is intentionally limited to benign BSL-1/BSL-2 scope as defined in
 the repository `SAFETY.md`.
 
+Do not use this export as a procedural laboratory guide, as training data for
+unbounded biological-assistance systems, or as evidence that a model is safe for
+deployment without additional domain-specific review.
+
+## Known Limitations
+
+- Scores come from a synthetic stochastic simulator and deterministic scorers,
+  not from physical experiments.
+- The frozen simulator snapshot is an April 2026 sample and should be compared
+  only against the same release manifest.
+- Some newer wet-lab, discovery, HPC, and safety-case bundles are reported as
+  separate tracks to avoid mixing incompatible score semantics.
+- The export preserves source logs and rubric records for audit, but it does
+  not replace a full repository checkout for rerunning tasks.
+
 ## Licensing
 
 The project uses a license split:
@@ -522,6 +597,11 @@ license. Users should follow the repository `LICENSE`, `LICENSE-DATA`, and
 
 If you use LabCraft-Eval, cite the repository URL, source commit SHA, and result
 bundle or release manifest used.
+
+## Contact
+
+Report issues or release-card corrections at:
+https://github.com/jang1563/LabCraft-Eval/issues
 """
 
 
