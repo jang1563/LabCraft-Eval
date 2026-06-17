@@ -5,6 +5,7 @@ _Formerly **BioProtocolBench**; renamed 2026-05-31 to avoid a name collision wit
 [![Code License: Apache-2.0](https://img.shields.io/badge/code%20license-Apache--2.0-blue.svg)](LICENSE)
 [![Benchmark Content: CC BY-NC 4.0](https://img.shields.io/badge/benchmark%20content-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE-DATA)
 [![CI](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml/badge.svg)](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jang1563/LabCraft-Eval/actions/workflows/codeql.yml/badge.svg)](https://github.com/jang1563/LabCraft-Eval/actions/workflows/codeql.yml)
 
 An [Inspect AI](https://inspect.aisi.org.uk/) evaluation environment for measuring how well AI agents execute benign molecular-microbiology protocols inside a stochastic laboratory simulator.
 
@@ -21,6 +22,8 @@ Public release surfaces:
 | Architecture overview | [docs/architecture.md](docs/architecture.md) |
 | Trajectory walkthrough | [docs/trajectory_walkthrough.md](docs/trajectory_walkthrough.md) |
 | HF export data dictionary | [docs/hf_data_dictionary.md](docs/hf_data_dictionary.md) |
+| Technical report | [docs/technical_report.md](docs/technical_report.md) |
+| Leaderboard Space plan | [docs/leaderboard_space_plan.md](docs/leaderboard_space_plan.md) |
 | Frozen simulator scorecard | [results/results.md](results/results.md) |
 | Failure-mode analysis | [results/analysis.md](results/analysis.md) |
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |

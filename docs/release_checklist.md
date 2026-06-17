@@ -25,10 +25,15 @@ uv run pytest
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
 ```
 
+- Confirm the latest `CodeQL` workflow run has completed successfully for
+  `main`, or document why code scanning was skipped for the release.
+
 ## Metadata checks
 
 - Confirm [CITATION.cff](../CITATION.cff) has the intended version and release
   date.
+- Confirm [.zenodo.json](../.zenodo.json) matches the intended release title,
+  creators, version, date, license split, and related identifiers.
 - Confirm [README.md](../README.md), [NOTICE](../NOTICE), [LICENSE](../LICENSE),
   and [LICENSE-DATA](../LICENSE-DATA) describe the same licensing split.
 - Confirm [pyproject.toml](../pyproject.toml) metadata points to the current
