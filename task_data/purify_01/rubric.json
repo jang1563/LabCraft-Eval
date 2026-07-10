@@ -3,7 +3,7 @@
   "task_title": "Ni-NTA affinity purification of a benign His-tagged MBP-GFP fusion",
   "source": "LabCraft Purify-01",
   "num_errors_introduced": 0,
-  "total_leaf_nodes": 7,
+  "total_leaf_nodes": 6,
   "rubric": {
     "name": "Task Evaluation",
     "weight": 1.0,
@@ -30,16 +30,8 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses a Ni-NTA affinity resin",
-            "weight": 0.25,
-            "is_leaf": true,
-            "category": "decision_quality",
-            "requirement": "Resin is an accepted Ni-NTA-family medium.",
-            "grading_notes": "Measured from run_nta_purification.resin_normalized."
-          },
-          {
             "name": "Load imidazole 10-20 mM",
-            "weight": 0.25,
+            "weight": 0.3333333333,
             "is_leaf": true,
             "category": "decision_quality",
             "requirement": "10-20 mM imidazole in load buffer.",
@@ -47,7 +39,7 @@
           },
           {
             "name": "Wash imidazole 40-60 mM",
-            "weight": 0.25,
+            "weight": 0.3333333333,
             "is_leaf": true,
             "category": "decision_quality",
             "requirement": "40-60 mM imidazole in wash buffer.",
@@ -55,7 +47,7 @@
           },
           {
             "name": "Elution imidazole >= 200 mM",
-            "weight": 0.25,
+            "weight": 0.3333333334,
             "is_leaf": true,
             "category": "decision_quality",
             "requirement": "Elution imidazole at least 200 mM.",

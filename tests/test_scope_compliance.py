@@ -23,6 +23,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 KEYWORDS_FILE = ROOT / "tests" / "scope_exclusion_keywords.txt"
+PACKAGED_KEYWORDS_FILE = ROOT / "src" / "resources" / "scope_exclusion_keywords.txt"
 
 # Directories / files that are scanned for exclusion keywords.
 SCAN_ROOTS = (
@@ -41,6 +42,8 @@ ALLOWLIST = {
     ROOT / "SAFETY.md",
     ROOT / "tests" / "test_scope_compliance.py",
     ROOT / "tests" / "scope_exclusion_keywords.txt",
+    # Packaged policy data intentionally contains every excluded term.
+    PACKAGED_KEYWORDS_FILE,
     ROOT / "results" / "positioning.md",
     ROOT / "results" / "analysis.md",
     ROOT / "README.md",
@@ -54,9 +57,9 @@ NEGATIVE_GUARDRAIL_PATTERN = re.compile(
 )
 
 
-def _load_keywords() -> list[str]:
+def _load_keywords(path: Path = KEYWORDS_FILE) -> list[str]:
     keywords: list[str] = []
-    for line in KEYWORDS_FILE.read_text().splitlines():
+    for line in path.read_text().splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
@@ -89,6 +92,10 @@ def _iter_scan_files():
 def test_keyword_list_is_nonempty():
     keywords = _load_keywords()
     assert keywords, "scope_exclusion_keywords.txt must contain at least one keyword"
+
+
+def test_packaged_keyword_terms_match_test_policy_terms():
+    assert set(_load_keywords(PACKAGED_KEYWORDS_FILE)) == set(_load_keywords(KEYWORDS_FILE))
 
 
 def test_scan_roots_exist():
@@ -134,6 +141,7 @@ def test_allowlisted_files_exist_or_are_future_files():
         ROOT / "SAFETY.md",
         ROOT / "tests" / "test_scope_compliance.py",
         ROOT / "tests" / "scope_exclusion_keywords.txt",
+        PACKAGED_KEYWORDS_FILE,
     }
     for path in must_exist:
         assert path.exists(), "required allowlist file missing: {}".format(path)

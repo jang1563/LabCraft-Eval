@@ -50,14 +50,12 @@ def load_assay_catalog() -> Dict[str, Dict[str, Any]]:
 def _target_profile_view(entry: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "target_id": entry["target_id"],
-        "disease_context": entry["disease_context"],
         "perturbation_score": entry["perturbation_score"],
         "viability_risk": entry["viability_risk"],
         "context_consistency": entry["context_consistency"],
         "genetic_support": entry["genetic_support"],
         "patient_signal": entry["patient_signal"],
         "literature_support": entry["literature_support"],
-        "summary": entry["summary"],
     }
 
 
@@ -67,7 +65,6 @@ def _candidate_summary_view(entry: Dict[str, Any]) -> Dict[str, Any]:
         "perturbation_score": entry["perturbation_score"],
         "viability_risk": entry["viability_risk"],
         "context_consistency": entry["context_consistency"],
-        "summary": entry["summary"],
     }
 
 
@@ -77,7 +74,6 @@ def _assay_view(entry: Dict[str, Any]) -> Dict[str, Any]:
         "name": entry["name"],
         "primary_readout": entry["primary_readout"],
         "description": entry["description"],
-        "best_use": entry["best_use"],
     }
 
 
@@ -205,7 +201,7 @@ def lookup_target_profile_tool():
             """Look up one candidate target profile.
 
             Args:
-                target_id: Synthetic target identifier such as TGT_A.
+                target_id: Target identifier returned by list_candidate_targets.
             """
             return await lookup_target_profile_call(target_id)
 
@@ -241,8 +237,8 @@ def run_validation_assay_tool():
             """Execute one validation assay.
 
             Args:
-                target_id: Synthetic target identifier such as TGT_A.
-                assay_id: Validation assay identifier such as ASY_CYTOKINE.
+                target_id: Target identifier returned by list_candidate_targets.
+                assay_id: Assay identifier returned by list_validation_assays.
             """
             return await run_validation_assay_call(target_id=target_id, assay_id=assay_id)
 

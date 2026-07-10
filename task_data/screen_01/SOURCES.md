@@ -14,7 +14,7 @@
 1. Vieira J, Messing J. *The pUC plasmids, an M13mp7-derived system for insertion mutagenesis and sequencing with synthetic universal primers.* Gene. 1982. DOI: https://doi.org/10.1016/0378-1119(82)90015-4
    - Used for: canonical pUC blue-white screening, justifying that blue colonies are vector-only background and white colonies are the population to screen.
 
-2. Bergkessel M, Guthrie C. *Colony PCR.* Methods in Enzymology. 2013. DOI: https://doi.org/10.1016/B978-0-12-420037-1.00027-2
+2. Bergkessel M, Guthrie C. *Colony PCR.* Methods in Enzymology. 2013. DOI: https://doi.org/10.1016/B978-0-12-418687-3.00025-2
    - Used for: colony-PCR as the standard readout distinguishing recombinant (insert-positive) colonies from empty-vector background by band size.
 
 ### Bronze

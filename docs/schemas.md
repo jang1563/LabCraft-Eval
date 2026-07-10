@@ -1,6 +1,9 @@
 # LabCraft Data Schemas
 
-This document defines the current schema contract for LabCraft's static JSON artifacts. The goal is not to provide executable JSON Schema files yet, but to pin the required fields, meanings, and validation expectations enforced by tests and scorer code.
+This document defines the current schema contract for LabCraft's static JSON artifacts and Hugging Face exports. Executable JSON Schema files for HF task, result, eval-log-manifest, and release-manifest records are available under [`schemas/`](../schemas/). Task-data contracts are also checked by repository tests and runtime loaders.
+
+For schema 0.2.0 exports, `scripts/validate_hf_export.py` loads these JSON
+Schemas in addition to its cross-file checksum, count, and provenance checks.
 
 ## 1. Parameter Files
 
@@ -82,7 +85,7 @@ Rules:
 
 Path pattern: `task_data/*/ground_truth.json`
 
-Each task ground-truth file defines decision scoring, troubleshooting references, and efficiency expectations for a stochastic task.
+Each task ground-truth file defines decision scoring, troubleshooting references, and efficiency expectations for a task. Not every task operation is stochastic.
 
 ### Top-level shape
 
@@ -168,7 +171,7 @@ Each task ground-truth file defines decision scoring, troubleshooting references
 
 Path pattern: `task_data/*/rubric.json`
 
-Rubric files store hierarchical scoring trees compatible with the existing `src/rubric_utils.py` loader.
+Rubric files store hierarchical scoring trees compatible with the existing `src/rubric_utils.py` loader. In v0.1.x these files are audit and design artifacts: Inspect tasks invoke hard-coded scorers in `src/trajectory_scorer.py` (or the separate Safety Case scorer), not `compute_weighted_score()` over these JSON trees.
 
 ### Top-level shape
 
@@ -225,4 +228,64 @@ Rubrics should use the four top-level dimensions defined by the deterministic tr
 - `Troubleshooting`
 - `Efficiency`
 
-The weights should sum to `1.0` at every sibling level.
+For rubric-authoring consistency, the weights should sum to `1.0` at every
+sibling level. This JSON-tree rule must not be confused with the v0.1.x runtime
+implementation, whose simulator-task top-level weights are hard-coded as task
+success 0.4, decision quality 0.3, troubleshooting 0.2, and efficiency 0.1.
+
+## 4. Hugging Face Export Schema 0.2.0
+
+The machine-readable contracts are:
+
+- [`hf_task_record.schema.json`](../schemas/hf_task_record.schema.json)
+- [`hf_result_record.schema.json`](../schemas/hf_result_record.schema.json)
+- [`hf_eval_log_manifest_record.schema.json`](../schemas/hf_eval_log_manifest_record.schema.json)
+- [`release_manifest.schema.json`](../schemas/release_manifest.schema.json)
+
+`source_commit` is the packaging HEAD commit recorded by the exporter. It is
+present on the manifest and JSONL records but does not claim to be the code
+revision that generated a model trajectory. A final release must also be built
+from a clean packaging worktree; the exporter refuses otherwise and records
+`packaging_worktree_dirty: false` in the manifest.
+
+Score-bearing result and eval-log-manifest records separately contain the
+native Inspect `evaluation_revision`:
+
+```json
+{
+  "type": "git",
+  "origin": "https://github.com/jang1563/LabCraft-Eval.git",
+  "commit": "<evaluation commit>",
+  "dirty": false
+}
+```
+
+Under schema 0.2.0:
+
+- `evaluation_revision` must contain `type`, `origin`, `commit`, and `dirty`;
+- `dirty` must be `false` for every exported scored log;
+- `model_generate_config` must be a non-empty object with explicitly recorded
+  generation settings;
+- raw Inspect logs must be bundled under `eval_logs/`, and each log-manifest
+  path must resolve to a matching file in the release manifest;
+- every result row must map to a matching eval-log-manifest row with the same
+  native revision and generation configuration;
+- `release_manifest.json.evaluation_provenance` must use policy
+  `clean-evaluation-revisions-required`, report zero dirty logs, and list the
+  distinct evaluation commits; and
+- a score-bearing export must contain non-empty `result_rows.jsonl`.
+
+A metadata-only export created with `--no-results` intentionally omits
+`result_rows.jsonl` and writes an empty `eval_log_manifest.jsonl`. This is the
+CI packaging-smoke path; it does not make any assertion about model-score
+provenance.
+
+The exporter also refuses to write into a non-empty output directory unless
+`--clean-output` is explicitly supplied. This prevents stale unmanifested files
+from surviving across builds. Destructive cleanup is limited to children of
+`build/`. Immutable release directories and tags must never be rewritten in
+place.
+
+The published v0.1.1 export predates schema 0.2.0 and remains frozen. Its
+historical scores must not be described as satisfying the clean-evaluation
+revision contract retroactively.

@@ -8,7 +8,9 @@
     "generated_at",
     "source_commit",
     "source_repository",
+    "packaging_worktree_dirty",
     "exporter",
+    "evaluation_provenance",
     "files"
   ],
   "properties": {
@@ -24,8 +26,33 @@
     "source_repository": {
       "type": "string"
     },
+    "packaging_worktree_dirty": {
+      "const": false
+    },
     "exporter": {
       "type": "string"
+    },
+    "evaluation_provenance": {
+      "type": "object",
+      "required": ["policy", "log_count", "dirty_log_count", "revision_commits"],
+      "properties": {
+        "policy": {
+          "const": "clean-evaluation-revisions-required"
+        },
+        "log_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dirty_log_count": {
+          "const": 0
+        },
+        "revision_commits": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
     },
     "release_name": {
       "type": "string"

@@ -1,7 +1,10 @@
+from types import SimpleNamespace
+
 import pytest
 
 from src.inspect_task import _expand_seeds
 import src.inspect_task as inspect_task
+from src.solvers import _configure_lab_sample_state
 from src.tasks.target_prioritize_01 import build_target_prioritize_01_prompt
 
 
@@ -53,6 +56,54 @@ def test_expand_single_seed_with_nonzero_seed_start_gets_suffix():
     assert len(expanded) == 1
     assert expanded[0]["id"] == "purify_01_seeded_seed_04"
     assert expanded[0]["metadata"]["seed_index"] == 4
+
+
+def test_expand_single_seed_zero_matches_first_multi_seed_identity():
+    base_sample = {
+        "id": "transform_01_seeded",
+        "input": "prompt",
+        "target": "target",
+        "metadata": {"task_id": "transform_01"},
+    }
+
+    single = _expand_seeds(base_sample, seeds=1, seed_start=0)[0]
+    multi_first = _expand_seeds(base_sample, seeds=3, seed_start=0)[0]
+
+    assert single["id"] == multi_first["id"] == "transform_01_seeded_seed_00"
+    assert single["metadata"]["seed_index"] == multi_first["metadata"]["seed_index"] == 0
+
+
+@pytest.mark.parametrize(
+    ("seeds", "seed_start", "message"),
+    [
+        (0, 0, "seeds must be a positive integer"),
+        (-1, 0, "seeds must be a positive integer"),
+        (True, 0, "seeds must be a positive integer"),
+        (1, -1, "seed_start must be a non-negative integer"),
+        (1, True, "seed_start must be a non-negative integer"),
+    ],
+)
+def test_expand_seeds_rejects_invalid_ranges(seeds, seed_start, message):
+    with pytest.raises(ValueError, match=message):
+        _expand_seeds(
+            {"id": "sample", "input": "prompt", "target": "target", "metadata": {}},
+            seeds=seeds,
+            seed_start=seed_start,
+        )
+
+
+def test_configure_lab_sample_uses_explicit_seed_metadata(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "src.solvers.set_active_sample",
+        lambda sample_id, seed=None: calls.append((sample_id, seed)),
+    )
+
+    _configure_lab_sample_state(
+        SimpleNamespace(sample_id="transform_01_seeded_seed_04", metadata={"seed_index": 4})
+    )
+
+    assert calls == [("transform_01_seeded_seed_04", 4)]
 
 
 def test_discovery_tasks_are_registered():

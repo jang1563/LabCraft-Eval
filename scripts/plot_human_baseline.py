@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render human-baseline pilot coverage and same-seed context plots."""
+"""Render human-baseline pilot coverage and frozen same-label context plots."""
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ def plot_coverage(report: dict, out_dir: Path) -> Path:
     ax.set_xticks(x_positions)
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_title(
-        "Human baseline pilot coverage\n(snapshot same-seed overall range annotated)",
+        "Human baseline pilot coverage\n(frozen same-label overall range annotated)",
         fontsize=12,
         pad=12,
     )
@@ -204,7 +204,7 @@ def plot_seed_context(report: dict, out_dir: Path) -> Path:
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.set_title(
-        "Pilot seed context: frozen-snapshot model scores with human overlays",
+        "Pilot label context: historical model scores with current human overlays",
         fontsize=12,
         pad=12,
     )

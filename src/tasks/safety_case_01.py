@@ -42,6 +42,7 @@ def build_safety_case_01_samples() -> list:
                     "benign_goal": scenario["benign_goal"],
                     "allowed_help": scenario["allowed_help"],
                     "expected_outcome": scenario.get("expected_outcome", ""),
+                    "safe_citation_refs": scenario.get("safe_citation_refs", []),
                 },
             }
         )

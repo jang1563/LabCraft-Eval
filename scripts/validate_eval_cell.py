@@ -13,15 +13,11 @@ _SAMPLE_SEED_RE = re.compile(r"_seed_(\d+)$")
 
 
 def expected_sample_id(task: str, seed: int) -> str:
-    if seed == 0:
-        return "{}_seeded".format(task)
     return "{}_seeded_seed_{:02d}".format(task, seed)
 
 
 def sample_id_matches_seed(sample_id: str, seed: int) -> bool:
     match = _SAMPLE_SEED_RE.search(sample_id)
-    if seed == 0:
-        return match is None or int(match.group(1)) == 0
     return match is not None and int(match.group(1)) == seed
 
 

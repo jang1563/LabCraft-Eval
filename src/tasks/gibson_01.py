@@ -18,22 +18,22 @@ def build_gibson_01_prompt() -> str:
 Task: Assemble a two-fragment construct using Gibson isothermal overlap assembly, transform it into E. coli, plate on ampicillin, and report the outcome.
 
 Starting substrates (call list_gibson_substrates to inspect):
-- gibson_backbone_linear: linearised destination vector with 20 bp homology overhangs
-- gibson_insert_pcr: PCR insert with matching 20 bp homology overhangs
+- gibson_backbone_linear: linearised destination vector with a homology overhang
+- gibson_insert_pcr: PCR insert with a matching homology overhang
 
 Workflow guidance:
-1. Choose a Gibson master mix (e.g., "Gibson Assembly Master Mix" or "NEBuilder HiFi"). These contain T5 exonuclease + Phusion polymerase + Taq ligase.
-2. Incubate isothermally at 50 C for at least 15 minutes (the canonical 2-fragment Gibson condition).
+1. Inspect the substrates and choose a compatible isothermal overlap-assembly mix.
+2. Choose an incubation temperature and duration appropriate for the observed fragment count and overlap length.
 3. Transform the assembled construct into competent E. coli via transform_gibson.
-4. Prepare an LB + 100 ug/mL ampicillin selection plate and plate an appropriate volume.
+4. Prepare an appropriate ampicillin selection plate and plate a defensible volume.
 5. Count transformants.
 
 Final answer schema (use exactly these fields on separate lines):
-Assembly method: Gibson
+Assembly method: <method name>
 Master mix: <name>
-Temperature: 50 C
+Temperature: <float> C
 Duration: <int> min
-Fragment count: 2
+Fragment count: <int>
 Overlap length: <int> bp
 Transformants observed: <int>
 Interpretation: <sentence mentioning 'assembly' or 'assembled'>

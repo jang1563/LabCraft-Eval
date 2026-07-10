@@ -8,6 +8,7 @@ import json
 from src.tools.discovery import (
     assay_primary_readout,
     list_candidate_targets_call,
+    list_validation_assays_call,
     load_assay_catalog,
     load_target_catalog,
     lookup_target_profile_call,
@@ -32,16 +33,40 @@ def test_lookup_target_profile_returns_expected_public_fields():
 
     assert set(payload) == {
         "target_id",
-        "disease_context",
         "perturbation_score",
         "viability_risk",
         "context_consistency",
         "genetic_support",
         "patient_signal",
         "literature_support",
-        "summary",
     }
     assert payload["target_id"] == "TGT_A"
+
+
+def test_discovery_views_expose_evidence_without_recommendation_labels():
+    candidates = json.loads(asyncio.run(list_candidate_targets_call()))["targets"]
+    profile = json.loads(asyncio.run(lookup_target_profile_call("TGT_C")))
+    assays = json.loads(asyncio.run(list_validation_assays_call()))["assays"]
+
+    for candidate in candidates:
+        assert set(candidate) == {
+            "target_id",
+            "perturbation_score",
+            "viability_risk",
+            "context_consistency",
+        }
+    assert {
+        "perturbation_score",
+        "viability_risk",
+        "context_consistency",
+        "genetic_support",
+        "patient_signal",
+        "literature_support",
+    } <= set(profile)
+    assert not ({"summary", "disease_context", "priority_rank", "advance_recommendation"} & set(profile))
+    for assay in assays:
+        assert set(assay) == {"assay_id", "name", "primary_readout", "description"}
+        assert "best_use" not in assay
 
 
 def test_simulate_validation_assay_is_deterministic_per_sample():

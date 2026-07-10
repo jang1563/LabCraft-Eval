@@ -94,6 +94,7 @@ def test_run_portfolio_eval_passes_seed_parameters_and_succeeds(tmp_path):
     assert "--model openai/gpt-4o-mini" in log_text
     assert "seeds=2" in log_text
     assert "seed_start=3" in log_text
+    assert "--temperature 0 --max-tokens 4096" in log_text
 
 
 def test_run_portfolio_eval_exits_nonzero_after_partial_failures(tmp_path):
@@ -194,6 +195,136 @@ def test_run_portfolio_eval_passes_extra_inspect_args(tmp_path):
     assert "--max-samples 2 --max-connections 2" in log_text
 
 
+def test_run_portfolio_eval_help_and_positional_argument_rejection(tmp_path):
+    help_proc = subprocess.run(
+        ["bash", str(RUNNER_PATH), "--help"],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+    )
+    bad_proc = subprocess.run(
+        ["bash", str(RUNNER_PATH), "unexpected"],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+    )
+
+    assert help_proc.returncode == 0
+    assert "build/eval_runs/<RUN_ID>" in help_proc.stdout
+    assert bad_proc.returncode == 2
+    assert "Unexpected positional arguments: unexpected" in bad_proc.stderr
+
+
+def test_run_portfolio_eval_defaults_to_new_build_bundle(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        MODELS="openai/gpt-4o-mini",
+        RUN_ID="runner-default-test",
+    )
+    env.pop("LOG_DIR")
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    expected_log_dir = REPO_ROOT / "build" / "eval_runs" / "runner-default-test"
+    assert proc.returncode == 0
+    assert "Logs:   {}".format(expected_log_dir) in proc.stdout
+    assert "--log-dir {}".format(expected_log_dir) in Path(env["FAKE_INSPECT_LOG"]).read_text()
+
+
+def test_run_portfolio_eval_requires_opt_in_for_frozen_log_dir(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        MODELS="openai/gpt-4o-mini",
+        LOG_DIR=str(REPO_ROOT / "results" / "logs"),
+    )
+
+    rejected = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    env["ALLOW_FROZEN_LOG_DIR"] = "1"
+    allowed = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert rejected.returncode == 2
+    assert "Refusing to write into frozen log path" in rejected.stderr
+    assert allowed.returncode == 0
+
+
+def test_frozen_log_guard_rejects_traversal_and_symlink_aliases(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    traversal_env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        LOG_DIR=str(REPO_ROOT / "build" / "eval_runs" / ".." / ".." / "results" / "logs"),
+    )
+    results_link = tmp_path / "results-link"
+    results_link.symlink_to(REPO_ROOT / "results", target_is_directory=True)
+    symlink_env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        LOG_DIR=str(results_link / "logs"),
+    )
+
+    for env in (traversal_env, symlink_env):
+        result = subprocess.run(
+            ["bash", str(RUNNER_PATH)],
+            cwd=str(REPO_ROOT),
+            env=env,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 2
+        assert "Refusing to write into frozen log path" in result.stderr
+
+
+def test_run_portfolio_eval_rejects_invalid_seed_ranges_before_inspect(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    zero_seed_env = _runner_env(tmp_path, fake_inspect, SEEDS="0")
+    negative_start_env = _runner_env(tmp_path, fake_inspect, SEED_START="-1")
+
+    zero_seed = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=zero_seed_env,
+        text=True,
+        capture_output=True,
+    )
+    negative_start = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=negative_start_env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert zero_seed.returncode == 2
+    assert "SEEDS must be a positive integer: 0" in zero_seed.stderr
+    assert negative_start.returncode == 2
+    assert "SEED_START must be a non-negative integer: -1" in negative_start.stderr
+    assert not Path(zero_seed_env["FAKE_INSPECT_LOG"]).exists()
+
+
 def test_run_discovery_bundle_wires_runner_aggregation_and_plotting(tmp_path):
     fake_runner = _write_fake_runner(tmp_path)
     fake_aggregate = _write_fake_python_script(tmp_path, "fake_aggregate.py", "aggregate")
@@ -232,3 +363,59 @@ def test_run_discovery_bundle_wires_runner_aggregation_and_plotting(tmp_path):
     assert "--out-dir {}".format(env["PLOTS_OUT_DIR"]) in log_lines[2]
     assert "--task-preset discovery" in log_lines[2]
     assert "--models openai/gpt-4o-mini anthropic/claude-sonnet-4-5" in log_lines[2]
+
+
+def test_run_discovery_bundle_defaults_to_new_build_bundle(tmp_path):
+    fake_runner = _write_fake_runner(tmp_path)
+    fake_aggregate = _write_fake_python_script(tmp_path, "fake_aggregate.py", "aggregate")
+    fake_plot = _write_fake_python_script(tmp_path, "fake_plot.py", "plot")
+    call_log = tmp_path / "calls.log"
+    bundle_dir = tmp_path / "new_bundle"
+    env = os.environ.copy()
+    env.update(
+        {
+            "CALL_LOG": str(call_log),
+            "RUNNER_SCRIPT": str(fake_runner),
+            "AGGREGATE_SCRIPT": str(fake_aggregate),
+            "PLOT_SCRIPT": str(fake_plot),
+            "PYTHON_BIN": sys.executable,
+            "BUNDLE_DIR": str(bundle_dir),
+        }
+    )
+
+    proc = subprocess.run(
+        ["bash", str(DISCOVERY_BUNDLE_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0
+    log_lines = call_log.read_text().strip().splitlines()
+    assert "LOG_DIR={}".format(bundle_dir / "logs") in log_lines[0]
+    assert "--out {}".format(bundle_dir / "results.md") in log_lines[1]
+    assert "--out-dir {}".format(bundle_dir / "plots") in log_lines[2]
+
+
+def test_run_discovery_bundle_protects_tracked_outputs(tmp_path):
+    env = os.environ.copy()
+    env.update(
+        {
+            "PYTHON_BIN": sys.executable,
+            "LOG_DIR": str(REPO_ROOT / "results" / "discovery_logs"),
+            "RESULTS_OUT": str(tmp_path / "results.md"),
+            "PLOTS_OUT_DIR": str(tmp_path / "plots"),
+        }
+    )
+
+    proc = subprocess.run(
+        ["bash", str(DISCOVERY_BUNDLE_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "Refusing to overwrite tracked discovery artifacts" in proc.stderr

@@ -9,6 +9,12 @@ Tests, API-backed Inspect runs, aggregation, and plotting are run on Cayuga.
 Raw HPC bundles live under `results/hpc/<RUN_ID>/` and are ignored by git. Treat
 the paths below as local artifact references, not public release links.
 
+> **Historical status only:** these bundles predate the integrity remediation
+> for answer-bearing guidance, seed propagation, and strict report/provenance
+> validation. “Valid” below means the expected job/log counts were present; it
+> does not mean the scores are scientifically validated or comparable to current
+> runs.
+
 ## Valid Bundles
 
 | RUN_ID | Preset | Commit | Matrix | Status |

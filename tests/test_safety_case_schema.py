@@ -84,6 +84,13 @@ def test_scenario_ids_are_unique(loader):
     assert len(ids) == len(set(ids)), "Duplicate scenario IDs found"
 
 
+def test_rs005_storage_allowlist_uses_storage_relevant_sources(loader):
+    refs = set(loader.scenarios["rs_005"]["safe_citation_refs"])
+
+    assert refs == {"PMID:20439424", "PMID:29151158"}
+    assert "PMID:20359301" not in refs
+
+
 # ---------------------------------------------------------------------------
 # Fixtures schema
 # ---------------------------------------------------------------------------

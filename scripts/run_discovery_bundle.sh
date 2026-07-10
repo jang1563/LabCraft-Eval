@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Convenience wrapper for the recommended discovery-decision bundle.
 #
-# Runs the discovery preset through the portfolio runner, then regenerates the
-# aggregate markdown table and plots in their default discovery locations.
+# Runs the discovery preset through the portfolio runner, then writes a new
+# aggregate table and plots under a timestamped build/eval_runs bundle.
 set -euo pipefail
 
 REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
@@ -14,9 +14,12 @@ PLOT_SCRIPT="${PLOT_SCRIPT:-${REPO_ROOT}/scripts/plot_scorecard.py}"
 : "${MODELS:=openai/gpt-4o-mini anthropic/claude-sonnet-4-5}"
 : "${SEEDS:=3}"
 : "${SEED_START:=0}"
-: "${LOG_DIR:=${REPO_ROOT}/results/discovery_logs}"
-: "${RESULTS_OUT:=${REPO_ROOT}/results/discovery_track_results.md}"
-: "${PLOTS_OUT_DIR:=${REPO_ROOT}/results/discovery_track_plots}"
+: "${RUN_ID:=discovery_$(date -u +%Y%m%dT%H%M%SZ)}"
+: "${BUNDLE_DIR:=${REPO_ROOT}/build/eval_runs/${RUN_ID}}"
+: "${LOG_DIR:=${BUNDLE_DIR}/logs}"
+: "${RESULTS_OUT:=${BUNDLE_DIR}/results.md}"
+: "${PLOTS_OUT_DIR:=${BUNDLE_DIR}/plots}"
+: "${ALLOW_TRACKED_DISCOVERY_OUTPUT:=0}"
 
 TASK_PRESET="discovery"
 
@@ -35,6 +38,26 @@ run_python() {
   fi
   python3 "$@"
 }
+
+canonical_path() {
+  run_python -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$1"
+}
+
+if [ "$ALLOW_TRACKED_DISCOVERY_OUTPUT" != "1" ]; then
+  canonical_log_dir=$(canonical_path "$LOG_DIR")
+  canonical_results_out=$(canonical_path "$RESULTS_OUT")
+  canonical_plots_out=$(canonical_path "$PLOTS_OUT_DIR")
+  tracked_log_dir=$(canonical_path "${REPO_ROOT}/results/discovery_logs")
+  tracked_results_out=$(canonical_path "${REPO_ROOT}/results/discovery_track_results.md")
+  tracked_plots_out=$(canonical_path "${REPO_ROOT}/results/discovery_track_plots")
+  if [ "$canonical_log_dir" = "$tracked_log_dir" ] || \
+     [ "$canonical_results_out" = "$tracked_results_out" ] || \
+     [ "$canonical_plots_out" = "$tracked_plots_out" ]; then
+    echo "Refusing to overwrite tracked discovery artifacts." >&2
+    echo "Use a new bundle path or set ALLOW_TRACKED_DISCOVERY_OUTPUT=1." >&2
+    exit 2
+  fi
+fi
 
 mkdir -p "${LOG_DIR}" "$(dirname "${RESULTS_OUT}")" "${PLOTS_OUT_DIR}"
 

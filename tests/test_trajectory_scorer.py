@@ -1387,7 +1387,14 @@ def _good_miniprep_answer() -> str:
         "Plasmid concentration: 200.0 ng/uL\n"
         "A260/A280: 1.90\n"
         "Total yield: 10.0 ug\n"
-        "Interpretation: Plasmid is pure and ready for downstream use."
+        "Interpretation: success"
+    )
+
+
+def _replace_report_line(answer: str, prefix: str, replacement: str) -> str:
+    return "\n".join(
+        replacement if line.startswith(prefix) else line
+        for line in answer.splitlines()
     )
 
 
@@ -1400,6 +1407,60 @@ def test_good_miniprep_trajectory_scores_high():
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_miniprep_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Culture volume:": "Culture volume: 999 mL",
+        "Lysis buffer sequence:": "Lysis buffer sequence: P3,P2,P1",
+        "Lysis duration:": "Lysis duration: 999 min",
+        "Purification method:": "Purification method: boiling",
+        "Elution volume:": "Elution volume: 1 uL",
+        "Plasmid concentration:": "Plasmid concentration: 999 ng/uL",
+        "A260/A280:": "A260/A280: 9.99",
+        "Total yield:": "Total yield: 999 ug",
+        "Interpretation:": "Interpretation: No plasmid was prepared.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_miniprep_trajectory(
+            final_answer=_replace_report_line(_good_miniprep_answer(), prefix, replacement),
+            transcript=_good_miniprep_transcript(),
+            ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_miniprep_accepts_equivalent_punctuation_and_spacing():
+    answer = _replace_report_line(
+        _good_miniprep_answer(),
+        "Lysis buffer sequence:",
+        "Lysis buffer sequence: P1 -> P2 -> P3",
+    )
+    answer = _replace_report_line(
+        answer,
+        "Purification method:",
+        "Purification method: silica-column",
+    )
+    scores = score_miniprep_trajectory(
+        final_answer=answer,
+        transcript=_good_miniprep_transcript(),
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_miniprep_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_miniprep_answer(),
+        "Interpretation:",
+        "Interpretation: success; the plasmid is not pure and the preparation did not succeed.",
+    )
+    scores = score_miniprep_trajectory(
+        final_answer=answer,
+        transcript=_good_miniprep_transcript(),
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
 
 
 def test_miniprep_wrong_buffer_triggers_troubleshooting():
@@ -1450,7 +1511,7 @@ def _good_express_answer() -> str:
         "Induction duration: 16 h\n"
         "Lysis buffer pH: 8.0\n"
         "Expected soluble yield: 36.8 mg/L\n"
-        "Interpretation: Expression succeeded at low-temperature overnight induction with high solubility."
+        "Interpretation: success"
     )
 
 
@@ -1463,6 +1524,54 @@ def test_good_express_trajectory_scores_high():
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_express_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Host strain:": "Host strain: DH5alpha",
+        "IPTG concentration:": "IPTG concentration: 99 mM",
+        "Induction OD600:": "Induction OD600: 9.9",
+        "Induction temperature:": "Induction temperature: 99 C",
+        "Induction duration:": "Induction duration: 99 h",
+        "Lysis buffer pH:": "Lysis buffer pH: 1.0",
+        "Expected soluble yield:": "Expected soluble yield: 999 mg/L",
+        "Interpretation:": "Interpretation: Expression failed.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_express_trajectory(
+            final_answer=_replace_report_line(_good_express_answer(), prefix, replacement),
+            transcript=_good_express_transcript(),
+            ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_express_accepts_equivalent_host_punctuation_and_spacing():
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "Host strain:",
+        "Host strain: BL21 (DE3)",
+    )
+    scores = score_express_trajectory(
+        final_answer=answer,
+        transcript=_good_express_transcript(),
+        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_express_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "Interpretation:",
+        "Interpretation: success; protein expression did not work.",
+    )
+    scores = score_express_trajectory(
+        final_answer=answer,
+        transcript=_good_express_transcript(),
+        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
 
 
 def test_express_wrong_host_triggers_troubleshooting():
@@ -1514,7 +1623,7 @@ def _good_purify_answer() -> str:
         "Purified concentration: 6.12 mg/mL\n"
         "SDS-PAGE result: single_clean_band_at_72_kDa\n"
         "Purity: 95.0%\n"
-        "Interpretation: Pure recombinant MBP-GFP fusion recovered at high purity."
+        "Interpretation: success"
     )
 
 
@@ -1529,6 +1638,60 @@ def test_good_purify_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
+def test_purify_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Resin:": "Resin: glutathione agarose",
+        "Load imidazole:": "Load imidazole: 999 mM",
+        "Wash imidazole:": "Wash imidazole: 999 mM",
+        "Elute imidazole:": "Elute imidazole: 999 mM",
+        "Expected band size:": "Expected band size: 999 kDa",
+        "Purified concentration:": "Purified concentration: 999 mg/mL",
+        "SDS-PAGE result:": "SDS-PAGE result: no_target_band_detected",
+        "Purity:": "Purity: 1.0%",
+        "Interpretation:": "Interpretation: Purification failed; no target band was detected.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_purify_trajectory(
+            final_answer=_replace_report_line(_good_purify_answer(), prefix, replacement),
+            transcript=_good_purify_transcript(),
+            ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_purify_accepts_equivalent_resin_and_sds_page_punctuation():
+    answer = _replace_report_line(
+        _good_purify_answer(),
+        "Resin:",
+        "Resin: Ni NTA",
+    )
+    answer = _replace_report_line(
+        answer,
+        "SDS-PAGE result:",
+        "SDS-PAGE result: single clean band at 72 kDa",
+    )
+    scores = score_purify_trajectory(
+        final_answer=answer,
+        transcript=_good_purify_transcript(),
+        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_purify_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_purify_answer(),
+        "Interpretation:",
+        "Interpretation: success; the protein is impure and purification did not work.",
+    )
+    scores = score_purify_trajectory(
+        final_answer=answer,
+        transcript=_good_purify_transcript(),
+        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
+
+
 def test_purify_wrong_resin_triggers_troubleshooting():
     transcript = _good_purify_transcript()
     transcript[0]["arguments"]["resin_normalized"] = "glutathione agarose"
@@ -1538,7 +1701,8 @@ def test_purify_wrong_resin_triggers_troubleshooting():
         transcript=transcript,
         ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
     )
-    assert scores["decision_scores"]["uses_ni_nta_resin"] == 0.0
+    assert "uses_ni_nta_resin" not in scores["decision_scores"]
+    assert scores["task_success"] == 0.0
     assert scores["troubleshooting"] < 1.0
 
 

@@ -480,7 +480,6 @@ def inoculate_growth(
         "growth_id": growth_id,
         "condition": condition,
         "starting_od600": starting_od,
-        "doubling_time_minutes": float(doubling_time_map[condition]),
     }
     state.log_event("inoculate_growth", payload)
     return payload

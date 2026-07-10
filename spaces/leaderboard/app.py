@@ -8,6 +8,7 @@ huggingface_hub are imported lazily when the app is launched in a Space.
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
 import json
 from pathlib import Path
 import statistics
@@ -52,17 +53,64 @@ def resolve_url(path: str, revision: str = DEFAULT_REVISION) -> str:
     )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _download_atomic(url: str, target: Path) -> None:
+    temporary = target.with_name(target.name + ".download")
+    try:
+        urlretrieve(url, temporary)
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def validate_snapshot(snapshot_dir: Path) -> None:
+    manifest = read_json(snapshot_dir / "release_manifest.json")
+    entries = {
+        entry.get("path"): entry
+        for entry in manifest.get("files", [])
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str)
+    }
+    errors = []
+    for relative in REQUIRED_FILES[1:] + PLOT_FILES:
+        entry = entries.get(relative)
+        path = snapshot_dir / relative
+        if entry is None:
+            errors.append("manifest missing {}".format(relative))
+            continue
+        if not path.exists():
+            errors.append("snapshot missing {}".format(relative))
+            continue
+        if entry.get("bytes") != path.stat().st_size:
+            errors.append("byte count mismatch for {}".format(relative))
+        if entry.get("sha256") != sha256_file(path):
+            errors.append("sha256 mismatch for {}".format(relative))
+        if path.suffix == ".jsonl":
+            record_count = len(read_jsonl(path))
+            if entry.get("record_count") != record_count:
+                errors.append("record count mismatch for {}".format(relative))
+    if errors:
+        raise RuntimeError("Invalid leaderboard snapshot: {}".format("; ".join(errors)))
+
+
 def ensure_snapshot(snapshot_dir: Path = DEFAULT_SNAPSHOT_DIR, revision: str = DEFAULT_REVISION) -> Path:
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     for path in REQUIRED_FILES + PLOT_FILES:
         target = snapshot_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists():
-            urlretrieve(resolve_url(path, revision=revision), target)
+        _download_atomic(resolve_url(path, revision=revision), target)
+    validate_snapshot(snapshot_dir)
     return snapshot_dir
 
 
 def load_snapshot(snapshot_dir: Path) -> tuple[dict, list[dict], list[dict], list[dict]]:
+    validate_snapshot(snapshot_dir)
     manifest = read_json(snapshot_dir / "release_manifest.json")
     tasks = read_jsonl(snapshot_dir / "tasks.jsonl")
     results = read_jsonl(snapshot_dir / "result_rows.jsonl")
@@ -102,7 +150,7 @@ def summarize_scores(results: list[dict], track: str) -> list[dict]:
             "task": task,
             "n": len(overall_values),
             "overall_mean": statistics.fmean(overall_values),
-            "overall_std": statistics.pstdev(overall_values) if len(overall_values) > 1 else 0.0,
+            "overall_std": statistics.stdev(overall_values) if len(overall_values) > 1 else 0.0,
         }
         for axis in AXES[1:]:
             values = [numeric_score(row, axis) for row in rows]
@@ -167,6 +215,13 @@ def provenance_markdown(
             "| Result rows | {} |".format(len(results)),
             "| Eval logs | {} |".format(len(logs)),
             "| Manifest files | {} |".format(len(manifest.get("files", []))),
+            "",
+            "Pinned dataset: [{} @ {}](https://huggingface.co/datasets/{}/tree/{})".format(
+                DATASET_ID, DEFAULT_REVISION, DATASET_ID, DEFAULT_REVISION
+            ),
+            "Manifest: [release_manifest.json]({})".format(
+                resolve_url("release_manifest.json")
+            ),
         ]
     )
 

@@ -72,7 +72,7 @@ async def prepare_media_call(
             antibiotic_concentration_ug_ml=antibiotic_concentration_ug_ml,
             plate_count=plate_count,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("prepare_media", exc)
     return render_observation(payload)
 
@@ -81,9 +81,9 @@ async def transform_call(
     plasmid_mass_pg: float,
     heat_shock_seconds: int,
     recovery_minutes: int,
-    outgrowth_media: str = "SOC",
-    shaking: bool = True,
-    ice_incubation_minutes: int = 30,
+    outgrowth_media: str,
+    shaking: bool,
+    ice_incubation_minutes: int,
 ) -> str:
     state = _current_state()
     try:
@@ -96,7 +96,7 @@ async def transform_call(
             shaking=shaking,
             ice_incubation_minutes=ice_incubation_minutes,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("transform", exc)
     return render_observation(payload)
 
@@ -116,14 +116,18 @@ async def plate_call(
             dilution_factor=dilution_factor,
             volume_ul=volume_ul,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("plate", exc)
     return render_observation(payload)
 
 
 async def count_colonies_call(plating_id: str) -> str:
     state = _current_state()
-    return render_observation(count_colonies(state=state, plating_id=plating_id))
+    try:
+        payload = count_colonies(state=state, plating_id=plating_id)
+    except (KeyError, ValueError) as exc:
+        return _tool_error_observation("count_colonies", exc)
+    return render_observation(payload)
 
 
 async def inoculate_growth_call(condition: str, starting_od600: float) -> str:
@@ -134,7 +138,7 @@ async def inoculate_growth_call(condition: str, starting_od600: float) -> str:
             condition=condition,
             starting_od600=starting_od600,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("inoculate_growth", exc)
     return render_observation(payload)
 
@@ -143,7 +147,7 @@ async def incubate_call(growth_id: str, duration_minutes: int) -> str:
     state = _current_state()
     try:
         payload = incubate(state=state, growth_id=growth_id, duration_minutes=duration_minutes)
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("incubate", exc)
     return render_observation(payload)
 
@@ -152,14 +156,18 @@ async def measure_od600_call(growth_id: str, dilution_factor: float = 1.0) -> st
     state = _current_state()
     try:
         payload = measure_od600(state=state, growth_id=growth_id, dilution_factor=dilution_factor)
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("measure_od600", exc)
     return render_observation(payload)
 
 
 async def fit_growth_curve_call(growth_id: str) -> str:
     state = _current_state()
-    return render_observation(fit_growth_curve(state=state, growth_id=growth_id))
+    try:
+        payload = fit_growth_curve(state=state, growth_id=growth_id)
+    except (KeyError, ValueError) as exc:
+        return _tool_error_observation("fit_growth_curve", exc)
+    return render_observation(payload)
 
 
 async def run_pcr_call(
@@ -169,15 +177,17 @@ async def run_pcr_call(
     cycle_count: int,
 ) -> str:
     state = _current_state()
-    return render_observation(
-        run_pcr(
+    try:
+        payload = run_pcr(
             state=state,
             polymerase_name=polymerase_name,
             additive=additive,
             extension_seconds=extension_seconds,
             cycle_count=cycle_count,
         )
-    )
+    except (KeyError, ValueError) as exc:
+        return _tool_error_observation("run_pcr", exc)
+    return render_observation(payload)
 
 
 async def run_gel_call(
@@ -186,14 +196,16 @@ async def run_gel_call(
     ladder_name: str = "1 kb DNA Ladder",
 ) -> str:
     state = _current_state()
-    return render_observation(
-        run_gel(
+    try:
+        payload = run_gel(
             state=state,
             reaction_id=reaction_id,
             agarose_percent=agarose_percent,
             ladder_name=ladder_name,
         )
-    )
+    except (KeyError, ValueError) as exc:
+        return _tool_error_observation("run_gel", exc)
+    return render_observation(payload)
 
 
 async def inspect_screening_plate_call() -> str:
@@ -212,7 +224,7 @@ async def run_colony_pcr_call(
             colony_ids=colony_ids,
             primer_pair=primer_pair,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("run_colony_pcr", exc)
     return render_observation(payload)
 
@@ -240,7 +252,7 @@ async def restriction_digest_call(
     temperature_c: float,
     duration_minutes: int,
     heat_inactivate_after: bool,
-    heat_inactivation_temperature_c: float = 65.0,
+    heat_inactivation_temperature_c: float,
 ) -> str:
     state = _current_state()
     try:
@@ -254,7 +266,7 @@ async def restriction_digest_call(
             heat_inactivate_after=heat_inactivate_after,
             heat_inactivation_temperature_c=heat_inactivation_temperature_c,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("restriction_digest", exc)
     return render_observation(payload)
 
@@ -266,7 +278,7 @@ async def ligate_call(
     vector_to_insert_molar_ratio: float,
     temperature_c: float,
     duration_minutes: int,
-    buffer: str = "T4 DNA ligase buffer",
+    buffer: str,
 ) -> str:
     state = _current_state()
     try:
@@ -280,18 +292,18 @@ async def ligate_call(
             duration_minutes=duration_minutes,
             buffer=buffer,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("ligate", exc)
     return render_observation(payload)
 
 
 async def transform_ligation_call(
     ligation_id: str,
-    heat_shock_seconds: int = 30,
-    recovery_minutes: int = 60,
-    outgrowth_media: str = "SOC",
-    shaking: bool = True,
-    ice_incubation_minutes: int = 30,
+    heat_shock_seconds: int,
+    recovery_minutes: int,
+    outgrowth_media: str,
+    shaking: bool,
+    ice_incubation_minutes: int,
 ) -> str:
     state = _current_state()
     try:
@@ -304,7 +316,7 @@ async def transform_ligation_call(
             shaking=shaking,
             ice_incubation_minutes=ice_incubation_minutes,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("transform_ligation", exc)
     return render_observation(payload)
 
@@ -318,12 +330,12 @@ async def golden_gate_assembly_call(
     fragment_ids: list[str],
     enzyme_name: str,
     ligase_name: str,
-    buffer: str = "T4 DNA ligase buffer",
-    cycle_count: int = 25,
-    digest_temperature_c: float = 37.0,
-    ligate_temperature_c: float = 16.0,
-    final_digest_minutes: int = 5,
-    heat_kill_temperature_c: float = 60.0,
+    buffer: str,
+    cycle_count: int,
+    digest_temperature_c: float,
+    ligate_temperature_c: float,
+    final_digest_minutes: int,
+    heat_kill_temperature_c: float,
 ) -> str:
     state = _current_state()
     try:
@@ -339,18 +351,18 @@ async def golden_gate_assembly_call(
             final_digest_minutes=final_digest_minutes,
             heat_kill_temperature_c=heat_kill_temperature_c,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("golden_gate_assembly", exc)
     return render_observation(payload)
 
 
 async def transform_assembly_call(
     assembly_id: str,
-    heat_shock_seconds: int = 30,
-    recovery_minutes: int = 60,
-    outgrowth_media: str = "SOC",
-    shaking: bool = True,
-    ice_incubation_minutes: int = 30,
+    heat_shock_seconds: int,
+    recovery_minutes: int,
+    outgrowth_media: str,
+    shaking: bool,
+    ice_incubation_minutes: int,
 ) -> str:
     state = _current_state()
     try:
@@ -363,7 +375,7 @@ async def transform_assembly_call(
             shaking=shaking,
             ice_incubation_minutes=ice_incubation_minutes,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("transform_assembly", exc)
     return render_observation(payload)
 
@@ -378,7 +390,7 @@ async def gibson_assembly_call(
     master_mix_name: str,
     temperature_c: float,
     duration_minutes: int,
-    overlap_length_bp: int = 20,
+    overlap_length_bp: int,
 ) -> str:
     state = _current_state()
     try:
@@ -390,18 +402,18 @@ async def gibson_assembly_call(
             duration_minutes=duration_minutes,
             overlap_length_bp=overlap_length_bp,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("gibson_assembly", exc)
     return render_observation(payload)
 
 
 async def transform_gibson_call(
     gibson_id: str,
-    heat_shock_seconds: int = 30,
-    recovery_minutes: int = 60,
-    outgrowth_media: str = "SOC",
-    shaking: bool = True,
-    ice_incubation_minutes: int = 30,
+    heat_shock_seconds: int,
+    recovery_minutes: int,
+    outgrowth_media: str,
+    shaking: bool,
+    ice_incubation_minutes: int,
 ) -> str:
     state = _current_state()
     try:
@@ -414,7 +426,7 @@ async def transform_gibson_call(
             shaking=shaking,
             ice_incubation_minutes=ice_incubation_minutes,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("transform_gibson", exc)
     return render_observation(payload)
 
@@ -436,7 +448,7 @@ async def perform_miniprep_call(
             purification_method=purification_method,
             elution_volume_ul=elution_volume_ul,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("perform_miniprep", exc)
     return render_observation(payload)
 
@@ -462,7 +474,7 @@ async def run_protein_expression_call(
             lysis_buffer_ph=lysis_buffer_ph,
             culture_volume_ml=culture_volume_ml,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("run_protein_expression", exc)
     return render_observation(payload)
 
@@ -472,8 +484,8 @@ async def run_nta_purification_call(
     load_imidazole_mm: float,
     wash_imidazole_mm: float,
     elute_imidazole_mm: float,
-    flow_rate_ml_per_min: float = 1.0,
-    column_bed_volume_ml: float = 1.0,
+    flow_rate_ml_per_min: float,
+    column_bed_volume_ml: float,
     input_mass_mg: float = 18.0,
 ) -> str:
     state = _current_state()
@@ -488,7 +500,7 @@ async def run_nta_purification_call(
             column_bed_volume_ml=column_bed_volume_ml,
             input_mass_mg=input_mass_mg,
         )
-    except ValueError as exc:
+    except (KeyError, ValueError) as exc:
         return _tool_error_observation("run_nta_purification", exc)
     return render_observation(payload)
 
@@ -537,9 +549,9 @@ def transform_tool():
             plasmid_mass_pg: float,
             heat_shock_seconds: int,
             recovery_minutes: int,
-            outgrowth_media: str = "SOC",
-            shaking: bool = True,
-            ice_incubation_minutes: int = 30,
+            outgrowth_media: str,
+            shaking: bool,
+            ice_incubation_minutes: int,
         ) -> str:
             """Run a chemical transformation.
 
@@ -717,8 +729,8 @@ def run_pcr_tool():
             """Run a PCR reaction.
 
             Args:
-                polymerase_name: Polymerase name, such as "Q5 High-Fidelity DNA polymerase".
-                additive: GC-rich additive choice, such as "DMSO", "Betaine", or "none".
+                polymerase_name: Polymerase selected for the supplied template.
+                additive: Additive selected for the supplied template.
                 extension_seconds: Extension time per cycle in seconds.
                 cycle_count: Total cycle count.
 
@@ -842,14 +854,14 @@ def restriction_digest_tool():
             temperature_c: float,
             duration_minutes: int,
             heat_inactivate_after: bool,
-            heat_inactivation_temperature_c: float = 65.0,
+            heat_inactivation_temperature_c: float,
         ) -> str:
             """Digest a DNA fragment with one or more restriction enzymes.
 
             Args:
                 fragment_id: Fragment to digest, as returned by list_cloning_substrates.
-                enzyme_names: Restriction enzymes (e.g., ["EcoRI", "BamHI"]).
-                buffer: Reaction buffer (e.g., "CutSmart").
+                enzyme_names: Restriction enzymes selected for the supplied fragment.
+                buffer: Reaction buffer chosen for the enzyme combination.
                 temperature_c: Incubation temperature in Celsius.
                 duration_minutes: Incubation time in minutes.
                 heat_inactivate_after: Whether to heat-inactivate the enzymes after digestion.
@@ -884,16 +896,16 @@ def ligate_tool():
             vector_to_insert_molar_ratio: float,
             temperature_c: float,
             duration_minutes: int,
-            buffer: str = "T4 DNA ligase buffer",
+            buffer: str,
         ) -> str:
             """Ligate a digested vector with one or more digested inserts.
 
             Args:
                 vector_fragment_id: Digested vector fragment id (output of restriction_digest).
                 insert_fragment_ids: Digested insert fragment ids.
-                ligase_name: Ligase name (use "T4 DNA ligase" for cohesive-end ligation).
-                vector_to_insert_molar_ratio: Insert excess over vector (e.g., 3.0 for 1:3 vector:insert).
-                temperature_c: Ligation temperature (16, 22, or 25 C).
+                ligase_name: Ligase selected for the digested DNA ends.
+                vector_to_insert_molar_ratio: Insert excess over vector.
+                temperature_c: Ligation temperature in Celsius.
                 duration_minutes: Ligation duration in minutes.
                 buffer: Ligation buffer label.
             """
@@ -921,19 +933,19 @@ def transform_ligation_tool():
 
         async def execute(
             ligation_id: str,
-            heat_shock_seconds: int = 30,
-            recovery_minutes: int = 60,
-            outgrowth_media: str = "SOC",
-            shaking: bool = True,
-            ice_incubation_minutes: int = 30,
+            heat_shock_seconds: int,
+            recovery_minutes: int,
+            outgrowth_media: str,
+            shaking: bool,
+            ice_incubation_minutes: int,
         ) -> str:
             """Transform a ligation into competent cells.
 
             Args:
-                ligation_id: Ligation identifier (e.g., "ligation_001") from the ligate tool.
-                heat_shock_seconds: Heat shock duration (30 s is standard).
+                ligation_id: Ligation identifier returned by the ligate tool.
+                heat_shock_seconds: Heat shock duration.
                 recovery_minutes: Post-shock outgrowth duration in minutes.
-                outgrowth_media: Outgrowth medium ("SOC" recommended).
+                outgrowth_media: Outgrowth medium.
                 shaking: Whether to shake during recovery.
                 ice_incubation_minutes: Pre-shock ice incubation time.
             """
@@ -959,7 +971,7 @@ def list_golden_gate_substrates_tool():
         """List the four starting DNA fragments for the Golden Gate task."""
 
         async def execute() -> str:
-            """Return the backbone + three inserts and their BsaI overhangs."""
+            """Return the backbone, inserts, and observed directional overhangs."""
             return await list_golden_gate_substrates_call()
 
         return execute
@@ -978,25 +990,25 @@ def golden_gate_assembly_tool():
             fragment_ids: list[str],
             enzyme_name: str,
             ligase_name: str,
-            buffer: str = "T4 DNA ligase buffer",
-            cycle_count: int = 25,
-            digest_temperature_c: float = 37.0,
-            ligate_temperature_c: float = 16.0,
-            final_digest_minutes: int = 5,
-            heat_kill_temperature_c: float = 60.0,
+            buffer: str,
+            cycle_count: int,
+            digest_temperature_c: float,
+            ligate_temperature_c: float,
+            final_digest_minutes: int,
+            heat_kill_temperature_c: float,
         ) -> str:
             """Run a Golden Gate assembly.
 
             Args:
                 fragment_ids: Fragments to assemble (must be all four Golden Gate substrates).
-                enzyme_name: Type IIS enzyme (e.g., "BsaI" or "BsmBI").
-                ligase_name: Ligase (use "T4 DNA ligase").
+                enzyme_name: Type IIS enzyme selected for the supplied substrates.
+                ligase_name: Ligase selected for the cycling assembly.
                 buffer: Reaction buffer.
-                cycle_count: Number of 37/16 C cycles (>= 25 recommended).
-                digest_temperature_c: Digest step temperature (37 C optimal).
-                ligate_temperature_c: Ligate step temperature (16 C optimal).
+                cycle_count: Number of digest/ligation cycles.
+                digest_temperature_c: Digest-step temperature.
+                ligate_temperature_c: Ligation-step temperature.
                 final_digest_minutes: Final digest hold after cycling.
-                heat_kill_temperature_c: Heat-kill temperature (60 C standard for NEB Golden Gate Assembly Mix).
+                heat_kill_temperature_c: Heat-inactivation temperature.
             """
             return await golden_gate_assembly_call(
                 fragment_ids=fragment_ids,
@@ -1024,19 +1036,19 @@ def transform_assembly_tool():
 
         async def execute(
             assembly_id: str,
-            heat_shock_seconds: int = 30,
-            recovery_minutes: int = 60,
-            outgrowth_media: str = "SOC",
-            shaking: bool = True,
-            ice_incubation_minutes: int = 30,
+            heat_shock_seconds: int,
+            recovery_minutes: int,
+            outgrowth_media: str,
+            shaking: bool,
+            ice_incubation_minutes: int,
         ) -> str:
             """Transform a Golden Gate assembly into competent cells.
 
             Args:
                 assembly_id: Assembly identifier from golden_gate_assembly.
-                heat_shock_seconds: Heat shock duration (30 s standard).
+                heat_shock_seconds: Heat shock duration.
                 recovery_minutes: Post-shock outgrowth duration.
-                outgrowth_media: Outgrowth medium (SOC recommended).
+                outgrowth_media: Outgrowth medium.
                 shaking: Whether to shake during recovery.
                 ice_incubation_minutes: Pre-shock ice incubation time.
             """
@@ -1082,16 +1094,16 @@ def gibson_assembly_tool():
             master_mix_name: str,
             temperature_c: float,
             duration_minutes: int,
-            overlap_length_bp: int = 20,
+            overlap_length_bp: int,
         ) -> str:
             """Run a Gibson assembly.
 
             Args:
                 fragment_ids: Fragments to assemble (backbone + insert).
-                master_mix_name: Master mix name (e.g., "Gibson Assembly Master Mix" or "NEBuilder HiFi").
-                temperature_c: Isothermal incubation temperature (50 C optimal).
-                duration_minutes: Incubation duration (>= 15 min for 2-3 fragments).
-                overlap_length_bp: Homology overlap length in bp (>= 20 bp recommended).
+                master_mix_name: Isothermal overlap-assembly mix name.
+                temperature_c: Isothermal incubation temperature.
+                duration_minutes: Incubation duration.
+                overlap_length_bp: Observed homology-overlap length in bp.
             """
             return await gibson_assembly_call(
                 fragment_ids=fragment_ids,
@@ -1115,19 +1127,19 @@ def transform_gibson_tool():
 
         async def execute(
             gibson_id: str,
-            heat_shock_seconds: int = 30,
-            recovery_minutes: int = 60,
-            outgrowth_media: str = "SOC",
-            shaking: bool = True,
-            ice_incubation_minutes: int = 30,
+            heat_shock_seconds: int,
+            recovery_minutes: int,
+            outgrowth_media: str,
+            shaking: bool,
+            ice_incubation_minutes: int,
         ) -> str:
             """Transform a Gibson assembly into competent cells.
 
             Args:
                 gibson_id: Gibson identifier from gibson_assembly.
-                heat_shock_seconds: Heat shock duration (30 s standard).
+                heat_shock_seconds: Heat shock duration.
                 recovery_minutes: Post-shock outgrowth duration.
-                outgrowth_media: Outgrowth medium (SOC recommended).
+                outgrowth_media: Outgrowth medium.
                 shaking: Whether to shake during recovery.
                 ice_incubation_minutes: Pre-shock ice incubation time.
             """
@@ -1150,7 +1162,7 @@ def perform_miniprep_tool():
 
     @tool(name="perform_miniprep")
     def perform_miniprep_tool_impl():
-        """Perform a single-pass alkaline-lysis plasmid miniprep with silica column purification."""
+        """Perform a single-pass alkaline-lysis plasmid miniprep."""
 
         async def execute(
             culture_volume_ml: float,
@@ -1162,11 +1174,11 @@ def perform_miniprep_tool():
             """Run an end-to-end plasmid miniprep.
 
             Args:
-                culture_volume_ml: Overnight culture volume (1-10 mL recommended; 5 mL standard).
-                lysis_buffer_sequence: Buffer order, e.g., "P1,P2,P3" for canonical alkaline lysis.
-                lysis_duration_min: Time in P2 lysis buffer before neutralisation (1-5 min).
-                purification_method: "silica column" (standard) or "anion exchange column".
-                elution_volume_ul: Final elution volume in microlitres (>= 30 uL recommended).
+                culture_volume_ml: Overnight culture volume in mL.
+                lysis_buffer_sequence: Ordered alkaline-lysis buffer labels.
+                lysis_duration_min: Time in alkaline lysis before neutralisation.
+                purification_method: Plasmid purification method.
+                elution_volume_ul: Final elution volume in microlitres.
             """
             return await perform_miniprep_call(
                 culture_volume_ml=culture_volume_ml,
@@ -1186,7 +1198,7 @@ def run_protein_expression_tool():
 
     @tool(name="run_protein_expression")
     def run_protein_expression_tool_impl():
-        """Run a single IPTG-induced recombinant protein expression in BL21(DE3)."""
+        """Run a single IPTG-induced recombinant protein expression."""
 
         async def execute(
             host_strain: str,
@@ -1200,12 +1212,12 @@ def run_protein_expression_tool():
             """Run a protein expression experiment end-to-end.
 
             Args:
-                host_strain: E. coli host with T7 RNA polymerase, e.g., "BL21(DE3)".
-                iptg_concentration_mm: IPTG induction concentration (0.1 - 1 mM).
-                induction_od600: OD600 at induction (mid-log, 0.4 - 0.8).
-                induction_temperature_c: Induction temperature (18, 25, 30, or 37 C).
+                host_strain: E. coli host selected for recombinant expression.
+                iptg_concentration_mm: IPTG induction concentration in mM.
+                induction_od600: OD600 at induction.
+                induction_temperature_c: Induction temperature in Celsius.
                 induction_hours: Induction duration in hours.
-                lysis_buffer_ph: Lysis buffer pH (7.0 - 8.0 for Ni-NTA compatibility).
+                lysis_buffer_ph: Lysis buffer pH.
                 culture_volume_ml: Culture volume in mL (default 500).
             """
             return await run_protein_expression_call(
@@ -1235,18 +1247,18 @@ def run_nta_purification_tool():
             load_imidazole_mm: float,
             wash_imidazole_mm: float,
             elute_imidazole_mm: float,
-            flow_rate_ml_per_min: float = 1.0,
-            column_bed_volume_ml: float = 1.0,
+            flow_rate_ml_per_min: float,
+            column_bed_volume_ml: float,
             input_mass_mg: float = 18.0,
         ) -> str:
             """Purify a His-tagged benign protein over Ni-NTA.
 
             Args:
-                resin_name: Ni-NTA-family resin (e.g., "Ni-NTA", "HisPur Ni-NTA", "HisTrap HP").
-                load_imidazole_mm: Imidazole in load buffer (10-20 mM recommended).
-                wash_imidazole_mm: Imidazole in wash buffer (40-60 mM recommended).
-                elute_imidazole_mm: Imidazole in elution buffer (>= 200 mM).
-                flow_rate_ml_per_min: Column flow rate (1 mL/min standard for 1 mL column).
+                resin_name: Immobilised-metal affinity resin name.
+                load_imidazole_mm: Imidazole concentration in the load buffer.
+                wash_imidazole_mm: Imidazole concentration in the wash buffer.
+                elute_imidazole_mm: Imidazole concentration in the elution buffer.
+                flow_rate_ml_per_min: Column flow rate in mL/min.
                 column_bed_volume_ml: Column bed volume in mL.
                 input_mass_mg: Mass of input soluble protein to load in mg.
             """

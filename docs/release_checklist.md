@@ -11,6 +11,9 @@ snapshot.
   Avoid introducing a second public import namespace in a patch release.
 - Keep multi-task execution on [scripts/run_portfolio_eval.sh](../scripts/run_portfolio_eval.sh)
   presets: `snapshot`, `current`, `discovery`, `safety_case`, and `all`.
+- Record the runner's `GENERATE_CONFIG_ARGS` in the run manifest. The default
+  pins temperature and maximum output tokens; any override must remain
+  non-empty and intentional.
 - Keep `labcraft_suite()` as a single-task smoke alias unless a future breaking
   release introduces a real cross-task Inspect orchestration layer.
 
@@ -21,6 +24,7 @@ laptop as the source of release verification when the project is in HPC-only
 execution mode.
 
 ```bash
+uv sync --extra dev --extra analysis
 uv run pytest
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
 ```
@@ -42,25 +46,62 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
   and that its `release_manifest.json` source commit matches the release notes.
 - Include the commit SHA and log/result directory when reporting benchmark
   numbers.
+- Distinguish the export packaging `source_commit` from each log's native
+  `evaluation_revision.commit`; report both for schema 0.2.0 scored releases.
+- Require `evaluation_revision.dirty: false` and a recorded
+  non-empty `model_generate_config` for every score-bearing schema 0.2.0 log.
+- Confirm the packaging worktree is clean before final export. The exporter
+  fails closed otherwise because `source_commit` cannot represent uncommitted
+  packaging changes.
 - For HPC bundles, include the `RUN_ID`, `results/hpc/<RUN_ID>/aggregate_manifest.json`,
   Slurm array range, model matrix, task matrix, seed range, and aggregation
   command.
 
 ## Hugging Face export checks
 
-Before uploading or tagging a Hugging Face dataset snapshot, generate and
-validate the export bundle:
+Before uploading or tagging a metadata-only Hugging Face dataset snapshot,
+generate and validate the export bundle:
 
 ```bash
 uv run python scripts/export_hf_dataset.py \
   --out-dir build/hf_dataset \
   --release-name <release_name> \
+  --no-results \
+  --clean-output \
   --copy-plots
 uv run python scripts/validate_hf_export.py build/hf_dataset
 ```
 
-Do not upload bundles with empty `result_rows.jsonl`, checksum mismatches, or
-missing plot assets.
+The CI HF export smoke follows this metadata-only path. It checks packaging and
+manifest integrity but does not validate model scores. Metadata-only exports
+must omit `result_rows.jsonl` and have an empty `eval_log_manifest.jsonl`.
+Copied historical plots are visual assets only and do not make this a
+score-bearing evidence bundle.
+
+For a score-bearing schema 0.2.0 release, use a fresh output directory and an
+explicit clean log bundle:
+
+```bash
+uv run python scripts/export_hf_dataset.py \
+  --out-dir build/hf_scored_release \
+  --release-name <release_name> \
+  --log-dir results/<clean_log_bundle>
+uv run python scripts/validate_hf_export.py build/hf_scored_release
+```
+
+Do not upload score-bearing bundles with empty `result_rows.jsonl`, checksum
+mismatches, missing plot assets, dirty/incomplete evaluation revisions, or
+empty/unpinned generation configuration. The exporter must fail rather than silently
+omit a bad log.
+
+Confirm that each eval-log-manifest path points to a raw `.eval` file bundled
+under `eval_logs/`. If plots are included, pass explicit `--plot` files
+generated from this log bundle; do not use the frozen default `--copy-plots`.
+
+The exporter refuses a non-empty output directory. Prefer a new directory;
+pass `--clean-output` only when deliberately replacing a disposable build
+directory under `build/`. Never use it to rewrite an immutable release bundle
+or HF tag.
 
 Before performing a network upload, inspect the dry-run plan:
 
@@ -81,14 +122,24 @@ uv run python scripts/upload_hf_dataset.py \
   --execute
 ```
 
+An executed upload removes remote files absent from the manifest-backed plan in
+the same commit, except for the Hub-managed `.gitattributes`. Confirm that this
+exact-replacement behavior is intended for the target revision.
+
 ## Result bundle checks
 
 - Frozen snapshot results should stay tied to `results/logs`,
   `results/results.md`, and the top-level scorecard plots.
+- Treat the published v0.1.1 scorecard as historical/provisional evidence and
+  preserve its generated tables and raw files unchanged. Integrity corrections
+  belong in documentation, code, tests, and a new release rather than a silent
+  rewrite.
 - Newer wet-lab task bundles should remain in their `results/current_*`
   directories unless intentionally promoted.
 - Discovery Decision Track bundles should remain in `results/discovery_*`.
 - HPC-scale candidate bundles should remain under `results/hpc/<RUN_ID>/` until
   intentionally promoted into a named public result page.
+- Do not call the HPC v0.2 or live Safety Case summary independently auditable
+  until the raw run bundles are public and can be re-aggregated.
 - Do not overwrite existing `.eval` logs when extending a seed range; use
   `SEED_START` and a separate `LOG_DIR` when needed.

@@ -1,5 +1,8 @@
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +26,85 @@ plot_scorecard = _load_script_module(
     "plot_scorecard",
     "scripts/plot_scorecard.py",
 )
+
+
+def _fake_success_log():
+    model = "openai/gpt-4o-mini"
+    usage = SimpleNamespace(
+        input_tokens=11,
+        output_tokens=7,
+        total_tokens=18,
+        input_tokens_cache_read=3,
+    )
+    sample = SimpleNamespace(
+        id="transform_01_seeded_seed_00",
+        model_usage={model: usage},
+        scores={"trajectory": SimpleNamespace(value={"overall": 0.75})},
+    )
+    return SimpleNamespace(
+        status="success",
+        eval=SimpleNamespace(
+            model=model,
+            task="transform_01",
+            created="2026-04-18T10:00:00+00:00",
+            revision=SimpleNamespace(
+                type="git",
+                origin="https://github.com/example/LabCraft-Eval.git",
+                commit="abc123",
+                dirty=False,
+            ),
+            model_generate_config={"temperature": 0.2, "max_tokens": None},
+        ),
+        samples=[sample],
+    )
+
+
+def test_extract_scores_preserves_eval_provenance_config_and_sample_usage(monkeypatch, tmp_path):
+    monkeypatch.setattr("inspect_ai.log.read_eval_log", lambda _path: _fake_success_log())
+
+    row = aggregate_eval_results.extract_scores(tmp_path / "example.eval")[0]
+
+    assert row["eval_revision"] == {
+        "type": "git",
+        "origin": "https://github.com/example/LabCraft-Eval.git",
+        "commit": "abc123",
+        "dirty": False,
+    }
+    assert row["model_generate_config"] == {"temperature": 0.2}
+    assert row["tokens"] == {
+        "input": 11,
+        "output": 7,
+        "total": 18,
+        "input_cache_read": 3,
+    }
+
+
+def test_extract_scores_is_strict_by_default_for_unreadable_logs(tmp_path):
+    unreadable = tmp_path / "broken.eval"
+    unreadable.write_text("not an Inspect log")
+
+    with pytest.raises(RuntimeError, match="Failed to read Inspect eval log"):
+        aggregate_eval_results.extract_scores(unreadable)
+    assert aggregate_eval_results.extract_scores(unreadable, strict=False) == []
+
+
+def test_extract_scores_is_strict_by_default_for_non_success_logs(monkeypatch, tmp_path):
+    failed_log = _fake_success_log()
+    failed_log.status = "error"
+    monkeypatch.setattr("inspect_ai.log.read_eval_log", lambda _path: failed_log)
+
+    with pytest.raises(RuntimeError, match="non-success status: error"):
+        aggregate_eval_results.extract_scores(tmp_path / "failed.eval")
+    assert aggregate_eval_results.extract_scores(tmp_path / "failed.eval", strict=False) == []
+
+
+def test_plot_scorecard_rejects_non_success_logs(monkeypatch, tmp_path):
+    failed_log = _fake_success_log()
+    failed_log.status = "error"
+    monkeypatch.setattr("inspect_ai.log.read_eval_log", lambda _path: failed_log)
+
+    with pytest.raises(RuntimeError, match="non-success status: error"):
+        plot_scorecard.extract_scores(tmp_path / "failed.eval")
 
 
 def test_dedupe_rows_keeps_latest_rerun_per_sample():

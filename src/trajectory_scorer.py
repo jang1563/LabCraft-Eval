@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from typing import Any, Dict, Iterable, List
 
@@ -172,6 +173,35 @@ def _coerce_int(value: Any) -> int | None:
     if as_float is None:
         return None
     return int(round(as_float))
+
+
+def _numeric_values_match(reported: Any, observed: Any, *, tolerance: float) -> bool:
+    """Compare a reported numeric field with a finite observed tool value."""
+    reported_float = _coerce_float(reported)
+    observed_float = _coerce_float(observed)
+    if reported_float is None or observed_float is None:
+        return False
+    if not math.isfinite(reported_float) or not math.isfinite(observed_float):
+        return False
+    return abs(reported_float - observed_float) <= tolerance
+
+
+def _normalize_reported_text(value: Any) -> str:
+    """Normalize superficial punctuation/spacing differences in report fields."""
+    if value is None:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+
+
+def _reported_text_matches(reported: Any, observed: Any) -> bool:
+    reported_normalized = _normalize_reported_text(reported)
+    observed_normalized = _normalize_reported_text(observed)
+    return bool(reported_normalized) and reported_normalized == observed_normalized
+
+
+def _interpretation_reports_success(interpretation: Any) -> bool:
+    """Accept only the fail-closed structured success token."""
+    return str(interpretation or "").strip().casefold() == "success"
 
 
 def _parse_scientific_number(value: str) -> float | None:
@@ -1903,8 +1933,12 @@ def _reconstruct_miniprep_results(tool_calls: List[Dict[str, Any]]) -> Dict[str,
     return {"last": last, "call_count": call_count, "statuses": statuses}
 
 
+MINIPREP_CULTURE_VOLUME_TOLERANCE_ML = 0.1
+MINIPREP_LYSIS_DURATION_TOLERANCE_MIN = 0.0
+MINIPREP_ELUTION_VOLUME_TOLERANCE_UL = 1.0
 MINIPREP_CONCENTRATION_TOLERANCE = 2.0  # ng/uL
 MINIPREP_RATIO_TOLERANCE = 0.05
+MINIPREP_TOTAL_YIELD_TOLERANCE_UG = 0.2
 
 
 def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
@@ -1928,14 +1962,30 @@ def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, An
     last = reconstructed["last"]
     if str(last.get("status")) != "prepared":
         return 0.0
-    if (
-        abs(float(last.get("final_concentration_ng_ul", 0.0)) - reported["final_concentration_ng_ul"])
-        > MINIPREP_CONCENTRATION_TOLERANCE
+    numeric_fields = {
+        "culture_volume_ml": MINIPREP_CULTURE_VOLUME_TOLERANCE_ML,
+        "lysis_duration_min": MINIPREP_LYSIS_DURATION_TOLERANCE_MIN,
+        "elution_volume_ul": MINIPREP_ELUTION_VOLUME_TOLERANCE_UL,
+        "final_concentration_ng_ul": MINIPREP_CONCENTRATION_TOLERANCE,
+        "a260_a280_ratio": MINIPREP_RATIO_TOLERANCE,
+        "total_yield_ug": MINIPREP_TOTAL_YIELD_TOLERANCE_UG,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if abs(float(last.get("a260_a280_ratio", 0.0)) - reported["a260_a280_ratio"]) > MINIPREP_RATIO_TOLERANCE:
+    if not _reported_text_matches(
+        reported["lysis_buffer_sequence"],
+        last.get("lysis_buffer_sequence_normalized") or last.get("lysis_buffer_sequence"),
+    ):
         return 0.0
-    if "pur" not in reported["interpretation"].lower():
+    if not _reported_text_matches(
+        reported["purification_method"],
+        last.get("purification_method_normalized") or last.get("purification_method"),
+    ):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 
@@ -2038,7 +2088,12 @@ def build_miniprep_trajectory_scorer():
 # Express-01 scorer (Phase 2a)
 # ---------------------------------------------------------------------------
 
-EXPRESS_YIELD_TOLERANCE_MG_PER_L = 3.0
+EXPRESS_IPTG_TOLERANCE_MM = 0.01
+EXPRESS_OD600_TOLERANCE = 0.01
+EXPRESS_TEMPERATURE_TOLERANCE_C = 0.5
+EXPRESS_DURATION_TOLERANCE_H = 0.1
+EXPRESS_PH_TOLERANCE = 0.05
+EXPRESS_YIELD_TOLERANCE_MG_PER_L = 0.5
 
 
 def _extract_reported_express_summary(final_answer: str) -> Dict[str, Any]:
@@ -2104,12 +2159,25 @@ def score_express_task_success(final_answer: str, tool_calls: List[Dict[str, Any
     last = reconstructed["last"]
     if str(last.get("status")) != "induced":
         return 0.0
-    if (
-        abs(float(last.get("soluble_yield_mg_per_l", 0.0)) - reported["soluble_yield_mg_per_l"])
-        > EXPRESS_YIELD_TOLERANCE_MG_PER_L
+    if not _reported_text_matches(
+        reported["host_strain"],
+        last.get("host_strain_normalized") or last.get("host_strain"),
     ):
         return 0.0
-    if "express" not in reported["interpretation"].lower():
+    numeric_fields = {
+        "iptg_concentration_mm": EXPRESS_IPTG_TOLERANCE_MM,
+        "induction_od600": EXPRESS_OD600_TOLERANCE,
+        "induction_temperature_c": EXPRESS_TEMPERATURE_TOLERANCE_C,
+        "induction_hours": EXPRESS_DURATION_TOLERANCE_H,
+        "lysis_buffer_ph": EXPRESS_PH_TOLERANCE,
+        "soluble_yield_mg_per_l": EXPRESS_YIELD_TOLERANCE_MG_PER_L,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
+    ):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 
@@ -2208,8 +2276,10 @@ def build_express_trajectory_scorer():
 # Purify-01 scorer (Phase 2b)
 # ---------------------------------------------------------------------------
 
-PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 1.0
-PURIFY_PURITY_TOLERANCE_PCT = 3.0
+PURIFY_IMIDAZOLE_TOLERANCE_MM = 1.0
+PURIFY_BAND_TOLERANCE_KDA = 0.5
+PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 0.1
+PURIFY_PURITY_TOLERANCE_PCT = 1.0
 
 
 def _extract_reported_purify_summary(final_answer: str) -> Dict[str, Any]:
@@ -2279,17 +2349,27 @@ def score_purify_task_success(final_answer: str, tool_calls: List[Dict[str, Any]
     last = reconstructed["last"]
     if str(last.get("status")) != "purified":
         return 0.0
-    if (
-        abs(float(last.get("purified_concentration_mg_per_ml", 0.0)) - reported["purified_concentration_mg_per_ml"])
-        > PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML
+    if not _reported_text_matches(
+        reported["resin"],
+        last.get("resin_normalized") or last.get("resin_name"),
     ):
         return 0.0
-    if (
-        abs(float(last.get("purity_percent", 0.0)) - reported["purity_percent"])
-        > PURIFY_PURITY_TOLERANCE_PCT
+    numeric_fields = {
+        "load_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "wash_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "elute_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "expected_band_kda": PURIFY_BAND_TOLERANCE_KDA,
+        "purified_concentration_mg_per_ml": PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML,
+        "purity_percent": PURIFY_PURITY_TOLERANCE_PCT,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if "pur" not in reported["interpretation"].lower():
+    if not _reported_text_matches(reported["sds_page_result"], last.get("sds_page_result")):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 

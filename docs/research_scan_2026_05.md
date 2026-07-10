@@ -56,7 +56,7 @@ awareness, and ProAgent.
 
 Impact: keep the README distinction clear. BioProBench is large-scale
 procedural-text understanding; LabCraft-Eval is small-scale interactive
-execution in a stochastic simulator.
+execution in a seeded simulator with task-dependent stochasticity.
 
 ### BioAgent Bench
 
@@ -154,8 +154,8 @@ Recommended one-sentence claim:
 
 > LabCraft-Eval is a compact, reproducible, interactive benchmark for benign
 > wet-lab protocol execution and discovery-decision reliability, distinguished
-> by seeded stochastic simulation and deterministic multi-axis trajectory
-> scoring.
+> by a seeded simulator with task-dependent stochasticity and deterministic
+> multi-axis trajectory scoring.
 
 Claims to avoid:
 

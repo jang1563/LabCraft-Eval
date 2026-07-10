@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Render scorecard + axis breakdown charts from Inspect .eval logs.
 
-Reads results/logs/*.eval, aggregates per-(model, task) mean and stddev across
-each of the four scoring axes, and writes two PNGs:
+Reads an explicit `.eval` bundle, aggregates per-(model, task) mean and stddev
+across each of the four scoring axes, and writes two PNGs:
 
-- results/scorecard.png   : grouped bar chart, overall score per model per task
-- results/axis_heatmap.png : per-axis score matrix, models x (task, axis)
+- scorecard.png: grouped bar chart, overall score per model per task
+- axis_heatmap.png: per-axis score matrix, models x (task, axis)
 
 Repeated reruns with the same `(model, task, sample_id)` are deduplicated by
 keeping the latest `.eval` archive before aggregation.
@@ -23,8 +23,6 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_LOG_DIR = REPO_ROOT / "results" / "logs"
-DEFAULT_OUT_DIR = REPO_ROOT / "results"
 DEFAULT_MPLCONFIGDIR = REPO_ROOT / ".matplotlib"
 
 os.environ.setdefault("MPLBACKEND", "Agg")
@@ -33,6 +31,11 @@ DEFAULT_MPLCONFIGDIR.mkdir(parents=True, exist_ok=True)
 
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+
+try:
+    from aggregate_eval_results import extract_scores as extract_eval_scores
+except ModuleNotFoundError:  # pragma: no cover - module import path in tests
+    from scripts.aggregate_eval_results import extract_scores as extract_eval_scores
 
 SNAPSHOT_TASKS = ["transform_01", "growth_01", "pcr_01", "screen_01", "clone_01"]
 CURRENT_TASKS = SNAPSHOT_TASKS + [
@@ -88,39 +91,10 @@ def _parse_created_timestamp(value: object) -> datetime:
 
 
 def extract_scores(eval_path: Path):
-    rows = []
-    try:
-        from inspect_ai.log import read_eval_log
-
-        log = read_eval_log(str(eval_path))
-    except Exception:
-        return rows
-
-    model = getattr(getattr(log, "eval", None), "model", "unknown")
-    task = getattr(getattr(log, "eval", None), "task", "unknown")
-    created = getattr(getattr(log, "eval", None), "created", "") or ""
-
-    for sample in getattr(log, "samples", []) or []:
-        scores = getattr(sample, "scores", {}) or {}
-        value_block = None
-        for scorer_info in scores.values():
-            candidate = getattr(scorer_info, "value", None)
-            if isinstance(candidate, dict):
-                value_block = candidate
-                break
-        if value_block is None:
-            continue
-        row = {
-            "model": model,
-            "task": task,
-            "sample_id": getattr(sample, "id", eval_path.stem),
-            "eval_log": eval_path.name,
-            "eval_log_path": str(eval_path.resolve()),
-            "created": created,
-        }
+    rows = extract_eval_scores(eval_path, strict=True)
+    for row in rows:
         for axis in AXES:
-            row[axis] = float(value_block.get(axis, 0.0))
-        rows.append(row)
+            row[axis] = float(row.get(axis, 0.0))
     return rows
 
 
@@ -229,7 +203,7 @@ def _n_label(agg, tasks: list[str], models: list[str]) -> str:
     if not counts:
         return "N=0"
     if len(counts) == 1:
-        suffix = "seed" if counts[0] == 1 else "seeds"
+        suffix = "sample" if counts[0] == 1 else "samples"
         return "N={} {} per cell".format(counts[0], suffix)
     return "N varies by cell"
 
@@ -375,10 +349,10 @@ def main(argv=None):
     parser.add_argument(
         "--log-dir",
         nargs="+",
-        default=[str(DEFAULT_LOG_DIR)],
+        required=True,
         help="One or more directories containing Inspect .eval archives.",
     )
-    parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
+    parser.add_argument("--out-dir", required=True)
     parser.add_argument(
         "--task-preset",
         choices=("snapshot", "current", "all", "discovery", "auto"),
@@ -407,7 +381,11 @@ def main(argv=None):
     if not out_dir.is_absolute():
         out_dir = (REPO_ROOT / out_dir).resolve()
 
-    rows = load_all_rows(log_dirs)
+    try:
+        rows = load_all_rows(log_dirs)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     if not rows:
         print(
             "No .eval files found in {}".format(", ".join(str(path) for path in log_dirs)),

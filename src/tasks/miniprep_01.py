@@ -17,23 +17,21 @@ def build_miniprep_01_prompt() -> str:
 
 Task: Perform a plasmid miniprep from an overnight E. coli culture and report the resulting plasmid concentration, A260/A280 purity ratio, and total yield.
 
-Call the perform_miniprep tool exactly once. Choose:
-- culture_volume_ml (standard miniprep uses 5 mL; the recommended range is 1-10 mL)
-- lysis_buffer_sequence: the canonical Birnboim-Doly alkaline lysis sequence is "P1,P2,P3" (resuspension, alkaline SDS lysis, neutralization)
-- lysis_duration_min: 1-5 minutes; exceeding 5 min risks genomic DNA contamination (QIAGEN handbook)
-- purification_method: "silica column" is the standard
-- elution_volume_ul: 30-50 uL is the recommended range
+Call the perform_miniprep tool exactly once. Choose a scientifically defensible
+culture volume, alkaline-lysis buffer order and duration, purification method,
+and elution volume. Treat these as evaluated protocol decisions rather than
+values supplied by the task.
 
 Final answer schema (use exactly these fields on separate lines):
 Culture volume: <int> mL
-Lysis buffer sequence: P1,P2,P3
+Lysis buffer sequence: <comma-separated buffer sequence>
 Lysis duration: <int> min
-Purification method: silica column
+Purification method: <method name>
 Elution volume: <int> uL
 Plasmid concentration: <float> ng/uL
 A260/A280: <float>
 Total yield: <float> ug
-Interpretation: <sentence mentioning 'pure' or 'purity'>
+Interpretation: <success|failure>
 
 Constraints:
 - Use only the available lab tools and reference tools.

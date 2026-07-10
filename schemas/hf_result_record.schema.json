@@ -6,10 +6,17 @@
   "required": [
     "schema_version",
     "source_commit",
+    "evaluation_revision",
+    "model_generate_config",
     "model",
     "task",
+    "track",
     "sample_id",
     "eval_log",
+    "eval_log_path",
+    "status",
+    "created",
+    "tokens",
     "scores"
   ],
   "properties": {
@@ -19,10 +26,28 @@
     "source_commit": {
       "type": "string"
     },
+    "evaluation_revision": {
+      "type": "object",
+      "required": ["type", "origin", "commit", "dirty"],
+      "properties": {
+        "type": {"type": "string"},
+        "origin": {"type": "string"},
+        "commit": {"type": "string", "minLength": 1},
+        "dirty": {"const": false}
+      },
+      "additionalProperties": true
+    },
+    "model_generate_config": {
+      "type": "object",
+      "minProperties": 1
+    },
     "model": {
       "type": "string"
     },
     "task": {
+      "type": "string"
+    },
+    "track": {
       "type": "string"
     },
     "sample_id": {
@@ -32,15 +57,28 @@
       "type": "string"
     },
     "status": {
-      "type": "string"
+      "const": "success"
     },
     "created": {
       "type": "string"
     },
-    "scores": {
+    "eval_log_path": {
+      "type": "string"
+    },
+    "tokens": {
       "type": "object",
       "additionalProperties": {
-        "type": "number"
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "scores": {
+      "type": "object",
+      "required": ["overall"],
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
       }
     }
   },

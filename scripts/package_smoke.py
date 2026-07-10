@@ -29,6 +29,18 @@ def main() -> int:
     if task_ids != expected:
         raise RuntimeError("Unexpected snapshot task ids: {}".format(task_ids))
 
+    safety_task_ids = module.available_task_ids("safety_case")
+    if safety_task_ids != ("safety_case_01",):
+        raise RuntimeError("Unexpected safety-case task ids: {}".format(safety_task_ids))
+
+    # Instantiating the task exercises packaged scenario data and the packaged
+    # scope-exclusion keyword resource used by its scorer.
+    safety_task = module.safety_case_01(seeds=1)
+    if len(safety_task.dataset) != 30:
+        raise RuntimeError(
+            "Unexpected safety_case_01 sample count: {}".format(len(safety_task.dataset))
+        )
+
     sample = module.build_transform_01_sample()
     for key in ("ground_truth_path", "rubric_path"):
         path = Path(sample["metadata"][key])
@@ -36,7 +48,7 @@ def main() -> int:
             raise RuntimeError("Packaged task metadata path does not exist: {}".format(path))
 
     print(
-        "labcraft {} package smoke passed with {} snapshot tasks.".format(
+        "labcraft {} package smoke passed with {} snapshot tasks and safety_case_01.".format(
             distribution.version,
             len(task_ids),
         )

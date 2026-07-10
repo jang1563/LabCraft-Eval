@@ -2,7 +2,7 @@
 
 Manual baseline sessions aggregated from [results/human_baseline_sessions](../results/human_baseline_sessions).
 
-These sessions are intentionally separate from the frozen model-only portfolio snapshot. They are meant to provide early human context on the same seeded task instances and use the same deterministic trajectory scorer.
+These sessions are intentionally separate from the frozen model-only portfolio snapshot. They provide early human context under the current prompt, scorer, and explicit-seed convention. Frozen same-label model rows are contextual only: they used an earlier seed convention and are not matched simulator instances.
 
 ## Status
 

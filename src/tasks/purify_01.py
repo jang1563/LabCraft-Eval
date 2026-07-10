@@ -17,24 +17,21 @@ def build_purify_01_prompt() -> str:
 
 Task: Purify a His-tagged benign MBP-GFP fusion (~72 kDa) from a clarified E. coli lysate by Ni-NTA affinity chromatography, then report the purified concentration, SDS-PAGE band result, and purity percentage.
 
-Call the run_nta_purification tool exactly once with your chosen conditions. Key decisions:
-- resin_name: a Ni-NTA-family resin (e.g., "Ni-NTA", "HisPur Ni-NTA", "HisTrap HP").
-- load_imidazole_mm: 10-20 mM in the load buffer reduces non-specific binding (QIAexpressionist handbook).
-- wash_imidazole_mm: 40-60 mM in the wash buffer removes contaminants without eluting the target.
-- elute_imidazole_mm: >= 200 mM to displace the His-tag (250 mM is canonical).
-- flow_rate_ml_per_min: 1 mL/min is standard for a 1 mL bed volume.
-- column_bed_volume_ml: 1 mL for analytical scale.
+Call the run_nta_purification tool exactly once with your chosen conditions.
+Select a compatible affinity resin, load/wash/elution imidazole concentrations,
+flow rate, and bed volume from your scientific knowledge of the stated His-tag
+purification workflow.
 
 Final answer schema (use exactly these fields on separate lines):
-Resin: Ni-NTA
+Resin: <resin name>
 Load imidazole: <int> mM
 Wash imidazole: <int> mM
 Elute imidazole: <int> mM
-Expected band size: 72 kDa
+Expected band size: <float> kDa
 Purified concentration: <float> mg/mL
-SDS-PAGE result: <verbatim from tool, e.g., single_clean_band_at_72_kDa>
+SDS-PAGE result: <verbatim from tool>
 Purity: <float>%
-Interpretation: <sentence mentioning 'pure' or 'purity' or 'purification'>
+Interpretation: <success|failure>
 
 Constraints:
 - Use only the available lab tools and reference tools.

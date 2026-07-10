@@ -115,14 +115,10 @@ async def _cleanup_discovery_state(state):
 
 
 def _expand_seeds(base_sample: dict, seeds: int, seed_start: int = 0):
-    if seeds <= 1:
-        if seed_start == 0:
-            return [base_sample]
-        cloned = dict(base_sample)
-        cloned["id"] = base_sample["id"] + "_seed_{:02d}".format(seed_start)
-        cloned["metadata"] = dict(base_sample.get("metadata", {}))
-        cloned["metadata"]["seed_index"] = seed_start
-        return [cloned]
+    if isinstance(seeds, bool) or not isinstance(seeds, int) or seeds < 1:
+        raise ValueError("seeds must be a positive integer")
+    if isinstance(seed_start, bool) or not isinstance(seed_start, int) or seed_start < 0:
+        raise ValueError("seed_start must be a non-negative integer")
     expanded = []
     for idx in range(seed_start, seed_start + seeds):
         suffix = "_seed_{:02d}".format(idx)
@@ -390,21 +386,14 @@ def safety_case_01(seeds: int = 1, seed_start: int = 0):
 
     raw_samples = build_safety_case_01_samples()
     all_samples = []
-    for s in raw_samples:
-        for seed_idx in range(seed_start, seed_start + seeds):
-            sid = (
-                s["id"]
-                if seeds == 1 and seed_start == 0
-                else f"{s['id']}_seed_{seed_idx:02d}"
-            )
-            meta = dict(s["metadata"])
-            meta["seed_index"] = seed_idx
+    for base_sample in raw_samples:
+        for seeded_sample in _expand_seeds(base_sample, seeds, seed_start=seed_start):
             all_samples.append(
                 Sample(
-                    input=s["input"],
-                    target=s["target"],
-                    id=sid,
-                    metadata=meta,
+                    input=seeded_sample["input"],
+                    target=seeded_sample["target"],
+                    id=seeded_sample["id"],
+                    metadata=seeded_sample["metadata"],
                 )
             )
 

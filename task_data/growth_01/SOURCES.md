@@ -11,7 +11,7 @@
 
 ### Gold
 
-1. Monod J. *The Growth of Bacterial Cultures*. Annual Review of Microbiology (1949). DOI: 10.1146/annurev.mi.03.100149.002011
+1. Monod J. *The Growth of Bacterial Cultures*. Annual Review of Microbiology (1949). DOI: 10.1146/annurev.mi.03.100149.002103
    - Used as the canonical conceptual reference for nutrient-dependent bacterial growth.
 
 2. Zwietering MH, Jongenburger I, Rombouts FM, van 't Riet K. *Modeling of the bacterial growth curve*. Applied and Environmental Microbiology (1990). DOI: 10.1128/aem.56.6.1875-1881.1990

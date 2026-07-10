@@ -2,7 +2,7 @@
 
 LabCraft-Eval has two complementary layers.
 
-The original LabCraft benchmark asks whether an agent can execute benign wet-lab workflows reliably inside a seeded stochastic simulator. The Discovery Decision Track asks a different question: whether a biomedical agent can inspect perturbation-style evidence, choose the right next experiment, and interpret that result with an auditable scorer.
+The original LabCraft benchmark asks how an agent executes benign wet-lab workflows inside a seeded simulator with task-dependent stochasticity. The Discovery Decision Track asks a different question: whether a biomedical agent can inspect perturbation-style evidence, choose the right next experiment, and interpret that result with an auditable scorer.
 
 Use this template for company-specific positioning outside the public benchmark narrative. Keep the public repo framed around the generic Discovery Decision Track unless a company-specific brief is intentionally being shared.
 
@@ -17,7 +17,7 @@ Use this template for company-specific positioning outside the public benchmark 
 
 - It is a compact Inspect AI benchmark, not a full autonomous discovery platform.
 - It evaluates tool use, quantitative reporting, decision quality, troubleshooting, and efficiency.
-- It uses deterministic seeds, task-specific tools, citation-backed metadata, and reproducible `.eval` logs.
+- It uses explicit seed labels, task-specific tools, citation metadata, and auditable `.eval` logs.
 - The Discovery Decision Track adds a company-portable surface for evaluating target triage, orthogonal follow-up selection, and validation-assay interpretation.
 
 ## What To Avoid Overclaiming

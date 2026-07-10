@@ -6,7 +6,54 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
-- Nothing yet.
+- Mark the frozen v0.1.1 and later unbundled aggregate score pages as
+  historical/provisional benchmark-development evidence rather than validated
+  model or provider rankings.
+- Remove answer-bearing simulator observations and prompt/tool-schema defaults,
+  and validate every required miniprep, expression, and purification report
+  field against the executed tool result.
+- Require an exact structured success token for those three final reports,
+  neutralize evaluated values in the human-baseline examples, and align current
+  human runs with the agent runner's explicit integer seed convention.
+- Make portfolio runs write to new `build/eval_runs/<RUN_ID>` bundles by
+  default, require explicit aggregation/plot inputs and outputs, and reject
+  invalid seed ranges before an API-backed evaluation starts.
+- Canonicalize output paths before frozen-artifact guards, make plotting reject
+  unreadable/non-success logs, and move the Discovery wrapper's defaults into
+  a new timestamped build bundle.
+- Give single- and multi-sample runs the same explicit seed identity so local
+  and HPC execution agree on seed zero.
+- Package the Safety Case policy resource, smoke-test that task from the wheel,
+  pin the tested Inspect API version, and return invalid tool IDs/values as
+  agent-visible structured errors.
+- Reserve high live Safety Case provenance credit for scenario-allowlisted
+  references, cap unverified citation-shaped text at low partial credit, and
+  avoid penalizing explicit boundary statements that negate excluded terms.
+- Regenerate the Safety Case fixture report under that stricter scorer and
+  replace the unrelated `rs_005` antibody-validation PMID with protein-storage
+  and recombinant-protein quality references.
+- Clarify that v0.1.x runtime scoring is deterministic hard-coded logic; the
+  checked-in JSON rubrics are audit/design artifacts rather than the live
+  scoring source.
+- Introduce the schema 0.2.0 clean-provenance contract for new Hugging Face
+  score exports, preserving native `evaluation_revision` separately from the
+  packaging `source_commit` and rejecting dirty packaging or evaluation
+  revisions.
+- Bundle raw Inspect logs in score-bearing exports, require non-empty pinned
+  generation configuration, cross-check result/log provenance, and restrict
+  destructive export cleanup to `build/`.
+- Validate schema 0.2.0 task, result, eval-log-manifest, and release-manifest
+  records against the checked-in executable JSON Schemas.
+- Reject reserved-table aliases, path traversal, absolute paths, and symlinks
+  that escape an HF export bundle in both validation and upload planning.
+- Make executed Hugging Face uploads exact manifest replacements so stale
+  remote score or plot files cannot survive a corrected bundle.
+- Make metadata-only HF export the documented CI packaging-smoke path, and
+  document non-empty output refusal plus explicit `--clean-output` behavior.
+- Correct the Monod growth-model DOI and Bergkessel/Guthrie Colony PCR DOI in
+  parameter metadata and corresponding source documents.
+- Correct the historical `transform_01` full-success seed narrative without
+  rewriting the frozen generated result table.
 
 ## 0.1.1 - 2026-06-16
 

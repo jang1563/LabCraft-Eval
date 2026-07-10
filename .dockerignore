@@ -1,0 +1,17 @@
+.git
+.github
+.pytest_cache
+.ruff_cache
+.venv
+build
+dist
+docs
+examples
+hpc
+results
+spaces
+tests
+**/__pycache__
+**/*.pyc
+**/*.eval
+**/*.egg-info

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Aggregate Inspect .eval logs in results/logs into results/results.md.
+"""Aggregate an explicit Inspect .eval bundle into a new Markdown summary.
 
-Scans every .eval archive in the log directory (default results/logs), pulls
+Scans every .eval archive in the requested log directories, pulls
 model/task/status and per-axis scores out of each log's header.json and
 samples/*.json, deduplicates repeated reruns by keeping the latest archive for
 each (model, task, sample_id), then writes a human-readable Markdown summary
@@ -11,15 +11,13 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import json
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_LOG_DIR = REPO_ROOT / "results" / "logs"
-DEFAULT_OUT = REPO_ROOT / "results" / "results.md"
-
 DEFAULT_AXES = ("overall", "task_success", "decision_quality", "troubleshooting", "efficiency")
 SAFETY_CASE_AXES = (
     "aggregate",
@@ -76,7 +74,65 @@ def _parse_created_timestamp(value: object) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def extract_scores(eval_path: Path, *, strict: bool = False):
+def _jsonable_mapping(value, *, fields: tuple[str, ...] | None = None) -> dict:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        payload = dict(value)
+    elif hasattr(value, "model_dump"):
+        payload = value.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+    else:
+        names = fields or tuple(vars(value))
+        payload = {
+            name: getattr(value, name)
+            for name in names
+            if getattr(value, name, None) is not None
+        }
+    if fields is not None:
+        payload = {
+            name: payload[name]
+            for name in fields
+            if name in payload and payload[name] is not None
+        }
+    else:
+        payload = {name: item for name, item in payload.items() if item is not None}
+    try:
+        json.dumps(payload)
+    except TypeError:
+        payload = json.loads(json.dumps(payload, default=str))
+    return payload
+
+
+def _sample_tokens(sample, model: str) -> dict:
+    usage_by_model = getattr(sample, "model_usage", {}) or {}
+    if isinstance(usage_by_model, dict):
+        token_stats = usage_by_model.get(model)
+        if token_stats is None and len(usage_by_model) == 1:
+            token_stats = next(iter(usage_by_model.values()))
+    else:
+        token_stats = usage_by_model
+    if token_stats is None:
+        return {}
+    fields = {
+        "input": "input_tokens",
+        "output": "output_tokens",
+        "total": "total_tokens",
+        "input_cache_read": "input_tokens_cache_read",
+    }
+
+    def token_value(name):
+        if isinstance(token_stats, dict):
+            return token_stats.get(name)
+        return getattr(token_stats, name, None)
+
+    return {
+        output_name: token_value(source_name)
+        for output_name, source_name in fields.items()
+        if token_value(source_name) is not None
+    }
+
+
+def extract_scores(eval_path: Path, *, strict: bool = True):
     """Return a list of per-sample dicts: {task, model, status, axis -> float, tokens}."""
     rows = []
     try:
@@ -90,19 +146,24 @@ def extract_scores(eval_path: Path, *, strict: bool = False):
             ) from exc
         return rows
 
-    model = getattr(getattr(log, "eval", None), "model", "unknown")
-    task = getattr(getattr(log, "eval", None), "task", "unknown")
-    status = getattr(log, "status", "unknown")
-    created = getattr(getattr(log, "eval", None), "created", "") or ""
-
-    model_usage = getattr(getattr(log, "stats", None), "model_usage", {}) or {}
-    token_stats = model_usage.get(model)
-    tokens = {
-        "input": getattr(token_stats, "input_tokens", None),
-        "output": getattr(token_stats, "output_tokens", None),
-        "total": getattr(token_stats, "total_tokens", None),
-        "input_cache_read": getattr(token_stats, "input_tokens_cache_read", None),
-    }
+    eval_metadata = getattr(log, "eval", None)
+    model = getattr(eval_metadata, "model", "unknown")
+    task = getattr(eval_metadata, "task", "unknown")
+    raw_status = getattr(log, "status", "unknown")
+    status = getattr(raw_status, "value", raw_status)
+    if str(status).lower() != "success":
+        message = "Inspect eval log {} has non-success status: {}".format(eval_path, status)
+        if strict:
+            raise RuntimeError(message)
+        return []
+    created = getattr(eval_metadata, "created", "") or ""
+    eval_revision = _jsonable_mapping(
+        getattr(eval_metadata, "revision", None),
+        fields=("type", "origin", "commit", "dirty"),
+    )
+    model_generate_config = _jsonable_mapping(
+        getattr(eval_metadata, "model_generate_config", None)
+    )
 
     for sample in getattr(log, "samples", []) or []:
         scores = getattr(sample, "scores", {}) or {}
@@ -122,7 +183,9 @@ def extract_scores(eval_path: Path, *, strict: bool = False):
             "eval_log": eval_path.name,
             "eval_log_path": str(eval_path.resolve()),
             "created": created,
-            "tokens": tokens,
+            "tokens": _sample_tokens(sample, model),
+            "eval_revision": eval_revision,
+            "model_generate_config": model_generate_config,
         }
         for axis, value in value_block.items():
             if isinstance(value, (int, float)):
@@ -224,7 +287,7 @@ def format_markdown(
         [
         "## Per-model per-task summary",
         "",
-        "Mean score across the seed samples run for each (model, task) cell. `n` is the number of samples in that cell.",
+        "Mean score across the seed-labelled samples run for each (model, task) cell. `n` is the number of samples in that cell.",
         "",
         "| Model | Task | n | {} |".format(" | ".join("{} (mean±std)".format(axis) for axis in axes)),
         "|---|---|---:|{}|".format("|".join("---:" for _ in axes)),
@@ -275,10 +338,10 @@ def main(argv=None):
     parser.add_argument(
         "--log-dir",
         nargs="+",
-        default=[str(DEFAULT_LOG_DIR)],
+        required=True,
         help="One or more directories containing Inspect .eval archives.",
     )
-    parser.add_argument("--out", default=str(DEFAULT_OUT))
+    parser.add_argument("--out", required=True, help="New Markdown summary path.")
     args = parser.parse_args(argv)
 
     log_dirs = [resolve_repo_path(path_str) for path_str in args.log_dir]
@@ -294,7 +357,11 @@ def main(argv=None):
 
     all_rows = []
     for path in eval_paths:
-        all_rows.extend(extract_scores(path))
+        try:
+            all_rows.extend(extract_scores(path))
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
     if not all_rows:
         print("No scoreable samples found.", file=sys.stderr)
         return 1

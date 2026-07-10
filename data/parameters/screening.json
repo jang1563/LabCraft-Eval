@@ -78,8 +78,8 @@
           "title": "Colony PCR",
           "journal": "Methods in Enzymology",
           "year": 2013,
-          "doi": "10.1016/B978-0-12-420037-1.00027-2",
-          "canonical_url": "https://doi.org/10.1016/B978-0-12-420037-1.00027-2",
+          "doi": "10.1016/B978-0-12-418687-3.00025-2",
+          "canonical_url": "https://doi.org/10.1016/B978-0-12-418687-3.00025-2",
           "tier": "Silver",
           "tier_justification": "Peer-reviewed colony-PCR methods chapter supporting colony PCR as the confirmation readout; the exact 1200 bp band size is a Screen-01 scenario configuration layered onto that method."
         }
@@ -102,8 +102,8 @@
           "title": "Colony PCR",
           "journal": "Methods in Enzymology",
           "year": 2013,
-          "doi": "10.1016/B978-0-12-420037-1.00027-2",
-          "canonical_url": "https://doi.org/10.1016/B978-0-12-420037-1.00027-2",
+          "doi": "10.1016/B978-0-12-418687-3.00025-2",
+          "canonical_url": "https://doi.org/10.1016/B978-0-12-418687-3.00025-2",
           "tier": "Silver",
           "tier_justification": "Peer-reviewed colony-PCR methods chapter supporting colony PCR as the confirmation readout; the exact 250 bp empty-vector band is a Screen-01 scenario configuration layered onto that method."
         }

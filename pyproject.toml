@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "labcraft"
-version = "0.1.1"
-description = "Stochastic agentic environment for evaluating frontier models on benign microbiology tasks"
+version = "0.1.2.dev0"
+description = "Seeded agentic environment for evaluating models on benign microbiology tasks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -27,7 +27,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "inspect-ai>=0.3.0",
+    "inspect-ai==0.3.240",
 ]
 
 [project.urls]
@@ -40,6 +40,7 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
     "ruff>=0.1.0",
+    "jsonschema>=4.20",
 ]
 analysis = [
     "matplotlib>=3.7",
@@ -55,6 +56,7 @@ include = ["src*", "task_data*", "data*"]
 namespaces = true
 
 [tool.setuptools.package-data]
+src = ["resources/*.txt"]
 task_data = ["**/*.json", "**/*.md"]
 data = ["**/*.json", "**/*.bib"]
 

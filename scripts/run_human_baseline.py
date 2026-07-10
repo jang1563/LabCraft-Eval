@@ -91,13 +91,13 @@ COMMON_TOOLS: tuple[HumanToolSpec, ...] = (
     HumanToolSpec(
         name="lookup_reagent",
         description="Search the reagent database.",
-        example_arguments={"reagent_name": "SOC"},
+        example_arguments={"reagent_name": "<choose reagent name>"},
         handler=lookup_reagent_call,
     ),
     HumanToolSpec(
         name="check_safety",
         description="Search the safety database.",
-        example_arguments={"chemical_name": "ampicillin"},
+        example_arguments={"chemical_name": "<choose chemical name>"},
         handler=check_safety_call,
     ),
 )
@@ -107,10 +107,10 @@ TRANSFORM_TOOLS: tuple[HumanToolSpec, ...] = COMMON_TOOLS + (
         name="prepare_media",
         description="Prepare one or more ampicillin selection plates.",
         example_arguments={
-            "medium": "LB agar",
-            "antibiotic": "ampicillin",
-            "antibiotic_concentration_ug_ml": 100,
-            "plate_count": 4,
+            "medium": "<choose plate medium>",
+            "antibiotic": "<choose selection antibiotic>",
+            "antibiotic_concentration_ug_ml": "<choose concentration>",
+            "plate_count": "<choose plate count>",
         },
         handler=prepare_media_call,
     ),
@@ -118,12 +118,12 @@ TRANSFORM_TOOLS: tuple[HumanToolSpec, ...] = COMMON_TOOLS + (
         name="transform",
         description="Run a chemical transformation.",
         example_arguments={
-            "plasmid_mass_pg": 1000,
-            "heat_shock_seconds": 30,
-            "recovery_minutes": 60,
-            "outgrowth_media": "SOC",
-            "shaking": True,
-            "ice_incubation_minutes": 30,
+            "plasmid_mass_pg": "<choose one listed DNA mass>",
+            "heat_shock_seconds": "<choose duration>",
+            "recovery_minutes": "<choose duration>",
+            "outgrowth_media": "<choose recovery medium>",
+            "shaking": "<choose true or false>",
+            "ice_incubation_minutes": "<choose duration>",
         },
         handler=transform_call,
     ),
@@ -131,17 +131,17 @@ TRANSFORM_TOOLS: tuple[HumanToolSpec, ...] = COMMON_TOOLS + (
         name="plate",
         description="Plate a transformed culture.",
         example_arguments={
-            "culture_id": "culture_001",
-            "plate_id": "plate_001",
-            "dilution_factor": 1000,
-            "volume_ul": 100,
+            "culture_id": "<culture_id returned by transform>",
+            "plate_id": "<plate_id returned by prepare_media>",
+            "dilution_factor": "<choose dilution>",
+            "volume_ul": "<choose plating volume>",
         },
         handler=plate_call,
     ),
     HumanToolSpec(
         name="count_colonies",
         description="Count colonies on a plated sample.",
-        example_arguments={"plating_id": "plating_001"},
+        example_arguments={"plating_id": "<plating_id returned by plate>"},
         handler=count_colonies_call,
     ),
 )
@@ -150,25 +150,34 @@ GROWTH_TOOLS: tuple[HumanToolSpec, ...] = COMMON_TOOLS + (
     HumanToolSpec(
         name="inoculate_growth",
         description="Start a named growth condition.",
-        example_arguments={"condition": "LB", "starting_od600": 0.05},
+        example_arguments={
+            "condition": "<choose one listed condition>",
+            "starting_od600": "<choose starting OD600>",
+        },
         handler=inoculate_growth_call,
     ),
     HumanToolSpec(
         name="incubate",
         description="Advance a growth culture in time.",
-        example_arguments={"growth_id": "growth_001", "duration_minutes": 15},
+        example_arguments={
+            "growth_id": "<growth_id returned by inoculate_growth>",
+            "duration_minutes": "<choose measurement cadence>",
+        },
         handler=incubate_call,
     ),
     HumanToolSpec(
         name="measure_od600",
         description="Measure culture density.",
-        example_arguments={"growth_id": "growth_001", "dilution_factor": 1.0},
+        example_arguments={
+            "growth_id": "<growth_id returned by inoculate_growth>",
+            "dilution_factor": "<choose dilution>",
+        },
         handler=measure_od600_call,
     ),
     HumanToolSpec(
         name="fit_growth_curve",
         description="Fit a growth curve for one condition.",
-        example_arguments={"growth_id": "growth_001"},
+        example_arguments={"growth_id": "<growth_id returned by inoculate_growth>"},
         handler=fit_growth_curve_call,
     ),
 )
@@ -525,7 +534,12 @@ def _print_help() -> None:
     print("- final: enter a multiline final answer, review the provisional score, then save/edit/cancel")
     print("- quit: exit without scoring")
     print("- <tool_name> <json>: call a tool, for example:")
-    print('  prepare_media {"medium": "LB agar", "antibiotic": "ampicillin", "antibiotic_concentration_ug_ml": 100, "plate_count": 4}')
+    print(
+        '  prepare_media {"medium": "<choose medium>", '
+        '"antibiotic": "<choose antibiotic>", '
+        '"antibiotic_concentration_ug_ml": "<choose concentration>", '
+        '"plate_count": "<choose count>"}'
+    )
 
 
 def run_human_baseline(session: HumanTaskSession, session_path: Path) -> int:
@@ -565,7 +579,9 @@ def run_human_baseline(session: HumanTaskSession, session_path: Path) -> int:
     print(session.prompt)
     print()
     print("Use `tools` to see available tool calls or `help` for commands.")
-    set_active_sample(session.sample_id)
+    # Match Inspect's seed semantics exactly: the labelled seed index, not a
+    # hash of the human-baseline sample id, initializes the simulator RNG.
+    set_active_sample(session.sample_id, seed=session.seed_index)
     try:
         if existing_status == "in_progress":
             print("Resuming in-progress session with {} recorded tool calls.".format(len(transcript)))
