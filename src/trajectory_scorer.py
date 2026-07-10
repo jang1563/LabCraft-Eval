@@ -324,7 +324,14 @@ def _value_matches(value: Any, acceptable_values: Dict[str, Any]) -> bool:
     if value_type == "one_of":
         return value in acceptable_values["values"]
     if value_type == "range":
-        return acceptable_values["min"] <= float(value) <= acceptable_values["max"]
+        numeric_value = _coerce_float(value)
+        minimum = _coerce_float(acceptable_values.get("min"))
+        maximum = _coerce_float(acceptable_values.get("max"))
+        if numeric_value is None or minimum is None or maximum is None:
+            return False
+        if not all(math.isfinite(item) for item in (numeric_value, minimum, maximum)):
+            return False
+        return minimum <= numeric_value <= maximum
     return False
 
 

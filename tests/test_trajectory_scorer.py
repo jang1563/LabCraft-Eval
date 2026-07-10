@@ -1409,6 +1409,32 @@ def test_good_miniprep_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
+def test_miniprep_missing_range_argument_scores_zero_instead_of_raising():
+    malformed_call = {
+        "type": "tool_call",
+        "tool_name": "perform_miniprep",
+        "arguments": {
+            "culture_volume_ml": 5.0,
+            "lysis_buffer_sequence": "P1,P2,P3",
+            "lysis_duration_min": 3,
+            "purification_method": "silica column",
+            "elution_volume": 50.0,
+        },
+    }
+
+    scores = score_miniprep_trajectory(
+        final_answer=_good_miniprep_answer(),
+        transcript=[malformed_call, *_good_miniprep_transcript()],
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["elution_volume_min_30"] == 0.0
+    assert scores["decision_quality"] < 1.0
+    assert scores["task_success"] == 0.0
+    for metric in ("overall", "decision_quality", "task_success", "troubleshooting", "efficiency"):
+        assert 0.0 <= scores[metric] <= 1.0
+
+
 def test_miniprep_rejects_each_inconsistent_or_nonsensical_report_field():
     replacements = {
         "Culture volume:": "Culture volume: 999 mL",
