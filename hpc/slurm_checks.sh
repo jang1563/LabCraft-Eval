@@ -26,8 +26,9 @@ echo "  check_root: ${CHECK_ROOT}"
 echo "  python:     ${VENV_DIR}/bin/python"
 echo
 
+# Preserve .git so provenance-sensitive tests exercise the real commit and
+# repository identity inside the isolated copy.
 rsync -a \
-  --exclude '.git/' \
   --exclude '.venv/' \
   --exclude '.uv-cache/' \
   --exclude '.uv-cache-discovery/' \
