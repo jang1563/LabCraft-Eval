@@ -16,6 +16,8 @@ recorded rather than silently rewriting history.
 - Pin runtime imports to the submitted checkout, fail closed when a reused
   editable environment resolves `src` elsewhere, and record the verified source
   root in each HPC cell manifest.
+- Count explicit screened-colony ID lists correctly instead of interpreting the
+  numeric suffix of the first ID as the total screen size.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

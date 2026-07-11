@@ -876,6 +876,17 @@ def test_screen_task_success_requires_matching_screened_count():
     assert score_screen_task_success(mismatch, _good_screen_transcript()) == 0.0
 
 
+def test_screen_task_success_accepts_screened_colony_id_list():
+    answer = (
+        "White colonies screened: white_001, white_002, white_003, "
+        "white_004, white_005, white_006\n"
+        "Confirmed recombinant colonies: white_002, white_005\n"
+        "Confidence achieved: 95.3%\n"
+        "Interpretation: Two recombinant colonies confirmed."
+    )
+    assert score_screen_task_success(answer, _good_screen_transcript()) == 1.0
+
+
 def test_screen_task_success_requires_interpretation_keyword():
     answer = (
         "White colonies screened: 6\n"

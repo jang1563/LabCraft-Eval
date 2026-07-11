@@ -934,11 +934,15 @@ def _extract_reported_screen_summary(final_answer: str) -> Dict[str, Any]:
 
     if screened_match:
         screened_value = screened_match.group(1).strip()
-        screened_count_match = re.search(r"\d+", screened_value)
-        if screened_count_match:
-            summary["white_colonies_screened"] = int(screened_count_match.group(0))
+        screened_ids = {
+            colony_id.lower() for colony_id in _parse_colony_id_list(screened_value)
+        }
+        if screened_ids:
+            summary["white_colonies_screened"] = len(screened_ids)
         else:
-            summary["white_colonies_screened"] = len(_parse_colony_id_list(screened_value))
+            screened_count_match = re.search(r"\d+", screened_value)
+            if screened_count_match:
+                summary["white_colonies_screened"] = int(screened_count_match.group(0))
     if confirmed_match:
         confirmed_value = confirmed_match.group(1).strip()
         if re.fullmatch(r"none", confirmed_value, flags=re.IGNORECASE):
