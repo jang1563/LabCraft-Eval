@@ -52,8 +52,12 @@ if [ "$#" -gt 0 ]; then
   exit 2
 fi
 
-REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 cd "$REPO_ROOT"
+# Console-script entry points put their own bin directory ahead of the current
+# working directory. Prefix this checkout explicitly so a reused editable venv
+# cannot import LabCraft from a different repository clone.
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
 SNAPSHOT_TASKS="transform_01 growth_01 pcr_01 screen_01 clone_01"
 CURRENT_TASKS="${SNAPSHOT_TASKS} golden_gate_01 gibson_01 miniprep_01 express_01 purify_01"
@@ -124,6 +128,17 @@ fi
 if ! command -v "$PATH_PYTHON" >/dev/null 2>&1 && [ ! -x "$PATH_PYTHON" ]; then
   echo "Python is required to canonicalize LOG_DIR safely: $PATH_PYTHON" >&2
   exit 127
+fi
+RUNTIME_SOURCE_ROOT=$(
+  "$PATH_PYTHON" -c \
+    'from pathlib import Path; import src; print(Path(src.__file__).resolve().parents[1])'
+) || {
+  echo "Could not resolve the imported LabCraft source root." >&2
+  exit 2
+}
+if [ "$RUNTIME_SOURCE_ROOT" != "$REPO_ROOT" ]; then
+  echo "Runtime source mismatch: expected $REPO_ROOT, imported $RUNTIME_SOURCE_ROOT" >&2
+  exit 2
 fi
 LOG_DIR=$("$PATH_PYTHON" -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$LOG_DIR")
 FROZEN_LOG_DIR=$("$PATH_PYTHON" -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "${REPO_ROOT}/results/logs")
@@ -221,6 +236,7 @@ echo "  Models: $MODELS"
 echo "  Seeds:  $SEEDS"
 echo "  Seed start: $SEED_START"
 echo "  Logs:   $LOG_DIR"
+echo "  Runtime source: $RUNTIME_SOURCE_ROOT"
 if [ -n "$GENERATE_CONFIG_FILE" ]; then
   echo "  Generate config: $GENERATE_CONFIG_FILE"
 elif [ "$GENERATE_CONFIG_ARGS_WAS_SET" = "1" ]; then

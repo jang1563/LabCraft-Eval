@@ -42,6 +42,11 @@ The `providers` extra pins the OpenAI and Anthropic SDK versions used by scored
 runs. Do not install rolling provider SDKs on top of that environment; change the
 pins and lockfile together, then re-run the HPC checks.
 
+The runners prefix and verify the submitted checkout on `PYTHONPATH`. This is a
+fail-closed provenance gate: reusing a virtual environment that was installed
+editable from another checkout must not cause runtime imports from that older
+source tree. Each cell manifest records the verified `runtime_source_root`.
+
 On Cayuga, load the current Slurm client before submitting jobs:
 
 ```bash

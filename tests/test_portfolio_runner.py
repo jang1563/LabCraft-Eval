@@ -87,6 +87,22 @@ exec {python} "$@"
     return fake_path
 
 
+def _write_python_with_stale_source_probe(tmp_path: Path) -> Path:
+    fake_path = tmp_path / "python_with_stale_source_probe.sh"
+    fake_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [ "${{1:-}}" = "-c" ] && [[ "${{2:-}}" == *"import src"* ]]; then
+  printf '/stale/editable/checkout\n'
+  exit 0
+fi
+exec {python} "$@"
+""".format(python=shlex.quote(sys.executable))
+    )
+    fake_path.chmod(0o755)
+    return fake_path
+
+
 def test_run_portfolio_eval_passes_seed_parameters_and_succeeds(tmp_path):
     fake_inspect = _write_fake_inspect(tmp_path)
     env = _runner_env(
@@ -150,6 +166,54 @@ def test_run_portfolio_eval_defaults_to_current_matrix_and_per_model_profiles(tm
         profile = json.loads(profile_path.read_text())
         assert profile["reasoning_effort"] == "medium"
         assert "temperature" not in profile
+
+
+def test_run_portfolio_eval_forces_current_checkout_ahead_of_stale_pythonpath(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        MODELS="openai/gpt-4o-mini",
+        SEEDS="1",
+        PYTHONPATH=str(tmp_path / "stale_checkout"),
+    )
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "Runtime source: {}".format(REPO_ROOT.resolve()) in proc.stdout
+
+
+def test_run_portfolio_eval_rejects_mismatched_runtime_source(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    fake_python = _write_python_with_stale_source_probe(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        MODELS="openai/gpt-4o-mini",
+        SEEDS="1",
+        PYTHON_BIN=str(fake_python),
+    )
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "Runtime source mismatch" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
 
 
 def test_run_portfolio_eval_exits_nonzero_after_partial_failures(tmp_path):
@@ -482,6 +546,8 @@ def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
         "reasoning_effort": "medium",
     }
     assert manifest["inspect_eval_args"] == ""
+    assert manifest["schema_version"] == "1.2.0"
+    assert manifest["runtime_source_root"] == str(REPO_ROOT.resolve())
     validator_args = [
         item.decode() for item in validator_log.read_bytes().split(b"\0") if item
     ]

@@ -10,6 +10,8 @@ set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-${SLURM_SUBMIT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}}"
 cd "$REPO_ROOT"
+REPO_ROOT=$(pwd -P)
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
 SNAPSHOT_TASKS="transform_01 growth_01 pcr_01 screen_01 clone_01"
 CURRENT_TASKS="${SNAPSHOT_TASKS} golden_gate_01 gibson_01 miniprep_01 express_01 purify_01 followup_01"
@@ -52,6 +54,18 @@ python_exec() {
   fi
   python3 "$@"
 }
+
+RUNTIME_SOURCE_ROOT=$(
+  python_exec -c \
+    'from pathlib import Path; import src; print(Path(src.__file__).resolve().parents[1])'
+) || {
+  echo "Could not resolve the imported LabCraft source root." >&2
+  exit 2
+}
+if [ "$RUNTIME_SOURCE_ROOT" != "$REPO_ROOT" ]; then
+  echo "Runtime source mismatch: expected $REPO_ROOT, imported $RUNTIME_SOURCE_ROOT" >&2
+  exit 2
+fi
 
 if [ "${MODELS+x}" != "x" ]; then
   MODELS=$(python_exec scripts/model_matrix.py matrix "$MODEL_MATRIX" --format space)
@@ -145,6 +159,7 @@ python_exec - \
   "$GENERATION_PROFILE_JSON" \
   "$INSPECT_EVAL_ARGS_VALUE" \
   "$MODEL_REGISTRY_SHA256" \
+  "$RUNTIME_SOURCE_ROOT" \
   "$SEED" \
   "$SEEDS_TOTAL" \
   "$SEED_START" \
@@ -173,6 +188,7 @@ from pathlib import Path
     generation_profile_json,
     inspect_eval_args,
     model_registry_sha256,
+    runtime_source_root,
     seed,
     seeds_total,
     seed_start,
@@ -181,7 +197,7 @@ from pathlib import Path
 ) = sys.argv[1:]
 
 payload = {
-    "schema_version": "1.1.0",
+    "schema_version": "1.2.0",
     "run_id": run_id,
     "array_id": int(array_id),
     "slurm_job_id": slurm_job_id,
@@ -200,6 +216,7 @@ payload = {
     "generation_profile": json.loads(generation_profile_json),
     "inspect_eval_args": inspect_eval_args,
     "model_registry_sha256": model_registry_sha256,
+    "runtime_source_root": runtime_source_root,
     "seed": int(seed),
     "seeds_total": int(seeds_total),
     "seed_start": int(seed_start),
@@ -220,6 +237,7 @@ echo "  model key:   ${MODEL_KEY}"
 echo "  model:       ${MODEL}"
 echo "  expected:    ${EXPECTED_RESOLVED_MODEL}"
 echo "  profile:     ${GENERATION_PROFILE_JSON}"
+echo "  source root: ${RUNTIME_SOURCE_ROOT}"
 echo "  seed:        ${SEED}"
 echo "  log_dir:     ${LOG_DIR}"
 echo "  manifest:    ${MANIFEST_PATH}"

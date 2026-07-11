@@ -13,6 +13,9 @@ recorded rather than silently rewriting history.
 - Accept source-backed OD600 0.01-0.10 starts and common colon, dash, and
   Markdown-table doubling-time reports so scientifically valid trajectories do
   not fail on arbitrary punctuation.
+- Pin runtime imports to the submitted checkout, fail closed when a reused
+  editable environment resolves `src` elsewhere, and record the verified source
+  root in each HPC cell manifest.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.
