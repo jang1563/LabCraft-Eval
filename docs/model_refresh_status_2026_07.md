@@ -66,10 +66,49 @@ Final contract check job `3079676` passed 462 tests, Ruff, shell syntax,
 registry validation, wheel build, isolated installation, and package smoke in
 the pinned Cayuga environment.
 
+## Clean revision verification
+
+The first clean-checkout array (`3079678`) exposed two remaining scorer false
+negatives: colon-only final-answer parsing rejected dash-formatted reports, and
+the OD600 lower bound rejected scientifically defensible 0.01 and 0.02 starts.
+The original logs remain unchanged. Replaying their trajectories after the
+source-backed OD600 0.01-0.10 correction and colon/dash/Markdown-table parser
+fix produced 1.0 on all four axes for all four models.
+
+During the next clean run, source-path inspection found that the reused virtual
+environment was editable-installed from an older checkout. Array `3079683` was
+cancelled and is invalid for release use. The runner now prefixes the submitted
+checkout on `PYTHONPATH`, fails before any API call when the imported `src` root
+does not match `REPO_ROOT`, and records that root in cell manifest schema 1.2.0.
+
+Final code revision `557194792520d27e64c545bed127402061fb9d0c` was copied to:
+
+```text
+/home/fs01/jak4013/codex_runs/BioProtocolBench-runtime-5571947
+```
+
+Check job `3079688` passed 467 tests, Ruff, shell syntax, registry validation,
+wheel build, isolated installation, and package smoke. Compatibility array
+`3079689` then completed `growth_01`, seed 0, serially across the four current
+core models:
+
+| Requested model | Resolved model | Messages | Assistant turns | Tool calls | Stored overall |
+|---|---|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | `gpt-5.6-sol` | 47 | 12 | 33 | 1.000 |
+| `openai/gpt-5.6-luna` | `gpt-5.6-luna` | 47 | 12 | 33 | 1.000 |
+| `anthropic/claude-sonnet-5` | `claude-sonnet-5` | 55 | 14 | 39 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | `claude-haiku-4-5-20251001` | 59 | 15 | 42 | 1.000 |
+
+Every cell passed the strict validator with Inspect 0.3.245, the registered
+generation profile, `worktree_dirty=false`, manifest schema 1.2.0, the exact
+commit above, and the expected runtime source root. These four rows are still
+compatibility smokes from one task and one seed, not comparative model-quality
+estimates.
+
 ## Scale decision
 
-The current four-model core matrix is API-compatible. Do not promote these
-dirty-checkout smokes as benchmark results. Commit the contract correction,
-rerun the small compatibility matrix from that clean revision, and require
-every cell to pass the resolved-model, generation-config, clean-revision, and
-no-limit-exhaustion gates before scaling to multiple tasks or seeds.
+The current four-model core matrix and runtime-provenance path are compatible.
+The next scale gate should remain small: run selected non-growth tasks at one
+seed from a clean revision, confirm task-specific scorer validity, and only
+then choose a multi-seed matrix. Keep the frozen historical results and the
+invalidated/cancelled diagnostic arrays out of any promoted aggregate.
