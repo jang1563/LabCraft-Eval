@@ -11,9 +11,17 @@ snapshot.
   Avoid introducing a second public import namespace in a patch release.
 - Keep multi-task execution on [scripts/run_portfolio_eval.sh](../scripts/run_portfolio_eval.sh)
   presets: `snapshot`, `current`, `discovery`, `safety_case`, and `all`.
-- Record the runner's `GENERATE_CONFIG_ARGS` in the run manifest. The default
-  pins temperature and maximum output tokens; any override must remain
-  non-empty and intentional.
+- Validate `config/model_matrix.toml` and confirm the release uses the intended
+  registered matrix, exact provider IDs, and non-empty per-model generation
+  profiles. The Slurm array runner rejects `GENERATE_CONFIG_FILE` and legacy
+  `GENERATE_CONFIG_ARGS` overrides so its manifest and native log can be
+  compared exactly; update the registry deliberately for a release run.
+- Confirm every new scored row records requested model, provider-resolved
+  model, provider, Inspect-recorded effective generation configuration, and
+  Inspect version. Fail the release on a requested/resolved mismatch or on one
+  requested alias resolving to multiple snapshots.
+- Reject any cell whose native Inspect sample records a message, token, turn,
+  time, or cost limit; a scored partial trajectory is not a completed cell.
 - Keep `labcraft_suite()` as a single-task smoke alias unless a future breaking
   release introduces a real cross-task Inspect orchestration layer.
 
@@ -24,7 +32,8 @@ laptop as the source of release verification when the project is in HPC-only
 execution mode.
 
 ```bash
-uv sync --extra dev --extra analysis
+uv sync --extra dev --extra analysis --extra providers
+uv run python scripts/model_matrix.py validate
 uv run pytest
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
 ```
@@ -47,9 +56,10 @@ uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_
 - Include the commit SHA and log/result directory when reporting benchmark
   numbers.
 - Distinguish the export packaging `source_commit` from each log's native
-  `evaluation_revision.commit`; report both for schema 0.2.0 scored releases.
+  `evaluation_revision.commit`; report both for schema 0.3.0 scored releases.
 - Require `evaluation_revision.dirty: false` and a recorded
-  non-empty `model_generate_config` for every score-bearing schema 0.2.0 log.
+  non-empty effective generation configuration for every score-bearing schema
+  0.3.0 log.
 - Confirm the packaging worktree is clean before final export. The exporter
   fails closed otherwise because `source_commit` cannot represent uncommitted
   packaging changes.
@@ -78,7 +88,7 @@ must omit `result_rows.jsonl` and have an empty `eval_log_manifest.jsonl`.
 Copied historical plots are visual assets only and do not make this a
 score-bearing evidence bundle.
 
-For a score-bearing schema 0.2.0 release, use a fresh output directory and an
+For a score-bearing schema 0.3.0 release, use a fresh output directory and an
 explicit clean log bundle:
 
 ```bash

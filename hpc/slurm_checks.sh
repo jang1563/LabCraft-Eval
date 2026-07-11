@@ -48,12 +48,36 @@ echo "Checking Slurm shell script syntax"
 bash -n hpc/*.sh
 
 echo
+echo "Validating central model registry"
+"${VENV_DIR}/bin/python" scripts/model_matrix.py validate
+
+echo
 echo "Running ruff"
 "${VENV_DIR}/bin/python" -m ruff check .
 
 echo
 echo "Running pytest"
 "${VENV_DIR}/bin/python" -m pytest -q
+
+echo
+echo "Building and smoke-testing the wheel outside the source checkout"
+PACKAGE_SMOKE_ROOT="${CHECK_ROOT}/package_smoke"
+mkdir -p "${PACKAGE_SMOKE_ROOT}/wheels" "${PACKAGE_SMOKE_ROOT}/run"
+"${VENV_DIR}/bin/python" -m pip wheel \
+  --no-deps \
+  --wheel-dir "${PACKAGE_SMOKE_ROOT}/wheels" \
+  .
+WHEEL_PATH=$(find "${PACKAGE_SMOKE_ROOT}/wheels" -name 'labcraft-*.whl' -print -quit)
+if [ -z "$WHEEL_PATH" ]; then
+  echo "Could not find the built labcraft wheel." >&2
+  exit 1
+fi
+"${VENV_DIR}/bin/python" -m venv "${PACKAGE_SMOKE_ROOT}/venv"
+"${PACKAGE_SMOKE_ROOT}/venv/bin/python" -m pip install "$WHEEL_PATH"
+(
+  cd "${PACKAGE_SMOKE_ROOT}/run"
+  "${PACKAGE_SMOKE_ROOT}/venv/bin/python" "${CHECK_ROOT}/scripts/package_smoke.py"
+)
 
 echo
 echo "HPC checks complete."

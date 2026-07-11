@@ -14,12 +14,27 @@ import sys
 from typing import Any
 
 try:
-    from aggregate_eval_results import dedupe_rows, extract_scores
+    from aggregate_eval_results import (
+        dedupe_rows,
+        extract_scores,
+        infer_provider,
+        model_resolution_conflicts,
+    )
 except ModuleNotFoundError:  # pragma: no cover - used when imported as scripts.export_hf_dataset
-    from scripts.aggregate_eval_results import dedupe_rows, extract_scores
+    from scripts.aggregate_eval_results import (
+        dedupe_rows,
+        extract_scores,
+        infer_provider,
+        model_resolution_conflicts,
+    )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "0.2.0"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.model_registry import RegistryError, load_registry  # noqa: E402
+
+SCHEMA_VERSION = "0.3.0"
 DEFAULT_OUT_DIR = REPO_ROOT / "build" / "hf_dataset"
 SAFE_CLEAN_ROOT = REPO_ROOT / "build"
 DEFAULT_LOG_DIRS = [REPO_ROOT / "results" / "logs"]
@@ -122,6 +137,16 @@ TASK_METADATA = {
         ),
     },
 }
+
+MODEL_REGISTRY = load_registry()
+
+
+def model_ids_match(expected: str, actual: str, provider: str) -> bool:
+    if expected == actual:
+        return True
+    return expected == "{}/{}".format(provider, actual) or actual == "{}/{}".format(
+        provider, expected
+    )
 
 
 def repo_path(path: Path) -> str:
@@ -578,13 +603,14 @@ large, differently shaped records do not get collapsed into one mixed schema.
 | `rubrics.jsonl` | one row per task with a rubric | `task_id`, `track`, `path`, `rubric` |
 | `ground_truth.jsonl` | one row per task with ground truth | `task_id`, `track`, `path`, `ground_truth` |
 | `citations.jsonl` | one row per citation object | `citation_id`, `source_file`, `json_path`, `task_id`, `citation` |
-| `eval_log_manifest.jsonl` | one row per included `.eval` log | `path`, `sha256`, `evaluation_revision`, `model_generate_config`, `sample_count` |
-| `result_rows.jsonl` | one row per deduplicated scored sample | `model`, `task`, `sample_id`, `evaluation_revision`, `model_generate_config`, `tokens`, `scores` |
+| `eval_log_manifest.jsonl` | one row per included `.eval` log | `path`, `sha256`, `requested_model`, `resolved_model`, `provider`, `evaluation_revision`, `effective_generation_config`, `inspect_version`, `sample_count` |
+| `result_rows.jsonl` | one row per deduplicated scored sample | `requested_model`, `resolved_model`, `provider`, `task`, `sample_id`, `evaluation_revision`, `effective_generation_config`, `inspect_version`, `tokens`, `scores` |
 
 All JSONL records include `schema_version` and the packaging `source_commit`
 unless the file is a copied binary plot. Result and log-manifest records also
 preserve the native Inspect `evaluation_revision` and generation configuration.
-Only clean packaging and evaluation revisions can be exported under schema 0.2.0.
+Only clean packaging and evaluation revisions with provider-resolved model
+provenance can be exported under schema {SCHEMA_VERSION}.
 
 ## Provenance and Verification
 
@@ -714,12 +740,102 @@ def _read_eval_rows(eval_path: Path) -> list[dict[str, Any]]:
                     eval_path, row.get("status", "unknown")
                 )
             )
+        if row.get("limit"):
+            raise ValueError(
+                "Refusing to export a limit-exhausted Inspect sample: {}".format(
+                    eval_path
+                )
+            )
         _evaluation_revision(row, eval_path)
         if not isinstance(row.get("model_generate_config"), dict) or not row[
             "model_generate_config"
         ]:
             raise ValueError(
                 "Inspect eval log has no pinned model generation config: {}".format(
+                    eval_path
+                )
+            )
+        requested_model = row.get("requested_model") or row.get("model")
+        if not isinstance(requested_model, str) or not requested_model.strip():
+            raise ValueError(
+                "Inspect eval log has no requested model id: {}".format(eval_path)
+            )
+        if row.get("model") != requested_model:
+            raise ValueError(
+                "Inspect eval log model and requested_model disagree: {}".format(
+                    eval_path
+                )
+            )
+        row["requested_model"] = requested_model
+        resolved_candidates = row.get("resolved_model_candidates")
+        if isinstance(resolved_candidates, list) and len(set(resolved_candidates)) > 1:
+            raise ValueError(
+                "Inspect eval log sample mixes provider-resolved model snapshots "
+                "({}): {}".format(
+                    ", ".join(sorted(set(resolved_candidates))), eval_path
+                )
+            )
+        resolved_model = row.get("resolved_model")
+        if not isinstance(resolved_model, str) or not resolved_model.strip():
+            raise ValueError(
+                "Inspect eval log has no provider-resolved model id: {}".format(
+                    eval_path
+                )
+            )
+        provider = row.get("provider") or infer_provider(
+            requested_model, resolved_model
+        )
+        if not isinstance(provider, str) or not provider.strip():
+            raise ValueError(
+                "Inspect eval log has no model provider: {}".format(eval_path)
+            )
+        row["provider"] = provider
+        try:
+            model_spec = MODEL_REGISTRY.resolve(requested_model)
+        except RegistryError as exc:
+            raise ValueError(
+                "Inspect eval log requested model is not registered: {} ({})".format(
+                    requested_model, eval_path
+                )
+            ) from exc
+        if model_spec.provider != provider:
+            raise ValueError(
+                "Inspect eval log provider disagrees with model registry: "
+                "requested={} expected={} actual={} ({})".format(
+                    requested_model, model_spec.provider, provider, eval_path
+                )
+            )
+        if not model_ids_match(
+            model_spec.expected_resolved_model, resolved_model, provider
+        ):
+            raise ValueError(
+                "Inspect eval log resolved model disagrees with model registry: "
+                "requested={} expected={} actual={} ({})".format(
+                    requested_model,
+                    model_spec.expected_resolved_model,
+                    resolved_model,
+                    eval_path,
+                )
+            )
+        effective_config = row.get("effective_generation_config")
+        if effective_config is None:
+            effective_config = dict(row["model_generate_config"])
+            row["effective_generation_config"] = effective_config
+        if not isinstance(effective_config, dict) or not effective_config:
+            raise ValueError(
+                "Inspect eval log has no effective generation config: {}".format(
+                    eval_path
+                )
+            )
+        if effective_config != row["model_generate_config"]:
+            raise ValueError(
+                "Inspect eval log effective generation config disagrees with native "
+                "model_generate_config: {}".format(eval_path)
+            )
+        inspect_version = row.get("inspect_version")
+        if not isinstance(inspect_version, str) or not inspect_version.strip():
+            raise ValueError(
+                "Inspect eval log has no Inspect version metadata: {}".format(
                     eval_path
                 )
             )
@@ -736,6 +852,37 @@ def _read_eval_rows(eval_path: Path) -> list[dict[str, Any]]:
                 )
             )
     return rows
+
+
+def _eval_log_model_provenance(
+    rows: list[dict[str, Any]], eval_path: Path
+) -> dict[str, Any]:
+    """Return one internally consistent model-provenance record for a log."""
+    scalar_fields = ("requested_model", "resolved_model", "provider", "inspect_version")
+    provenance: dict[str, Any] = {}
+    for field in scalar_fields:
+        values = {str(row.get(field, "")) for row in rows}
+        if len(values) != 1 or not next(iter(values), ""):
+            raise ValueError(
+                "Inspect eval log has inconsistent {} values: {}".format(
+                    field, eval_path
+                )
+            )
+        provenance[field] = next(iter(values))
+
+    configs = {
+        json_dumps(row.get("effective_generation_config"))
+        for row in rows
+        if isinstance(row.get("effective_generation_config"), dict)
+    }
+    if len(configs) != 1:
+        raise ValueError(
+            "Inspect eval log has inconsistent effective generation configs: {}".format(
+                eval_path
+            )
+        )
+    provenance["effective_generation_config"] = json.loads(next(iter(configs)))
+    return provenance
 
 
 def exported_eval_log_destination(out_dir: Path, source: Path) -> Path:
@@ -769,6 +916,7 @@ def eval_log_manifest_records(
         for path in sorted(log_dir.glob("*.eval")):
             rows = _read_eval_rows(path)
             revision = _evaluation_revision(rows[0], path)
+            model_provenance = _eval_log_model_provenance(rows, path)
             exported_path = export_path(
                 exported_eval_log_destination(export_root, path), export_root
             )
@@ -788,6 +936,7 @@ def eval_log_manifest_records(
                     "status": rows[0]["status"],
                     "evaluation_revision": revision,
                     "model_generate_config": rows[0]["model_generate_config"],
+                    **model_provenance,
                     "sample_count": len(rows),
                 }
             )
@@ -816,6 +965,17 @@ def result_records(
             log_rows = _read_eval_rows(eval_path)
             rows.extend(log_rows)
     deduped = dedupe_rows(rows)
+    conflicts = model_resolution_conflicts(rows)
+    if conflicts:
+        details = "; ".join(
+            "{} -> {}".format(requested, ", ".join(resolved))
+            for requested, resolved in conflicts.items()
+        )
+        raise ValueError(
+            "Requested model alias resolved to multiple snapshots in one export: {}".format(
+                details
+            )
+        )
     if not deduped:
         raise ValueError("No scored result rows were exported.")
     records = []
@@ -838,7 +998,14 @@ def result_records(
                 "source_commit": commit,
                 "evaluation_revision": revision,
                 "model_generate_config": row["model_generate_config"],
-                "model": row.get("model", "unknown"),
+                "effective_generation_config": row[
+                    "effective_generation_config"
+                ],
+                "inspect_version": row["inspect_version"],
+                "model": row["requested_model"],
+                "requested_model": row["requested_model"],
+                "resolved_model": row["resolved_model"],
+                "provider": row["provider"],
                 "task": row.get("task", "unknown"),
                 "track": classify_task(str(row.get("task", ""))),
                 "status": row.get("status", "unknown"),

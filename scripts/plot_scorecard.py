@@ -15,7 +15,6 @@ Both are PNGs at 150 dpi so they render crisply on GitHub's README.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import os
 import statistics
 import sys
@@ -33,9 +32,22 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 try:
-    from aggregate_eval_results import extract_scores as extract_eval_scores
+    from aggregate_eval_results import (
+        dedupe_rows as dedupe_eval_rows,
+        extract_scores as extract_eval_scores,
+        model_display_name,
+    )
 except ModuleNotFoundError:  # pragma: no cover - module import path in tests
-    from scripts.aggregate_eval_results import extract_scores as extract_eval_scores
+    from scripts.aggregate_eval_results import (
+        dedupe_rows as dedupe_eval_rows,
+        extract_scores as extract_eval_scores,
+        model_display_name,
+    )
+
+try:
+    from model_matrix import load_registry
+except ModuleNotFoundError:  # pragma: no cover - module import path in tests
+    from scripts.model_matrix import load_registry
 
 SNAPSHOT_TASKS = ["transform_01", "growth_01", "pcr_01", "screen_01", "clone_01"]
 CURRENT_TASKS = SNAPSHOT_TASKS + [
@@ -52,42 +64,11 @@ DISCOVERY_TASKS = [
     "target_validate_01",
 ]
 ALL_TASKS = CURRENT_TASKS + DISCOVERY_TASKS
-PREFERRED_MODELS = [
-    "openai/gpt-4o-mini",
-    "openai/gpt-4o",
-    "anthropic/claude-haiku-4-5",
-    "anthropic/claude-sonnet-4-5",
-]
+MODEL_REGISTRY = load_registry()
+PREFERRED_MODELS = MODEL_REGISTRY.preferred_ids()
 AXES = ("task_success", "decision_quality", "troubleshooting", "efficiency", "overall")
 
-MODEL_SHORT = {
-    "openai/gpt-4o-mini": "gpt-4o-mini",
-    "openai/gpt-4o": "gpt-4o",
-    "anthropic/claude-haiku-4-5": "haiku-4-5",
-    "anthropic/claude-sonnet-4-5": "sonnet-4-5",
-}
-
-MODEL_COLORS = {
-    "openai/gpt-4o-mini": "#7fcf9f",
-    "openai/gpt-4o": "#2ea572",
-    "anthropic/claude-haiku-4-5": "#e09f7d",
-    "anthropic/claude-sonnet-4-5": "#c05621",
-}
-
-
-def _parse_created_timestamp(value: object) -> datetime:
-    if not isinstance(value, str) or not value.strip():
-        return datetime.min.replace(tzinfo=timezone.utc)
-    normalized = value.strip()
-    if normalized.endswith("Z"):
-        normalized = normalized[:-1] + "+00:00"
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+MODEL_SHORT, MODEL_COLORS = MODEL_REGISTRY.plot_metadata()
 
 
 def extract_scores(eval_path: Path):
@@ -99,35 +80,8 @@ def extract_scores(eval_path: Path):
 
 
 def dedupe_rows(rows):
-    """Keep only the latest archive for each (model, task, sample_id)."""
-    latest_by_sample = {}
-    for row in rows:
-        key = (row["model"], row["task"], row["sample_id"])
-        current = latest_by_sample.get(key)
-        row_order_key = (
-            _parse_created_timestamp(row.get("created")),
-            row.get("eval_log", ""),
-            row.get("eval_log_path", ""),
-        )
-        if current is None:
-            latest_by_sample[key] = row
-            continue
-        current_order_key = (
-            _parse_created_timestamp(current.get("created")),
-            current.get("eval_log", ""),
-            current.get("eval_log_path", ""),
-        )
-        if row_order_key >= current_order_key:
-            latest_by_sample[key] = row
-    return sorted(
-        latest_by_sample.values(),
-        key=lambda row: (
-            row["model"],
-            row["task"],
-            row["sample_id"],
-            row.get("eval_log", ""),
-        ),
-    )
+    """Use the aggregator's requested-plus-resolved identity contract."""
+    return dedupe_eval_rows(rows)
 
 
 def load_all_rows(log_dirs: list[Path]):
@@ -141,7 +95,7 @@ def load_all_rows(log_dirs: list[Path]):
 def aggregate(rows):
     cells = defaultdict(list)
     for row in rows:
-        cells[(row["model"], row["task"])].append(row)
+        cells[(model_display_name(row), row["task"])].append(row)
     agg = {}
     for (model, task), cell_rows in cells.items():
         entry = {"n": len(cell_rows)}
@@ -176,18 +130,46 @@ def resolve_tasks(rows, task_preset: str, explicit_tasks: list[str] | None) -> l
 
 
 def resolve_models(rows, explicit_models: list[str] | None) -> list[str]:
+    identities_by_request = defaultdict(set)
+    for row in rows:
+        requested = str(row.get("requested_model") or row.get("model") or "unknown")
+        identities_by_request[requested].add(model_display_name(row))
+
+    def expand(selectors: list[str]) -> list[str]:
+        selected = []
+        observed_identities = {
+            identity for identities in identities_by_request.values() for identity in identities
+        }
+        for selector in selectors:
+            matches = identities_by_request.get(selector)
+            if matches:
+                selected.extend(sorted(matches))
+            elif selector in observed_identities:
+                selected.append(selector)
+            else:
+                selected.append(selector)
+        return list(dict.fromkeys(selected))
+
     if explicit_models:
-        return explicit_models
-    return _ordered_subset(PREFERRED_MODELS, {row["model"] for row in rows})
+        return expand(explicit_models)
+
+    ordered = expand(PREFERRED_MODELS)
+    observed = {model_display_name(row) for row in rows}
+    return [model for model in ordered if model in observed] + sorted(observed - set(ordered))
 
 
 def _model_label(model: str) -> str:
-    return MODEL_SHORT.get(model, model.split("/")[-1])
+    requested, separator, resolved = model.partition(" → ")
+    requested_label = MODEL_SHORT.get(requested, requested.split("/")[-1])
+    if separator:
+        return "{} → {}".format(requested_label, resolved.split("/")[-1])
+    return requested_label
 
 
 def _model_color(model: str, index: int):
-    if model in MODEL_COLORS:
-        return MODEL_COLORS[model]
+    requested = model.partition(" → ")[0]
+    if requested in MODEL_COLORS:
+        return MODEL_COLORS[requested]
     return plt.get_cmap("tab10")(index % 10)
 
 

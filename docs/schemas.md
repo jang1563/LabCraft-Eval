@@ -2,7 +2,7 @@
 
 This document defines the current schema contract for LabCraft's static JSON artifacts and Hugging Face exports. Executable JSON Schema files for HF task, result, eval-log-manifest, and release-manifest records are available under [`schemas/`](../schemas/). Task-data contracts are also checked by repository tests and runtime loaders.
 
-For schema 0.2.0 exports, `scripts/validate_hf_export.py` loads these JSON
+For schema 0.3.0 exports, `scripts/validate_hf_export.py` loads these JSON
 Schemas in addition to its cross-file checksum, count, and provenance checks.
 
 ## 1. Parameter Files
@@ -233,7 +233,7 @@ sibling level. This JSON-tree rule must not be confused with the v0.1.x runtime
 implementation, whose simulator-task top-level weights are hard-coded as task
 success 0.4, decision quality 0.3, troubleshooting 0.2, and efficiency 0.1.
 
-## 4. Hugging Face Export Schema 0.2.0
+## 4. Hugging Face Export Schema 0.3.0
 
 The machine-readable contracts are:
 
@@ -260,16 +260,24 @@ native Inspect `evaluation_revision`:
 }
 ```
 
-Under schema 0.2.0:
+Under schema 0.3.0:
 
 - `evaluation_revision` must contain `type`, `origin`, `commit`, and `dirty`;
 - `dirty` must be `false` for every exported scored log;
 - `model_generate_config` must be a non-empty object with explicitly recorded
   generation settings;
+- every scored row must preserve `requested_model`, provider-returned
+  `resolved_model`, `provider`, `effective_generation_config`, and
+  `inspect_version`;
+- the requested model must exist in `config/model_matrix.toml`; its provider
+  and resolved ID must match the registry expectation, allowing only optional
+  provider qualification on the resolved ID;
+- a requested alias must not resolve to multiple snapshots in one release;
 - raw Inspect logs must be bundled under `eval_logs/`, and each log-manifest
   path must resolve to a matching file in the release manifest;
 - every result row must map to a matching eval-log-manifest row with the same
-  native revision and generation configuration;
+  native revision, requested/resolved identity, provider, Inspect version, and
+  generation configuration;
 - `release_manifest.json.evaluation_provenance` must use policy
   `clean-evaluation-revisions-required`, report zero dirty logs, and list the
   distinct evaluation commits; and
@@ -286,6 +294,11 @@ from surviving across builds. Destructive cleanup is limited to children of
 `build/`. Immutable release directories and tags must never be rewritten in
 place.
 
-The published v0.1.1 export predates schema 0.2.0 and remains frozen. Its
+The executable schemas retain schema 0.2.0 compatibility: 0.2 records are not
+required to contain the five model-identity fields introduced in 0.3.0. New
+score-bearing exports use 0.3.0 and receive the stricter cross-file and model
+registry validation described above.
+
+The published v0.1.1 export predates schema 0.2.0 and 0.3.0 and remains frozen. Its
 historical scores must not be described as satisfying the clean-evaluation
 revision contract retroactively.

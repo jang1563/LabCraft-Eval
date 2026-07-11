@@ -36,10 +36,11 @@ echo
 
 "${PYTHON_BIN}" -m venv "${VENV_DIR}"
 "${VENV_DIR}/bin/python" -m pip install --upgrade pip
-"${VENV_DIR}/bin/python" -m pip install -e ".[dev,analysis]"
-"${VENV_DIR}/bin/python" -m pip install openai anthropic
+"${VENV_DIR}/bin/python" -m pip install -e ".[dev,analysis,providers]"
 
 echo
 "${VENV_DIR}/bin/python" --version
 "${VENV_DIR}/bin/inspect" --version
+"${VENV_DIR}/bin/python" -c \
+  'import anthropic, openai; print("openai", openai.__version__); print("anthropic", anthropic.__version__)'
 echo "Environment ready."

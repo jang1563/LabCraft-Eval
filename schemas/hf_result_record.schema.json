@@ -41,8 +41,28 @@
       "type": "object",
       "minProperties": 1
     },
+    "effective_generation_config": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "inspect_version": {
+      "type": "string",
+      "minLength": 1
+    },
     "model": {
       "type": "string"
+    },
+    "requested_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resolved_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
     },
     "task": {
       "type": "string"
@@ -82,5 +102,24 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {"const": "0.3.0"}
+        },
+        "required": ["schema_version"]
+      },
+      "then": {
+        "required": [
+          "requested_model",
+          "resolved_model",
+          "provider",
+          "effective_generation_config",
+          "inspect_version"
+        ]
+      }
+    }
+  ],
   "additionalProperties": true
 }

@@ -30,6 +30,8 @@ Public release surfaces:
 | Discovery decision bundle | [results/discovery_track.md](results/discovery_track.md) |
 | HPC v0.2 current-task candidate | [results/hpc_v0_2_current_n10.md](results/hpc_v0_2_current_n10.md) |
 | Safety-case live smoke | [results/safety_case_live_v0_2.md](results/safety_case_live_v0_2.md) |
+| Current model matrix and provenance | [docs/model_matrix.md](docs/model_matrix.md) |
+| July 2026 model-refresh checkpoint | [docs/model_refresh_status_2026_07.md](docs/model_refresh_status_2026_07.md) |
 | Public snapshot checklist | [docs/release_checklist.md](docs/release_checklist.md) |
 | Public artifact roadmap | [docs/publication_roadmap.md](docs/publication_roadmap.md) |
 | Hugging Face release plan | [docs/hf_release.md](docs/hf_release.md) |
@@ -56,8 +58,8 @@ uv run python scripts/validate_hf_export.py build/hf_dataset
 This metadata-only command is also the path exercised by CI. It validates task,
 rubric, ground-truth, citation, plot, and manifest packaging, but it does not
 validate or publish structured score rows. Copied frozen plots remain
-historical visual assets and do not acquire schema 0.2 score provenance from
-this smoke path. Schema 0.2 score-bearing exports require an
+historical visual assets and do not acquire schema 0.3 score provenance from
+this smoke path. Schema 0.3 score-bearing exports require an
 explicit `--log-dir` containing successful `.eval` logs whose native Inspect
 `evaluation_revision.dirty` value is `false` and whose generation configuration
 is explicitly pinned. Score-bearing exports bundle the raw `.eval` evidence;
@@ -348,7 +350,7 @@ $$S = \frac{\sum_j w_j \cdot s_j}{\sum_j w_j}$$
 ```bash
 git clone https://github.com/jang1563/LabCraft-Eval.git
 cd LabCraft-Eval
-pip install -e ".[dev,analysis]"
+pip install -e ".[dev,analysis,providers]"
 ```
 
 The installable Python distribution is currently named `labcraft`, because
@@ -361,38 +363,38 @@ the runner scripts below.
 
 ```bash
 # Single task
-inspect eval src/inspect_task.py@transform_01     --model openai/gpt-4o
-inspect eval src/inspect_task.py@growth_01        --model anthropic/claude-sonnet-4-5
-inspect eval src/inspect_task.py@pcr_01           --model openai/gpt-4o
-inspect eval src/inspect_task.py@screen_01        --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@clone_01         --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@golden_gate_01   --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@gibson_01        --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@miniprep_01      --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@express_01       --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@purify_01        --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@followup_01      --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@perturb_followup_01   --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@target_prioritize_01  --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@target_validate_01    --model openai/gpt-4o-mini
-inspect eval src/inspect_task.py@safety_case_01        --model openai/gpt-4o-mini
+inspect eval src/inspect_task.py@transform_01     --model openai/gpt-5.6-sol
+inspect eval src/inspect_task.py@growth_01        --model anthropic/claude-sonnet-5
+inspect eval src/inspect_task.py@pcr_01           --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@screen_01        --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@clone_01         --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@golden_gate_01   --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@gibson_01        --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@miniprep_01      --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@express_01       --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@purify_01        --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@followup_01      --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@perturb_followup_01   --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@target_prioritize_01  --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@target_validate_01    --model openai/gpt-5.6-luna
+inspect eval src/inspect_task.py@safety_case_01        --model anthropic/claude-sonnet-5
 
 # With explicit seed control for simulator sample IDs
 inspect eval src/inspect_task.py@transform_01 \
-    --model anthropic/claude-sonnet-4-5 \
+    --model anthropic/claude-sonnet-5 \
     -T seeds=3 \
     -T seed_start=0
 
-# Run the Discovery decision bundle
+# Run the Discovery decision bundle with the current registered core
 TASK_PRESET=discovery \
 SEEDS=3 \
-MODELS="openai/gpt-4o-mini anthropic/claude-sonnet-4-5" \
+MODEL_MATRIX=current_balanced \
   ./scripts/run_portfolio_eval.sh
 
 # Run the Safety Case Track
 TASK_PRESET=safety_case \
 SEEDS=1 \
-MODELS="openai/gpt-4o-mini" \
+MODELS="anthropic/claude-sonnet-5" \
   ./scripts/run_portfolio_eval.sh
 ```
 
@@ -402,10 +404,12 @@ with `TASK_PRESET=snapshot`, `current`, `discovery`, `safety_case`, or `all`. Th
 `labcraft_suite()` Inspect entry point is kept only as a backwards-compatible
 single-task smoke alias.
 
-The portfolio runner records a non-empty generation configuration by default
-(`--temperature 0 --max-tokens 4096`). Override it deliberately with
-`GENERATE_CONFIG_ARGS`; schema 0.2 scored exports reject logs that rely on an
-empty provider-default generation configuration.
+The portfolio runner reads the current matrix and a non-empty, model-specific
+generation profile from [config/model_matrix.toml](config/model_matrix.toml).
+Current reasoning models do not inherit the historical shared
+`--temperature 0` setting. See [docs/model_matrix.md](docs/model_matrix.md) for
+the exact IDs, profile overrides, requested/resolved model checks, and refresh
+procedure.
 
 For larger seed sweeps or release-candidate bundles, use the HPC-only workflow
 in [hpc/README.md](hpc/README.md) and the v0.2 execution plan in

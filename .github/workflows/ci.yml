@@ -25,10 +25,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra analysis
+        run: uv sync --extra dev --extra analysis --extra providers
 
       - name: Lint
-        run: uv run ruff check .
+        run: |
+          uv run python scripts/model_matrix.py validate
+          uv run ruff check .
 
       - name: Focused provenance and task checks
         run: >

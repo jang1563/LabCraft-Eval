@@ -10,7 +10,13 @@ from pathlib import Path
 import sys
 from typing import Any
 
-SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.model_registry import ModelRegistry, RegistryError, load_registry  # noqa: E402
+
+SCHEMA_DIR = REPO_ROOT / "schemas"
 
 REQUIRED_MANIFEST_KEYS = {
     "schema_version",
@@ -48,6 +54,13 @@ REQUIRED_RESULT_PROVENANCE_KEYS = {
     "tokens",
     "evaluation_revision",
     "model_generate_config",
+}
+REQUIRED_MODEL_PROVENANCE_KEYS = {
+    "requested_model",
+    "resolved_model",
+    "provider",
+    "effective_generation_config",
+    "inspect_version",
 }
 REQUIRED_EVAL_LOG_KEYS = {
     "schema_version",
@@ -137,11 +150,103 @@ def require_keys(record: dict[str, Any], required: set[str], label: str) -> list
     return ["{} missing required keys: {}".format(label, ", ".join(missing))] if missing else []
 
 
+def schema_at_least(value: object, major: int, minor: int) -> bool:
+    if not isinstance(value, str):
+        return False
+    parts = value.split(".")
+    if len(parts) < 2:
+        return False
+    try:
+        parsed = (int(parts[0]), int(parts[1]))
+    except ValueError:
+        return False
+    return parsed >= (major, minor)
+
+
+def canonical_resolved_model(provider: str, resolved_model: str) -> str:
+    prefix = "{}/".format(provider)
+    return resolved_model[len(prefix) :] if resolved_model.startswith(prefix) else resolved_model
+
+
+def validate_model_provenance_record(
+    record: dict[str, Any],
+    label: str,
+    registry: ModelRegistry | None = None,
+) -> list[str]:
+    errors = require_keys(record, REQUIRED_MODEL_PROVENANCE_KEYS, label)
+    requested = record.get("requested_model")
+    resolved = record.get("resolved_model")
+    provider = record.get("provider")
+    inspect_version = record.get("inspect_version")
+    effective_config = record.get("effective_generation_config")
+    native_config = record.get("model_generate_config")
+
+    for field, value in (
+        ("requested_model", requested),
+        ("resolved_model", resolved),
+        ("provider", provider),
+        ("inspect_version", inspect_version),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            errors.append("{} {} must be a non-empty string".format(label, field))
+
+    if isinstance(requested, str) and requested:
+        if "/" not in requested:
+            errors.append("{} requested_model must be provider-qualified".format(label))
+        elif isinstance(provider, str) and requested.split("/", 1)[0] != provider:
+            errors.append(
+                "{} provider differs from requested_model qualifier".format(label)
+            )
+    if (
+        isinstance(resolved, str)
+        and "/" in resolved
+        and isinstance(provider, str)
+        and resolved.split("/", 1)[0] != provider
+    ):
+        errors.append("{} provider differs from resolved_model qualifier".format(label))
+
+    if not isinstance(effective_config, dict) or not effective_config:
+        errors.append(
+            "{} effective_generation_config must be a non-empty object".format(label)
+        )
+    if effective_config != native_config:
+        errors.append(
+            "{} effective_generation_config differs from model_generate_config".format(
+                label
+            )
+        )
+    if (
+        registry is not None
+        and isinstance(requested, str)
+        and requested
+        and isinstance(resolved, str)
+        and resolved
+        and isinstance(provider, str)
+        and provider
+    ):
+        try:
+            model_spec = registry.resolve(requested)
+        except RegistryError:
+            errors.append("{} requested_model is not registered".format(label))
+        else:
+            if model_spec.provider != provider:
+                errors.append("{} provider differs from model registry".format(label))
+            if canonical_resolved_model(
+                provider, model_spec.expected_resolved_model
+            ) != canonical_resolved_model(provider, resolved):
+                errors.append(
+                    "{} resolved_model differs from model registry expectation".format(
+                        label
+                    )
+                )
+    return errors
+
+
 def validate_json_schema(payload: Any, schema_name: str, label: str) -> list[str]:
     try:
         from jsonschema import Draft202012Validator
     except ModuleNotFoundError:
-        return ["jsonschema is required to validate schema 0.2.0 exports"]
+        return ["jsonschema is required to validate schema 0.2.0+ exports"]
     schema = load_json(SCHEMA_DIR / schema_name)
     validator = Draft202012Validator(schema)
     errors = []
@@ -195,11 +300,14 @@ def validate_result_records(
     records: list[Any],
     *,
     require_evaluation_provenance: bool = False,
+    require_model_provenance: bool = False,
+    model_registry: ModelRegistry | None = None,
 ) -> list[str]:
     errors = []
     if not records:
         return ["result_rows.jsonl has zero records"]
     sample_keys = set()
+    resolved_by_request: dict[str, set[str]] = {}
     for index, record in enumerate(records, start=1):
         if not isinstance(record, dict):
             errors.append("result_rows.jsonl record {} is not an object".format(index))
@@ -267,6 +375,20 @@ def validate_result_records(
                         index
                     )
                 )
+        if require_model_provenance:
+            label = "result_rows.jsonl record {}".format(index)
+            errors.extend(
+                validate_model_provenance_record(record, label, model_registry)
+            )
+            if record.get("model") != record.get("requested_model"):
+                errors.append("{} model differs from requested_model".format(label))
+            requested = record.get("requested_model")
+            resolved = record.get("resolved_model")
+            provider = record.get("provider")
+            if all(isinstance(value, str) and value for value in (requested, resolved, provider)):
+                resolved_by_request.setdefault(requested, set()).add(
+                    canonical_resolved_model(provider, resolved)
+                )
         scores = record.get("scores")
         if not isinstance(scores, dict) or not scores:
             errors.append("result_rows.jsonl record {} has empty scores".format(index))
@@ -291,6 +413,14 @@ def validate_result_records(
         if key in sample_keys:
             errors.append("result_rows.jsonl duplicate model/task/sample_id: {}".format(key))
         sample_keys.add(key)
+    if require_model_provenance:
+        for requested, resolved_models in sorted(resolved_by_request.items()):
+            if len(resolved_models) > 1:
+                errors.append(
+                    "result_rows.jsonl requested model {} resolves to multiple snapshots: {}".format(
+                        requested, ", ".join(sorted(resolved_models))
+                    )
+                )
     return errors
 
 
@@ -312,6 +442,15 @@ def validate_export(export_dir: Path) -> list[str]:
         return ["release_manifest.json must contain an object"]
     errors.extend(require_keys(manifest, REQUIRED_MANIFEST_KEYS, "release_manifest.json"))
     strict_provenance = manifest.get("schema_version") != "0.1.0"
+    require_model_provenance = schema_at_least(
+        manifest.get("schema_version"), 0, 3
+    )
+    model_registry = None
+    if require_model_provenance:
+        try:
+            model_registry = load_registry()
+        except RegistryError as exc:
+            errors.append("Unable to validate model registry: {}".format(exc))
     if strict_provenance and not isinstance(manifest.get("evaluation_provenance"), dict):
         errors.append("release_manifest.json evaluation_provenance must be an object")
 
@@ -417,16 +556,19 @@ def validate_export(export_dir: Path) -> list[str]:
             validate_result_records(
                 jsonl_records_by_path["result_rows.jsonl"],
                 require_evaluation_provenance=strict_provenance,
+                require_model_provenance=require_model_provenance,
+                model_registry=model_registry,
             )
         )
 
     if strict_provenance and "eval_log_manifest.jsonl" not in jsonl_records_by_path:
-        errors.append("eval_log_manifest.jsonl is required for schema 0.2.0 exports")
+        errors.append("eval_log_manifest.jsonl is required for schema 0.2.0+ exports")
 
     if strict_provenance and "eval_log_manifest.jsonl" in jsonl_records_by_path:
         eval_records = jsonl_records_by_path["eval_log_manifest.jsonl"]
         eval_by_path = {}
         revision_commits = set()
+        eval_resolved_by_request: dict[str, set[str]] = {}
         for index, record in enumerate(eval_records, start=1):
             if not isinstance(record, dict):
                 errors.append(
@@ -468,6 +610,21 @@ def validate_export(export_dir: Path) -> list[str]:
                     "eval_log_manifest.jsonl record {} model_generate_config must be a "
                     "non-empty object".format(index)
                 )
+            if require_model_provenance:
+                label = "eval_log_manifest.jsonl record {}".format(index)
+                errors.extend(
+                    validate_model_provenance_record(record, label, model_registry)
+                )
+                requested = record.get("requested_model")
+                resolved = record.get("resolved_model")
+                provider = record.get("provider")
+                if all(
+                    isinstance(value, str) and value
+                    for value in (requested, resolved, provider)
+                ):
+                    eval_resolved_by_request.setdefault(requested, set()).add(
+                        canonical_resolved_model(provider, resolved)
+                    )
             sample_count = record.get("sample_count")
             if not isinstance(sample_count, int) or isinstance(sample_count, bool) or sample_count < 1:
                 errors.append(
@@ -501,6 +658,18 @@ def validate_export(export_dir: Path) -> list[str]:
                             "eval_log_manifest.jsonl record {} bytes differ from release "
                             "manifest".format(index)
                         )
+
+        if require_model_provenance:
+            for requested, resolved_models in sorted(
+                eval_resolved_by_request.items()
+            ):
+                if len(resolved_models) > 1:
+                    errors.append(
+                        "eval_log_manifest.jsonl requested model {} resolves to "
+                        "multiple snapshots: {}".format(
+                            requested, ", ".join(sorted(resolved_models))
+                        )
+                    )
 
         provenance = manifest.get("evaluation_provenance")
         if isinstance(provenance, dict):
@@ -544,6 +713,35 @@ def validate_export(export_dir: Path) -> list[str]:
                     "result_rows.jsonl record {} generation config differs from log "
                     "manifest".format(index)
                 )
+            elif require_model_provenance:
+                for field in (
+                    "requested_model",
+                    "resolved_model",
+                    "provider",
+                    "effective_generation_config",
+                    "inspect_version",
+                ):
+                    result_value = result.get(field)
+                    log_value = log_record.get(field)
+                    if field == "resolved_model" and all(
+                        isinstance(value, str) and value
+                        for value in (
+                            result_value,
+                            log_value,
+                            result.get("provider"),
+                        )
+                    ):
+                        provider = str(result.get("provider"))
+                        matches = canonical_resolved_model(
+                            provider, result_value
+                        ) == canonical_resolved_model(provider, log_value)
+                    else:
+                        matches = result_value == log_value
+                    if not matches:
+                        errors.append(
+                            "result_rows.jsonl record {} {} differs from log "
+                            "manifest".format(index, field)
+                        )
 
         if "result_rows.jsonl" in jsonl_records_by_path and not eval_records:
             errors.append(

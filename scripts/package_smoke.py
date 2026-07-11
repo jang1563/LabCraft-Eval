@@ -24,6 +24,16 @@ def main() -> int:
         )
 
     module = entry_point.load()
+    from inspect_ai.model import get_model_info
+
+    gpt_56_info = get_model_info("openai/gpt-5.6-sol")
+    if (
+        gpt_56_info is None
+        or gpt_56_info.context_length != 1_050_000
+        or gpt_56_info.output_tokens != 128_000
+    ):
+        raise RuntimeError("Packaged GPT-5.6 ModelInfo registration is missing or stale.")
+
     task_ids = module.available_task_ids("snapshot")
     expected = ("transform_01", "growth_01", "pcr_01", "screen_01", "clone_01")
     if task_ids != expected:

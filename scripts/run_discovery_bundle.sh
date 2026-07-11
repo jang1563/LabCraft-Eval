@@ -11,7 +11,7 @@ RUNNER_SCRIPT="${RUNNER_SCRIPT:-${REPO_ROOT}/scripts/run_portfolio_eval.sh}"
 AGGREGATE_SCRIPT="${AGGREGATE_SCRIPT:-${REPO_ROOT}/scripts/aggregate_eval_results.py}"
 PLOT_SCRIPT="${PLOT_SCRIPT:-${REPO_ROOT}/scripts/plot_scorecard.py}"
 
-: "${MODELS:=openai/gpt-4o-mini anthropic/claude-sonnet-4-5}"
+: "${MODEL_MATRIX:=discovery_current}"
 : "${SEEDS:=3}"
 : "${SEED_START:=0}"
 : "${RUN_ID:=discovery_$(date -u +%Y%m%dT%H%M%SZ)}"
@@ -28,6 +28,10 @@ run_python() {
     "${PYTHON_BIN}" "$@"
     return
   fi
+  if [ -n "${VENV_DIR:-}" ] && [ -x "${VENV_DIR}/bin/python" ]; then
+    "${VENV_DIR}/bin/python" "$@"
+    return
+  fi
   if [ -x "${REPO_ROOT}/.venv/bin/python" ]; then
     "${REPO_ROOT}/.venv/bin/python" "$@"
     return
@@ -38,6 +42,17 @@ run_python() {
   fi
   python3 "$@"
 }
+
+if [ "${MODELS+x}" != "x" ]; then
+  MODELS=$(run_python "${REPO_ROOT}/scripts/model_matrix.py" matrix "$MODEL_MATRIX" --format space)
+  MODEL_SOURCE="matrix:${MODEL_MATRIX}"
+else
+  MODEL_SOURCE="explicit"
+fi
+if [ -z "$MODELS" ]; then
+  echo "MODELS cannot be empty." >&2
+  exit 2
+fi
 
 canonical_path() {
   run_python -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$1"
@@ -62,6 +77,7 @@ fi
 mkdir -p "${LOG_DIR}" "$(dirname "${RESULTS_OUT}")" "${PLOTS_OUT_DIR}"
 
 echo "Running Discovery decision bundle"
+echo "  Model source: ${MODEL_SOURCE}"
 echo "  Models: ${MODELS}"
 echo "  Seeds: ${SEEDS}"
 echo "  Seed start: ${SEED_START}"
@@ -82,9 +98,7 @@ run_python "${AGGREGATE_SCRIPT}" \
   --out "${RESULTS_OUT}"
 
 plot_models=()
-for model in ${MODELS}; do
-  plot_models+=("${model}")
-done
+read -r -a plot_models <<< "$MODELS"
 
 run_python "${PLOT_SCRIPT}" \
   --log-dir "${LOG_DIR}" \

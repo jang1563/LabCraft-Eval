@@ -70,6 +70,65 @@ def _download_atomic(url: str, target: Path) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _requires_resolved_model_provenance(schema_version: object) -> bool:
+    if not isinstance(schema_version, str):
+        return False
+    try:
+        major, minor, *_rest = (
+            int(part) for part in schema_version.split(".")
+        )
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) >= (0, 3)
+
+
+def validate_model_provenance(manifest: dict, results: list[dict]) -> list[str]:
+    """Fail closed for current snapshots while retaining legacy read support."""
+    if not _requires_resolved_model_provenance(manifest.get("schema_version")):
+        return []
+
+    errors = []
+    resolutions: dict[str, set[str]] = defaultdict(set)
+    required = {
+        "requested_model",
+        "resolved_model",
+        "provider",
+        "effective_generation_config",
+        "inspect_version",
+    }
+    for index, row in enumerate(results, start=1):
+        missing = sorted(
+            field for field in required if row.get(field) in (None, "", {})
+        )
+        if missing:
+            errors.append(
+                "result row {} missing model provenance: {}".format(
+                    index, ", ".join(missing)
+                )
+            )
+            continue
+        if row.get("model") != row.get("requested_model"):
+            errors.append(
+                "result row {} model differs from requested_model".format(index)
+            )
+        if row.get("model_generate_config") != row.get(
+            "effective_generation_config"
+        ):
+            errors.append(
+                "result row {} generation configs disagree".format(index)
+            )
+        resolutions[str(row["requested_model"])].add(str(row["resolved_model"]))
+
+    for requested, resolved in sorted(resolutions.items()):
+        if len(resolved) > 1:
+            errors.append(
+                "requested model {} resolves to multiple snapshots: {}".format(
+                    requested, ", ".join(sorted(resolved))
+                )
+            )
+    return errors
+
+
 def validate_snapshot(snapshot_dir: Path) -> None:
     manifest = read_json(snapshot_dir / "release_manifest.json")
     entries = {
@@ -95,6 +154,9 @@ def validate_snapshot(snapshot_dir: Path) -> None:
             record_count = len(read_jsonl(path))
             if entry.get("record_count") != record_count:
                 errors.append("record count mismatch for {}".format(relative))
+    result_path = snapshot_dir / "result_rows.jsonl"
+    if result_path.exists():
+        errors.extend(validate_model_provenance(manifest, read_jsonl(result_path)))
     if errors:
         raise RuntimeError("Invalid leaderboard snapshot: {}".format("; ".join(errors)))
 
@@ -133,11 +195,28 @@ def numeric_score(row: dict, axis: str) -> float | None:
     return None
 
 
+def model_label(row: dict) -> str:
+    """Prefer provider-resolved identity while keeping legacy rows readable."""
+    requested = row.get("requested_model") or row.get("model", "unknown")
+    resolved = row.get("resolved_model")
+    provider = row.get("provider")
+    if not isinstance(resolved, str) or not resolved:
+        return str(requested)
+    qualified = (
+        resolved
+        if "/" in resolved or not provider
+        else "{}/{}".format(provider, resolved)
+    )
+    if qualified == requested:
+        return str(requested)
+    return "{} → {}".format(requested, qualified)
+
+
 def summarize_scores(results: list[dict], track: str) -> list[dict]:
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for row in results:
         if row.get("track") == track:
-            grouped[(row.get("model", "unknown"), row.get("task", "unknown"))].append(row)
+            grouped[(model_label(row), row.get("task", "unknown"))].append(row)
 
     summary = []
     for (model, task), rows in sorted(grouped.items()):
@@ -166,7 +245,7 @@ def summarize_axes(results: list[dict], track: str) -> list[dict]:
     for row in results:
         if row.get("track") != track:
             continue
-        model = row.get("model", "unknown")
+        model = model_label(row)
         for axis in AXES:
             value = numeric_score(row, axis)
             if value is not None:

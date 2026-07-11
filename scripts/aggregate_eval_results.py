@@ -103,6 +103,148 @@ def _jsonable_mapping(value, *, fields: tuple[str, ...] | None = None) -> dict:
     return payload
 
 
+def _model_name(value: object) -> str:
+    """Return a stable model identifier from Inspect model metadata."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        for field in ("model", "name", "id"):
+            candidate = value.get(field)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+    for field in ("model", "name", "id"):
+        candidate = getattr(value, field, None)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    text = str(value).strip()
+    return "" if text.startswith("<") and text.endswith(">") else text
+
+
+def infer_provider(requested_model: str, resolved_model: str = "") -> str:
+    """Infer the provider from an Inspect model id, preferring its API prefix."""
+    requested_model = _model_name(requested_model)
+    if "/" in requested_model:
+        provider = requested_model.split("/", 1)[0].strip()
+        if provider:
+            return provider
+
+    unqualified = _model_name(resolved_model) or requested_model
+    provider_prefixes = {
+        "anthropic": ("claude-",),
+        "google": ("gemini-",),
+        "openai": ("chatgpt-", "gpt-", "o1", "o3", "o4"),
+        "xai": ("grok-",),
+    }
+    for provider, prefixes in provider_prefixes.items():
+        if unqualified.startswith(prefixes):
+            return provider
+    return ""
+
+
+def canonical_model_id(model: object, provider: str) -> str:
+    """Normalize only the optional provider qualification of a model id."""
+    model_name = _model_name(model)
+    prefix = "{}/".format(provider)
+    if provider and model_name.startswith(prefix):
+        return model_name[len(prefix) :]
+    return model_name
+
+
+def sample_resolved_models(sample, provider: str = "") -> list[str]:
+    """Read distinct provider-returned snapshots recorded for a sample."""
+    candidates: set[str] = set()
+    output = getattr(sample, "output", None)
+    direct_model = _model_name(getattr(output, "model", None))
+    if direct_model:
+        candidates.add(direct_model)
+
+    for choice in getattr(output, "choices", []) or []:
+        message = getattr(choice, "message", None)
+        candidate = _model_name(getattr(message, "model", None))
+        if candidate:
+            candidates.add(candidate)
+    for message in getattr(sample, "messages", []) or []:
+        candidate = _model_name(getattr(message, "model", None))
+        if candidate:
+            candidates.add(candidate)
+
+    if not provider:
+        qualified_providers = {
+            candidate.split("/", 1)[0]
+            for candidate in candidates
+            if "/" in candidate
+        }
+        if len(qualified_providers) == 1:
+            provider = next(iter(qualified_providers))
+
+    raw_by_canonical: dict[str, set[str]] = defaultdict(set)
+    for candidate in candidates:
+        raw_by_canonical[canonical_model_id(candidate, provider)].add(candidate)
+
+    resolved_models = []
+    for canonical in sorted(raw_by_canonical):
+        raw_values = raw_by_canonical[canonical]
+        resolved_models.append(
+            direct_model if direct_model in raw_values else sorted(raw_values)[0]
+        )
+    return resolved_models
+
+
+def _sample_resolved_model(sample) -> str:
+    """Return one snapshot only when a sample has an unambiguous resolution."""
+    candidates = sample_resolved_models(sample)
+    return candidates[0] if len(candidates) == 1 else ""
+
+
+def _requested_model(row: dict) -> str:
+    return (
+        _model_name(row.get("requested_model"))
+        or _model_name(row.get("model"))
+        or "unknown"
+    )
+
+
+def _resolved_model(row: dict) -> str:
+    return _model_name(row.get("resolved_model"))
+
+
+def model_display_name(row: dict) -> str:
+    """Display requested and resolved ids without merging rolling aliases."""
+    requested = _requested_model(row)
+    resolved = _resolved_model(row)
+    if not resolved:
+        return requested
+    provider = _model_name(row.get("provider")) or infer_provider(requested, resolved)
+    qualified_resolved = (
+        resolved if "/" in resolved or not provider else "{}/{}".format(provider, resolved)
+    )
+    if qualified_resolved == requested:
+        return requested
+    return "{} → {}".format(requested, qualified_resolved)
+
+
+def model_resolution_conflicts(rows) -> dict[str, list[str]]:
+    """Return requested aliases that resolved to multiple provider snapshots."""
+    resolved_by_request = defaultdict(set)
+    for row in rows:
+        requested = _requested_model(row)
+        resolved = _resolved_model(row)
+        if resolved:
+            provider = _model_name(row.get("provider")) or infer_provider(
+                requested, resolved
+            )
+            resolved_by_request[requested].add(
+                canonical_model_id(resolved, provider)
+            )
+    return {
+        requested: sorted(resolved)
+        for requested, resolved in sorted(resolved_by_request.items())
+        if len(resolved) > 1
+    }
+
+
 def _sample_tokens(sample, model: str) -> dict:
     usage_by_model = getattr(sample, "model_usage", {}) or {}
     if isinstance(usage_by_model, dict):
@@ -147,7 +289,7 @@ def extract_scores(eval_path: Path, *, strict: bool = True):
         return rows
 
     eval_metadata = getattr(log, "eval", None)
-    model = getattr(eval_metadata, "model", "unknown")
+    model = _model_name(getattr(eval_metadata, "model", "unknown")) or "unknown"
     task = getattr(eval_metadata, "task", "unknown")
     raw_status = getattr(log, "status", "unknown")
     status = getattr(raw_status, "value", raw_status)
@@ -164,6 +306,10 @@ def extract_scores(eval_path: Path, *, strict: bool = True):
     model_generate_config = _jsonable_mapping(
         getattr(eval_metadata, "model_generate_config", None)
     )
+    packages = _jsonable_mapping(getattr(eval_metadata, "packages", None))
+    inspect_version = _model_name(
+        packages.get("inspect_ai") or packages.get("inspect-ai")
+    )
 
     for sample in getattr(log, "samples", []) or []:
         scores = getattr(sample, "scores", {}) or {}
@@ -175,8 +321,20 @@ def extract_scores(eval_path: Path, *, strict: bool = True):
                 break
         if value_block is None:
             continue
+        provider = infer_provider(model)
+        resolved_model_candidates = sample_resolved_models(sample, provider)
+        resolved_model = (
+            resolved_model_candidates[0]
+            if len(resolved_model_candidates) == 1
+            else ""
+        )
+        provider = infer_provider(model, resolved_model)
         row = {
             "model": model,
+            "requested_model": model,
+            "resolved_model": resolved_model,
+            "resolved_model_candidates": resolved_model_candidates,
+            "provider": provider,
             "task": task,
             "status": status,
             "sample_id": getattr(sample, "id", eval_path.stem),
@@ -186,6 +344,9 @@ def extract_scores(eval_path: Path, *, strict: bool = True):
             "tokens": _sample_tokens(sample, model),
             "eval_revision": eval_revision,
             "model_generate_config": model_generate_config,
+            "effective_generation_config": dict(model_generate_config),
+            "inspect_version": inspect_version,
+            "limit": _jsonable_mapping(getattr(sample, "limit", None)),
         }
         for axis, value in value_block.items():
             if isinstance(value, (int, float)):
@@ -195,10 +356,25 @@ def extract_scores(eval_path: Path, *, strict: bool = True):
 
 
 def dedupe_rows(rows):
-    """Keep only the latest archive for each (model, task, sample_id)."""
+    """Keep the latest row per effective-model/task/sample identity.
+
+    The resolved snapshot participates in the key whenever Inspect recorded it,
+    so two snapshots reached through the same requested alias cannot silently
+    overwrite one another.
+    """
     latest_by_sample = {}
     for row in rows:
-        key = (row["model"], row["task"], row["sample_id"])
+        key = (
+            _requested_model(row),
+            canonical_model_id(
+                _resolved_model(row),
+                _model_name(row.get("provider"))
+                or infer_provider(_requested_model(row), _resolved_model(row)),
+            )
+            or "__unresolved__",
+            row["task"],
+            row["sample_id"],
+        )
         current = latest_by_sample.get(key)
         row_order_key = (
             _parse_created_timestamp(row.get("created")),
@@ -218,7 +394,8 @@ def dedupe_rows(rows):
     return sorted(
         latest_by_sample.values(),
         key=lambda row: (
-            row["model"],
+            _requested_model(row),
+            _resolved_model(row),
             row["task"],
             row["sample_id"],
             row.get("eval_log", ""),
@@ -236,7 +413,7 @@ def discover_axes(rows):
 def aggregate(rows, axes):
     groups = defaultdict(list)
     for row in rows:
-        groups[(row["model"], row["task"])].append(row)
+        groups[(model_display_name(row), row["task"])].append(row)
     summary = []
     for (model, task), cell_rows in sorted(groups.items()):
         entry = {
@@ -323,7 +500,7 @@ def format_markdown(
         ]
         lines.append(
             "| {model} | `{task}` | `{sample}` | {cells} |".format(
-                model=row["model"],
+                model=model_display_name(row),
                 task=row["task"],
                 sample=row["sample_id"],
                 cells=" | ".join(cells),

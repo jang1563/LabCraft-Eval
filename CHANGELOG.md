@@ -6,6 +6,16 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
+- Add one central model registry with current cross-provider matrices,
+  model-specific generation profiles, and exact requested/resolved model
+  expectations for local and Slurm runners.
+- Record provider-resolved model identity, provider, Inspect version, and
+  Inspect-recorded generation configuration in new score exports; reject mixed
+  alias resolutions and provenance mismatches.
+- Pin Inspect and provider SDK versions together and document the minimal
+  current-model compatibility-smoke workflow.
+- Reject limit-exhausted Inspect samples from validated HPC cells and scored
+  Hugging Face exports, even when Inspect produced a partial trajectory score.
 - Mark the frozen v0.1.1 and later unbundled aggregate score pages as
   historical/provisional benchmark-development evidence rather than validated
   model or provider rankings.

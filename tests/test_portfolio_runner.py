@@ -1,4 +1,6 @@
+import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -8,6 +10,7 @@ from typing import Dict
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = REPO_ROOT / "scripts" / "run_portfolio_eval.sh"
 DISCOVERY_BUNDLE_PATH = REPO_ROOT / "scripts" / "run_discovery_bundle.sh"
+HPC_RUNNER_PATH = REPO_ROOT / "hpc" / "slurm_eval_array.sh"
 
 
 def _write_fake_inspect(tmp_path: Path) -> Path:
@@ -68,6 +71,22 @@ Path(os.environ["CALL_LOG"]).open("a").write("{label}|" + " ".join(sys.argv[1:])
     return fake_path
 
 
+def _write_python_with_fake_cell_validator(tmp_path: Path) -> Path:
+    fake_path = tmp_path / "python_with_fake_validator.sh"
+    fake_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [ "${{1:-}}" = "scripts/validate_eval_cell.py" ]; then
+  printf '%s\\0' "$@" > "$VALIDATOR_LOG"
+  exit 0
+fi
+exec {python} "$@"
+""".format(python=shlex.quote(sys.executable))
+    )
+    fake_path.chmod(0o755)
+    return fake_path
+
+
 def test_run_portfolio_eval_passes_seed_parameters_and_succeeds(tmp_path):
     fake_inspect = _write_fake_inspect(tmp_path)
     env = _runner_env(
@@ -94,7 +113,43 @@ def test_run_portfolio_eval_passes_seed_parameters_and_succeeds(tmp_path):
     assert "--model openai/gpt-4o-mini" in log_text
     assert "seeds=2" in log_text
     assert "seed_start=3" in log_text
-    assert "--temperature 0 --max-tokens 4096" in log_text
+    assert "--generate-config " in log_text
+    profile_path = Path(log_text.split("--generate-config ", 1)[1].split()[0])
+    assert json.loads(profile_path.read_text()) == {"max_tokens": 4096, "temperature": 0.0}
+
+
+def test_run_portfolio_eval_defaults_to_current_matrix_and_per_model_profiles(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        SEEDS="1",
+    )
+    env.pop("MODELS", None)
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "Model source: matrix:current_balanced" in proc.stdout
+    calls = [shlex.split(line) for line in Path(env["FAKE_INSPECT_LOG"]).read_text().splitlines()]
+    assert [call[call.index("--model") + 1] for call in calls] == [
+        "openai/gpt-5.6-sol",
+        "openai/gpt-5.6-luna",
+        "anthropic/claude-sonnet-5",
+        "anthropic/claude-haiku-4-5-20251001",
+    ]
+    for call in calls:
+        profile_path = Path(call[call.index("--generate-config") + 1])
+        profile = json.loads(profile_path.read_text())
+        assert profile["reasoning_effort"] == "medium"
+        assert "temperature" not in profile
 
 
 def test_run_portfolio_eval_exits_nonzero_after_partial_failures(tmp_path):
@@ -248,6 +303,7 @@ def test_run_portfolio_eval_requires_opt_in_for_frozen_log_dir(tmp_path):
         TASKS="transform_01",
         MODELS="openai/gpt-4o-mini",
         LOG_DIR=str(REPO_ROOT / "results" / "logs"),
+        GENERATE_CONFIG_ARGS="--temperature 0 --max-tokens 4096",
     )
 
     rejected = subprocess.run(
@@ -325,6 +381,145 @@ def test_run_portfolio_eval_rejects_invalid_seed_ranges_before_inspect(tmp_path)
     assert not Path(zero_seed_env["FAKE_INSPECT_LOG"]).exists()
 
 
+def test_run_portfolio_eval_rejects_empty_or_missing_generation_overrides(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    empty_args_env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        GENERATE_CONFIG_ARGS="",
+    )
+    missing_config_env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        GENERATE_CONFIG_FILE=str(tmp_path / "missing.json"),
+    )
+
+    empty_args = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=empty_args_env,
+        text=True,
+        capture_output=True,
+    )
+    missing_config = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=missing_config_env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert empty_args.returncode == 2
+    assert "GENERATE_CONFIG_ARGS cannot be empty" in empty_args.stderr
+    assert missing_config.returncode == 2
+    assert "GENERATE_CONFIG_FILE is not readable" in missing_config.stderr
+
+
+def test_run_portfolio_eval_rejects_unregistered_model_even_with_profile_override(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASKS="transform_01",
+        MODELS="openai/not-registered",
+        GENERATE_CONFIG_ARGS="--max-tokens 4096",
+    )
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "Unknown model 'openai/not-registered'" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+
+
+def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    fake_python = _write_python_with_fake_cell_validator(tmp_path)
+    bundle_dir = tmp_path / "hpc_bundle"
+    validator_log = tmp_path / "validator_args.log"
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOME": str(tmp_path / "home"),
+            "INSPECT_BIN": str(fake_inspect),
+            "FAKE_INSPECT_LOG": str(tmp_path / "inspect_calls.log"),
+            "PYTHON_BIN": str(fake_python),
+            "VALIDATOR_LOG": str(validator_log),
+            "TASKS": "transform_01",
+            "SEEDS_TOTAL": "1",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "RUN_ID": "hpc-registry-test",
+            "BUNDLE_DIR": str(bundle_dir),
+            "LOG_DIR": str(bundle_dir / "logs"),
+        }
+    )
+    env.pop("MODELS", None)
+
+    proc = subprocess.run(
+        ["bash", str(HPC_RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    manifest = json.loads((bundle_dir / "manifests" / "cell_0.json").read_text())
+    assert manifest["model_source"] == "matrix:current_balanced"
+    assert manifest["model_matrix"] == "current_balanced"
+    assert manifest["model_key"] == "gpt_5_6_sol"
+    assert manifest["requested_model"] == "openai/gpt-5.6-sol"
+    assert manifest["provider"] == "openai"
+    assert manifest["expected_resolved_model"] == "gpt-5.6-sol"
+    assert manifest["generation_profile"] == {
+        "max_tokens": 16384,
+        "reasoning_effort": "medium",
+    }
+    assert manifest["inspect_eval_args"] == ""
+    validator_args = [
+        item.decode() for item in validator_log.read_bytes().split(b"\0") if item
+    ]
+    config_index = validator_args.index("--expected-generation-config") + 1
+    assert json.loads(validator_args[config_index]) == manifest["generation_profile"]
+
+
+def test_hpc_runner_rejects_generation_profile_overrides(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    bundle_dir = tmp_path / "hpc_bundle"
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOME": str(tmp_path / "home"),
+            "INSPECT_BIN": str(fake_inspect),
+            "FAKE_INSPECT_LOG": str(tmp_path / "inspect_calls.log"),
+            "PYTHON_BIN": sys.executable,
+            "TASKS": "transform_01",
+            "SEEDS_TOTAL": "1",
+            "BUNDLE_DIR": str(bundle_dir),
+            "GENERATE_CONFIG_ARGS": "--max-tokens 4096",
+        }
+    )
+
+    proc = subprocess.run(
+        ["bash", str(HPC_RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "HPC release cells require registry generation profiles" in proc.stderr
+    assert not (bundle_dir / "manifests").exists()
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+
+
 def test_run_discovery_bundle_wires_runner_aggregation_and_plotting(tmp_path):
     fake_runner = _write_fake_runner(tmp_path)
     fake_aggregate = _write_fake_python_script(tmp_path, "fake_aggregate.py", "aggregate")
@@ -357,12 +552,12 @@ def test_run_discovery_bundle_wires_runner_aggregation_and_plotting(tmp_path):
     assert "Running Discovery decision bundle" in proc.stdout
     log_lines = call_log.read_text().strip().splitlines()
     assert "runner|TASK_PRESET=discovery" in log_lines[0]
-    assert "MODELS=openai/gpt-4o-mini anthropic/claude-sonnet-4-5" in log_lines[0]
+    assert "MODELS=openai/gpt-5.6-luna anthropic/claude-sonnet-5" in log_lines[0]
     assert "--log-dir {}".format(env["LOG_DIR"]) in log_lines[1]
     assert "--out {}".format(env["RESULTS_OUT"]) in log_lines[1]
     assert "--out-dir {}".format(env["PLOTS_OUT_DIR"]) in log_lines[2]
     assert "--task-preset discovery" in log_lines[2]
-    assert "--models openai/gpt-4o-mini anthropic/claude-sonnet-4-5" in log_lines[2]
+    assert "--models openai/gpt-5.6-luna anthropic/claude-sonnet-5" in log_lines[2]
 
 
 def test_run_discovery_bundle_defaults_to_new_build_bundle(tmp_path):

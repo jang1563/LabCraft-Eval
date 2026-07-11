@@ -1,0 +1,236 @@
+schema_version = "1.0.0"
+default_matrix = "current_balanced"
+
+[matrices.current_balanced]
+description = "Current balanced cross-provider core matrix."
+models = [
+  "gpt_5_6_sol",
+  "gpt_5_6_luna",
+  "claude_sonnet_5",
+  "claude_haiku_4_5",
+]
+
+[matrices.discovery_current]
+description = "Current two-provider matrix for discovery-track decisions."
+models = [
+  "gpt_5_6_luna",
+  "claude_sonnet_5",
+]
+
+[matrices.current_optional]
+description = "Optional Terra balanced-tier and Fable upper-bound models; not part of the default core."
+models = [
+  "gpt_5_6_terra",
+  "claude_fable_5",
+]
+
+[matrices.current_full]
+description = "Current balanced core plus optional comparison models."
+models = [
+  "gpt_5_6_sol",
+  "gpt_5_6_luna",
+  "claude_sonnet_5",
+  "claude_haiku_4_5",
+  "gpt_5_6_terra",
+  "claude_fable_5",
+]
+
+[matrices.prior_modern]
+description = "Superseded 2026 OpenAI comparison pair retained for reproducibility."
+models = [
+  "gpt_5_5_snapshot",
+  "gpt_5_4_mini_snapshot",
+]
+
+[matrices.legacy_2026q2]
+description = "Exact requested model aliases used by the frozen 2026 Q2 benchmark artifacts."
+models = [
+  "gpt_4o_mini_legacy",
+  "gpt_4o_legacy",
+  "claude_haiku_4_5_legacy",
+  "claude_sonnet_4_5_legacy",
+]
+
+[models.gpt_5_6_sol]
+inspect_id = "openai/gpt-5.6-sol"
+provider = "openai"
+expected_resolved_model = "gpt-5.6-sol"
+display_name = "GPT-5.6 Sol"
+short_name = "gpt-5.6-sol"
+tier = "frontier"
+color = "#168b5b"
+aliases = ["openai/gpt-5.6"]
+
+[models.gpt_5_6_sol.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_5_6_sol.inspect_model_info]
+organization = "OpenAI"
+model = "GPT-5.6 Sol"
+knowledge_cutoff_date = "2026-02-16"
+context_length = 1050000
+output_tokens = 128000
+reasoning = true
+reasoning_effort_default = "medium"
+
+[models.gpt_5_6_luna]
+inspect_id = "openai/gpt-5.6-luna"
+provider = "openai"
+expected_resolved_model = "gpt-5.6-luna"
+display_name = "GPT-5.6 Luna"
+short_name = "gpt-5.6-luna"
+tier = "efficient"
+color = "#72c79a"
+
+[models.gpt_5_6_luna.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_5_6_luna.inspect_model_info]
+organization = "OpenAI"
+model = "GPT-5.6 Luna"
+knowledge_cutoff_date = "2026-02-16"
+context_length = 1050000
+output_tokens = 128000
+reasoning = true
+reasoning_effort_default = "medium"
+
+[models.gpt_5_6_terra]
+inspect_id = "openai/gpt-5.6-terra"
+provider = "openai"
+expected_resolved_model = "gpt-5.6-terra"
+display_name = "GPT-5.6 Terra"
+short_name = "gpt-5.6-terra"
+tier = "balanced_optional"
+color = "#075e3d"
+
+[models.gpt_5_6_terra.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_5_6_terra.inspect_model_info]
+organization = "OpenAI"
+model = "GPT-5.6 Terra"
+knowledge_cutoff_date = "2026-02-16"
+context_length = 1050000
+output_tokens = 128000
+reasoning = true
+reasoning_effort_default = "medium"
+
+[models.claude_sonnet_5]
+inspect_id = "anthropic/claude-sonnet-5"
+provider = "anthropic"
+expected_resolved_model = "claude-sonnet-5"
+display_name = "Claude Sonnet 5"
+short_name = "sonnet-5"
+tier = "frontier"
+color = "#c05621"
+
+[models.claude_sonnet_5.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.claude_haiku_4_5]
+inspect_id = "anthropic/claude-haiku-4-5-20251001"
+provider = "anthropic"
+expected_resolved_model = "claude-haiku-4-5-20251001"
+display_name = "Claude Haiku 4.5"
+short_name = "haiku-4.5"
+tier = "efficient"
+color = "#e09f7d"
+
+[models.claude_haiku_4_5.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.claude_fable_5]
+inspect_id = "anthropic/claude-fable-5"
+provider = "anthropic"
+expected_resolved_model = "claude-fable-5"
+display_name = "Claude Fable 5"
+short_name = "fable-5"
+tier = "upper_bound"
+color = "#8f341b"
+
+[models.claude_fable_5.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_5_5_snapshot]
+inspect_id = "openai/gpt-5.5-2026-04-23"
+provider = "openai"
+expected_resolved_model = "gpt-5.5-2026-04-23"
+display_name = "GPT-5.5 (2026-04-23)"
+short_name = "gpt-5.5"
+tier = "prior_modern"
+color = "#2e9f72"
+
+[models.gpt_5_5_snapshot.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_5_4_mini_snapshot]
+inspect_id = "openai/gpt-5.4-mini-2026-03-17"
+provider = "openai"
+expected_resolved_model = "gpt-5.4-mini-2026-03-17"
+display_name = "GPT-5.4 mini (2026-03-17)"
+short_name = "gpt-5.4-mini"
+tier = "prior_modern"
+color = "#89cfaa"
+
+[models.gpt_5_4_mini_snapshot.generate]
+max_tokens = 16384
+reasoning_effort = "medium"
+
+[models.gpt_4o_mini_legacy]
+inspect_id = "openai/gpt-4o-mini"
+provider = "openai"
+expected_resolved_model = "gpt-4o-mini-2024-07-18"
+display_name = "GPT-4o mini"
+short_name = "gpt-4o-mini"
+tier = "legacy"
+color = "#7fcf9f"
+
+[models.gpt_4o_mini_legacy.generate]
+max_tokens = 4096
+temperature = 0.0
+
+[models.gpt_4o_legacy]
+inspect_id = "openai/gpt-4o"
+provider = "openai"
+expected_resolved_model = "gpt-4o-2024-08-06"
+display_name = "GPT-4o"
+short_name = "gpt-4o"
+tier = "legacy"
+color = "#2ea572"
+
+[models.gpt_4o_legacy.generate]
+max_tokens = 4096
+temperature = 0.0
+
+[models.claude_haiku_4_5_legacy]
+inspect_id = "anthropic/claude-haiku-4-5"
+provider = "anthropic"
+expected_resolved_model = "claude-haiku-4-5-20251001"
+display_name = "Claude Haiku 4.5"
+short_name = "haiku-4.5"
+tier = "legacy"
+color = "#e09f7d"
+
+[models.claude_haiku_4_5_legacy.generate]
+max_tokens = 4096
+temperature = 0.0
+
+[models.claude_sonnet_4_5_legacy]
+inspect_id = "anthropic/claude-sonnet-4-5"
+provider = "anthropic"
+expected_resolved_model = "claude-sonnet-4-5-20250929"
+display_name = "Claude Sonnet 4.5"
+short_name = "sonnet-4.5"
+tier = "legacy"
+color = "#c05621"
+
+[models.claude_sonnet_4_5_legacy.generate]
+max_tokens = 4096
+temperature = 0.0

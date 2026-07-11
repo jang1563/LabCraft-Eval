@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover - keeps local imports working before Ins
     def task(func):
         return func
 
+from src.model_metadata import register_inspect_model_info
 from src.solvers import (
     build_clone_solver,
     build_discovery_solver,
@@ -76,6 +77,11 @@ from src.trajectory_scorer import (
     build_target_validate_trajectory_scorer,
     build_transform_trajectory_scorer,
 )
+
+# Inspect 0.3.245 instantiates the provider before loading this task module, but
+# consults ModelInfo dynamically at first generation/compaction. Register the
+# structural GPT-5.6 metadata before any task can start generating.
+register_inspect_model_info()
 
 SNAPSHOT_TASKS = ("transform_01", "growth_01", "pcr_01", "screen_01", "clone_01")
 CURRENT_TASKS = SNAPSHOT_TASKS + (

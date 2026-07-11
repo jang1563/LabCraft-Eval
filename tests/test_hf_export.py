@@ -16,7 +16,10 @@ def _clean_packaging_worktree(monkeypatch):
 
 def _result_row(eval_path, *, dirty=False):
     return {
-        "model": "example/model",
+        "model": "openai/gpt-4o-mini",
+        "requested_model": "openai/gpt-4o-mini",
+        "resolved_model": "gpt-4o-mini-2024-07-18",
+        "provider": "openai",
         "task": "transform_01",
         "status": "success",
         "sample_id": "transform_01_seed_00",
@@ -33,7 +36,25 @@ def _result_row(eval_path, *, dirty=False):
             "dirty": dirty,
         },
         "model_generate_config": {"temperature": 0.0},
+        "effective_generation_config": {"temperature": 0.0},
+        "inspect_version": "0.3.245",
     }
+
+
+def _refresh_manifest_file(out_dir, path_value):
+    path = out_dir / path_value
+    manifest_path = out_dir / "release_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    for item in manifest["files"]:
+        if item["path"] == path_value:
+            item["sha256"] = export_hf_dataset.sha256_file(path)
+            item["bytes"] = path.stat().st_size
+            if path.suffix == ".jsonl":
+                item["record_count"] = len(path.read_text().splitlines())
+            break
+    else:  # pragma: no cover - test helper guard
+        raise AssertionError("manifest has no file entry for {}".format(path_value))
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
 
 def test_packaging_worktree_check_rejects_dirty_status(monkeypatch):
@@ -249,7 +270,120 @@ def test_result_records_preserves_native_evaluation_revision(tmp_path, monkeypat
         "dirty": False,
     }
     assert records[0]["model_generate_config"] == {"temperature": 0.0}
+    assert records[0]["effective_generation_config"] == {"temperature": 0.0}
+    assert records[0]["requested_model"] == "openai/gpt-4o-mini"
+    assert records[0]["resolved_model"] == "gpt-4o-mini-2024-07-18"
+    assert records[0]["provider"] == "openai"
+    assert records[0]["inspect_version"] == "0.3.245"
     assert records[0]["tokens"] == {"input": 10, "output": 5, "total": 15}
+
+
+def test_result_schema_keeps_0_2_records_backward_compatible():
+    legacy = {
+        "schema_version": "0.2.0",
+        "source_commit": "abc123",
+        "evaluation_revision": {
+            "type": "git",
+            "origin": "https://github.com/jang1563/LabCraft-Eval.git",
+            "commit": "abc123",
+            "dirty": False,
+        },
+        "model_generate_config": {"temperature": 0.0},
+        "model": "openai/gpt-4o-mini",
+        "task": "transform_01",
+        "track": "snapshot",
+        "sample_id": "transform_01_seeded_seed_00",
+        "eval_log": "example.eval",
+        "eval_log_path": "eval_logs/example.eval",
+        "status": "success",
+        "created": "2026-04-18T10:00:00Z",
+        "tokens": {"input": 10, "output": 5, "total": 15},
+        "scores": {"overall": 0.75},
+    }
+
+    assert validate_hf_export.validate_json_schema(
+        legacy,
+        "hf_result_record.schema.json",
+        "legacy result",
+    ) == []
+
+    current_without_model_provenance = dict(legacy, schema_version="0.3.0")
+    errors = validate_hf_export.validate_json_schema(
+        current_without_model_provenance,
+        "hf_result_record.schema.json",
+        "current result",
+    )
+    assert any("requested_model" in error for error in errors)
+
+
+def test_result_records_rejects_registry_resolution_mismatch(tmp_path, monkeypatch):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    eval_path = log_dir / "wrong_snapshot.eval"
+    eval_path.write_text("fixture")
+    row = _result_row(eval_path)
+    row["resolved_model"] = "gpt-4o-mini-wrong"
+    monkeypatch.setattr(
+        export_hf_dataset,
+        "extract_scores",
+        lambda *_args, **_kwargs: [row],
+    )
+
+    with pytest.raises(ValueError, match="resolved model disagrees with model registry"):
+        export_hf_dataset.result_records("packaging123", [log_dir])
+
+
+def test_result_records_rejects_limit_exhausted_samples(tmp_path, monkeypatch):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    eval_path = log_dir / "message_limit.eval"
+    eval_path.write_text("fixture")
+    row = _result_row(eval_path)
+    row["limit"] = {"type": "message", "limit": 80}
+    monkeypatch.setattr(
+        export_hf_dataset,
+        "extract_scores",
+        lambda *_args, **_kwargs: [row],
+    )
+
+    with pytest.raises(ValueError, match="limit-exhausted Inspect sample"):
+        export_hf_dataset.result_records("packaging123", [log_dir])
+
+
+def test_eval_manifest_schema_keeps_0_2_records_backward_compatible():
+    legacy = {
+        "schema_version": "0.2.0",
+        "source_commit": "abc123",
+        "path": "eval_logs/example.eval",
+        "source_path": "results/logs/example.eval",
+        "log_dir": "results/logs",
+        "filename": "example.eval",
+        "sha256": "a" * 64,
+        "bytes": 7,
+        "status": "success",
+        "evaluation_revision": {
+            "type": "git",
+            "origin": "https://github.com/jang1563/LabCraft-Eval.git",
+            "commit": "abc123",
+            "dirty": False,
+        },
+        "model_generate_config": {"temperature": 0.0},
+        "sample_count": 1,
+    }
+
+    assert validate_hf_export.validate_json_schema(
+        legacy,
+        "hf_eval_log_manifest_record.schema.json",
+        "legacy eval manifest",
+    ) == []
+
+    current_without_model_provenance = dict(legacy, schema_version="0.3.0")
+    errors = validate_hf_export.validate_json_schema(
+        current_without_model_provenance,
+        "hf_eval_log_manifest_record.schema.json",
+        "current eval manifest",
+    )
+    assert any("requested_model" in error for error in errors)
 
 
 def test_clean_result_export_validates_with_native_provenance(tmp_path, monkeypatch):
@@ -283,7 +417,185 @@ def test_clean_result_export_validates_with_native_provenance(tmp_path, monkeypa
     bundled_eval = out_dir / eval_records[0]["path"]
     assert bundled_eval.read_text() == "fixture"
     assert eval_records[0]["path"] in {item["path"] for item in manifest["files"]}
+    assert eval_records[0]["requested_model"] == "openai/gpt-4o-mini"
+    assert eval_records[0]["resolved_model"] == "gpt-4o-mini-2024-07-18"
+    assert eval_records[0]["provider"] == "openai"
+    assert eval_records[0]["effective_generation_config"] == {"temperature": 0.0}
+    assert eval_records[0]["inspect_version"] == "0.3.245"
     assert validate_hf_export.validate_export(out_dir) == []
+
+
+def test_result_validator_enforces_model_identity_contract():
+    record = {
+        "schema_version": "0.3.0",
+        "source_commit": "abc123",
+        "model": "openai/gpt-4o-mini",
+        "requested_model": "openai/gpt-4o-mini",
+        "resolved_model": "gpt-4o-mini-2024-07-18",
+        "provider": "openai",
+        "effective_generation_config": {"temperature": 0.0},
+        "inspect_version": "0.3.245",
+        "model_generate_config": {"temperature": 0.0},
+        "task": "transform_01",
+        "sample_id": "transform_01_seeded_seed_00",
+        "eval_log": "example.eval",
+        "scores": {"overall": 0.75},
+    }
+    registry = export_hf_dataset.MODEL_REGISTRY
+
+    assert validate_hf_export.validate_result_records(
+        [record],
+        require_model_provenance=True,
+        model_registry=registry,
+    ) == []
+
+    model_mismatch = dict(record, model="openai/gpt-4o")
+    errors = validate_hf_export.validate_result_records(
+        [model_mismatch],
+        require_model_provenance=True,
+        model_registry=registry,
+    )
+    assert any("model differs from requested_model" in error for error in errors)
+
+    provider_mismatch = dict(record, provider="anthropic")
+    errors = validate_hf_export.validate_result_records(
+        [provider_mismatch],
+        require_model_provenance=True,
+        model_registry=registry,
+    )
+    assert any(
+        "provider differs from requested_model qualifier" in error for error in errors
+    )
+
+    config_mismatch = dict(
+        record,
+        effective_generation_config={"temperature": 0.7},
+    )
+    errors = validate_hf_export.validate_result_records(
+        [config_mismatch],
+        require_model_provenance=True,
+        model_registry=registry,
+    )
+    assert any(
+        "effective_generation_config differs from model_generate_config" in error
+        for error in errors
+    )
+
+    unknown_request = dict(
+        record,
+        model="openai/unknown-model",
+        requested_model="openai/unknown-model",
+    )
+    errors = validate_hf_export.validate_result_records(
+        [unknown_request],
+        require_model_provenance=True,
+        model_registry=registry,
+    )
+    assert any("requested_model is not registered" in error for error in errors)
+
+    wrong_snapshot = dict(record, resolved_model="gpt-4o-mini-wrong")
+    errors = validate_hf_export.validate_result_records(
+        [wrong_snapshot],
+        require_model_provenance=True,
+        model_registry=registry,
+    )
+    assert any(
+        "resolved_model differs from model registry expectation" in error
+        for error in errors
+    )
+
+
+def test_result_validator_rejects_alias_with_multiple_resolutions():
+    base = {
+        "schema_version": "0.3.0",
+        "source_commit": "abc123",
+        "model": "example/model",
+        "requested_model": "example/model",
+        "resolved_model": "model-snapshot-a",
+        "provider": "example",
+        "effective_generation_config": {"temperature": 0.0},
+        "inspect_version": "0.3.245",
+        "model_generate_config": {"temperature": 0.0},
+        "task": "transform_01",
+        "sample_id": "sample-a",
+        "eval_log": "first.eval",
+        "scores": {"overall": 0.75},
+    }
+    second = dict(
+        base,
+        resolved_model="model-snapshot-b",
+        sample_id="sample-b",
+        eval_log="second.eval",
+    )
+
+    errors = validate_hf_export.validate_result_records(
+        [base, second],
+        require_model_provenance=True,
+    )
+
+    assert any("resolves to multiple snapshots" in error for error in errors)
+
+
+def test_validator_cross_checks_result_model_identity_with_eval_manifest(
+    tmp_path, monkeypatch
+):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    eval_path = log_dir / "clean.eval"
+    eval_path.write_text("fixture")
+    monkeypatch.setattr(
+        export_hf_dataset,
+        "extract_scores",
+        lambda *_args, **_kwargs: [_result_row(eval_path)],
+    )
+    out_dir = tmp_path / "hf_export"
+    export_hf_dataset.build_export(
+        out_dir=out_dir,
+        release_name="clean_fixture",
+        log_dirs=[log_dir],
+    )
+    manifest_path = out_dir / "eval_log_manifest.jsonl"
+    manifest_record = json.loads(manifest_path.read_text())
+    manifest_record["inspect_version"] = "0.3.999"
+    manifest_path.write_text(json.dumps(manifest_record, sort_keys=True) + "\n")
+    _refresh_manifest_file(out_dir, "eval_log_manifest.jsonl")
+
+    errors = validate_hf_export.validate_export(out_dir)
+
+    assert any("inspect_version differs from log manifest" in error for error in errors)
+
+
+def test_validator_rejects_consistent_but_unregistered_resolved_snapshot(
+    tmp_path, monkeypatch
+):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    eval_path = log_dir / "clean.eval"
+    eval_path.write_text("fixture")
+    monkeypatch.setattr(
+        export_hf_dataset,
+        "extract_scores",
+        lambda *_args, **_kwargs: [_result_row(eval_path)],
+    )
+    out_dir = tmp_path / "hf_export"
+    export_hf_dataset.build_export(
+        out_dir=out_dir,
+        release_name="clean_fixture",
+        log_dirs=[log_dir],
+    )
+    for path_value in ("result_rows.jsonl", "eval_log_manifest.jsonl"):
+        path = out_dir / path_value
+        record = json.loads(path.read_text())
+        record["resolved_model"] = "gpt-4o-mini-wrong"
+        path.write_text(json.dumps(record, sort_keys=True) + "\n")
+        _refresh_manifest_file(out_dir, path_value)
+
+    errors = validate_hf_export.validate_export(out_dir)
+
+    assert sum(
+        "resolved_model differs from model registry expectation" in error
+        for error in errors
+    ) == 2
 
 
 def test_validator_cross_checks_result_generation_config(tmp_path, monkeypatch):
@@ -372,7 +684,7 @@ def test_schema_0_2_export_requires_eval_log_manifest(tmp_path):
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
     errors = validate_hf_export.validate_export(out_dir)
-    assert "eval_log_manifest.jsonl is required for schema 0.2.0 exports" in errors
+    assert "eval_log_manifest.jsonl is required for schema 0.2.0+ exports" in errors
 
 
 def test_build_export_refuses_stale_output_unless_clean_is_explicit(tmp_path, monkeypatch):
