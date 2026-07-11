@@ -57,7 +57,9 @@ echo "Running ruff"
 
 echo
 echo "Running pytest"
-"${VENV_DIR}/bin/python" -m pytest -q
+# Tests that spawn the HPC runner must resolve provenance against this isolated
+# copy, not the submit checkout inherited through the outer job environment.
+REPO_ROOT="${CHECK_ROOT}" "${VENV_DIR}/bin/python" -m pytest -q
 
 echo
 echo "Building and smoke-testing the wheel outside the source checkout"
