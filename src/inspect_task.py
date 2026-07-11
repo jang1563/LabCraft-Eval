@@ -103,11 +103,13 @@ TASK_PRESETS = {
     "all": ALL_TASKS,
 }
 
-# Growth trajectories batch tool calls across three conditions. Inspect counts
-# each parallel tool result as a separate message, so a message-only cap can
-# terminate a scientifically valid run between the final fit call and its
-# results. Bound actual agent iterations separately and retain a hard message
-# ceiling for provider-neutral runaway protection.
+# Transform and growth trajectories batch tool calls across several conditions.
+# Inspect counts each parallel tool result as a separate message, so a
+# message-only cap can terminate a scientifically valid run between a batched
+# call and its results. Bound actual agent iterations separately and retain a
+# hard message ceiling for provider-neutral runaway protection.
+TRANSFORM_TURN_LIMIT = 40
+TRANSFORM_MESSAGE_LIMIT = 160
 GROWTH_TURN_LIMIT = 40
 GROWTH_MESSAGE_LIMIT = 160
 
@@ -168,7 +170,8 @@ def transform_01(seeds: int = 1, seed_start: int = 0):
         solver=build_labcraft_solver(),
         scorer=build_transform_trajectory_scorer(),
         cleanup=_cleanup_transform_sample,
-        message_limit=40,
+        turn_limit=TRANSFORM_TURN_LIMIT,
+        message_limit=TRANSFORM_MESSAGE_LIMIT,
     )
 
 

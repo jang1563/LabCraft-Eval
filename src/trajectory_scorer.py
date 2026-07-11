@@ -146,7 +146,11 @@ def _coerce_content_dict(content: Any) -> Dict[str, Any]:
 
 def _matches_filters(arguments: Dict[str, Any], filters: Dict[str, Any]) -> bool:
     for key, expected in filters.items():
-        if arguments.get(key) != expected:
+        observed = arguments.get(key)
+        if isinstance(observed, str) and isinstance(expected, str):
+            if observed.strip().casefold() != expected.strip().casefold():
+                return False
+        elif observed != expected:
             return False
     return True
 
@@ -237,6 +241,32 @@ def _extract_reported_efficiencies(final_answer: str) -> Dict[int, float]:
         parsed = _parse_scientific_number(matches[-1].group(1))
         if parsed is not None:
             reported[mass_pg] = parsed
+
+    if reported:
+        return reported
+
+    # Also accept a compact, unambiguous ordered report such as
+    # "This gives A, B, C, and D CFU/ug for 10, 100, 1,000, and 10,000 pg,
+    # respectively." The prompt requires the four values but does not require
+    # one mass-value pair per line.
+    ordered_match = re.search(
+        rf"(?:gives?|values?\s*(?:are|were|:))\s+"
+        rf"(?P<values>[\s\S]{{1,240}}?)\s*(?:{unit_pattern})\s+for\s+"
+        rf"(?P<masses>[\d,\s]*(?:and\s+)?[\d,]+\s*pg)\s*,?\s*respectively\b",
+        final_answer,
+        flags=re.IGNORECASE,
+    )
+    if not ordered_match:
+        return reported
+
+    mass_values = [
+        int(token.replace(",", ""))
+        for token in re.findall(r"\d[\d,]*", ordered_match.group("masses"))
+    ]
+    value_tokens = re.findall(numeric_pattern, ordered_match.group("values"), flags=re.IGNORECASE)
+    parsed_values = [_parse_scientific_number(token) for token in value_tokens]
+    if mass_values == list(TARGET_MASSES_PG) and len(parsed_values) == len(TARGET_MASSES_PG):
+        return dict(zip(TARGET_MASSES_PG, parsed_values))
     return reported
 
 
@@ -357,7 +387,12 @@ def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict
             continue
         matched_calls.append(observed_values)
 
-    if not matched_calls:
+    minimum_matches = matcher.get("minimum_matches", 1)
+    if isinstance(minimum_matches, bool) or not isinstance(minimum_matches, int):
+        return 0.0
+    if minimum_matches < 1:
+        return 0.0
+    if len(matched_calls) < minimum_matches:
         return 0.0
 
     occurrence = matcher.get("occurrence", "all")
@@ -464,9 +499,40 @@ def score_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> f
             return 0.0
 
     final_answer_lower = final_answer.lower()
-    if not re.search(r"\bconsistent\b", final_answer_lower):
+    if not re.search(r"\bconsisten(?:t|cy)\b", final_answer_lower):
         return 0.0
     return 1.0
+
+
+def _transform_decision_calls(tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Score transformation conditions from cultures that produced usable data.
+
+    Failed dilution estimates remain part of efficiency and troubleshooting,
+    but an abandoned transformation should not poison the conditions used by a
+    later, complete four-mass workflow.
+    """
+    plating_to_culture: Dict[str, str] = {}
+    successful_cultures: set[str] = set()
+    for call in tool_calls:
+        name = _normalize_tool_name(call.get("tool_name", ""))
+        observed = _observed_values(call)
+        if name == "plate" and observed.get("plating_id") and observed.get("culture_id"):
+            plating_to_culture[str(observed["plating_id"])] = str(observed["culture_id"])
+        elif name == "count_colonies" and observed.get("status") == "plated":
+            culture_id = observed.get("culture_id") or plating_to_culture.get(
+                str(observed.get("plating_id", ""))
+            )
+            if culture_id:
+                successful_cultures.add(str(culture_id))
+
+    if not successful_cultures:
+        return tool_calls
+    return [
+        call
+        for call in tool_calls
+        if _normalize_tool_name(call.get("tool_name", "")) != "transform"
+        or str(_observed_values(call).get("culture_id", "")) in successful_cultures
+    ]
 
 
 def score_transform_trajectory(
@@ -476,7 +542,7 @@ def score_transform_trajectory(
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
     tool_calls = _extract_tool_calls(transcript)
-    decision_quality = score_decision_quality(tool_calls, ground_truth)
+    decision_quality = score_decision_quality(_transform_decision_calls(tool_calls), ground_truth)
     task_success = score_task_success(final_answer, tool_calls)
     troubleshooting = score_troubleshooting(final_answer, tool_calls, ground_truth)
     efficiency = score_efficiency(tool_calls, ground_truth)
@@ -1324,6 +1390,9 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
     transform_ligation_count = 0
     digest_statuses: List[str] = []
     ligate_statuses: List[str] = []
+    successful_digest_substrates: set[str] = set()
+    successful_ligation_count = 0
+    successful_transform_ligation_count = 0
     any_non_heat_inactivated_digest = False
     any_blue_screening = False
     final_screen = {
@@ -1338,14 +1407,22 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         observed = _observed_values(call)
         if name == "restriction_digest":
             digest_count += 1
-            digest_statuses.append(str(observed.get("status", "")))
+            status = str(observed.get("status", ""))
+            digest_statuses.append(status)
+            if status == "digested" and observed.get("substrate_fragment_id"):
+                successful_digest_substrates.add(str(observed["substrate_fragment_id"]))
             if observed.get("heat_inactivate_after") is False:
                 any_non_heat_inactivated_digest = True
         elif name == "ligate":
             ligate_count += 1
-            ligate_statuses.append(str(observed.get("status", "")))
+            status = str(observed.get("status", ""))
+            ligate_statuses.append(status)
+            if status == "ligated":
+                successful_ligation_count += 1
         elif name == "transform_ligation":
             transform_ligation_count += 1
+            if observed.get("status") == "transformed":
+                successful_transform_ligation_count += 1
         elif name == "run_colony_pcr":
             if observed.get("screening_strategy") == "includes_blue":
                 any_blue_screening = True
@@ -1374,6 +1451,9 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         "transform_ligation_count": transform_ligation_count,
         "digest_statuses": digest_statuses,
         "ligate_statuses": ligate_statuses,
+        "successful_digest_substrates": sorted(successful_digest_substrates),
+        "successful_ligation_count": successful_ligation_count,
+        "successful_transform_ligation_count": successful_transform_ligation_count,
         "any_non_heat_inactivated_digest": any_non_heat_inactivated_digest,
         "any_blue_screening": any_blue_screening,
         "final_screen": final_screen,
@@ -1406,6 +1486,14 @@ def score_clone_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]
         return 0.0
     if reconstructed["transform_ligation_count"] < 1:
         return 0.0
+    if len(reconstructed["successful_digest_substrates"]) < 2:
+        return 0.0
+    if reconstructed["successful_ligation_count"] < 1:
+        return 0.0
+    if reconstructed["successful_transform_ligation_count"] < 1:
+        return 0.0
+    if reported["transformants_observed"] != reconstructed["transformants_observed"]:
+        return 0.0
     if not reconstructed["final_screen"]["confirmed_recombinant_ids"]:
         return 0.0
     if (
@@ -1434,36 +1522,75 @@ def score_clone_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]
 def score_clone_troubleshooting(
     final_answer: str, tool_calls: List[Dict[str, Any]], ground_truth: Dict[str, Any]
 ) -> float:
-    reconstructed = _reconstruct_clone_results(tool_calls)
-    failure_markers: List[str] = []
+    digest_markers = {
+        "wrong_buffer": "wrong_digest_buffer",
+        "incomplete_digest": "insufficient_digest_duration",
+        "wrong_enzyme_pair": "wrong_digest_enzyme_pair",
+    }
+    failure_events: List[tuple[str, int, str]] = []
+    for index, call in enumerate(tool_calls):
+        name = _normalize_tool_name(call.get("tool_name", ""))
+        observed = _observed_values(call)
+        status = str(observed.get("status", ""))
+        identity = ""
+        marker = ""
+        if name == "restriction_digest":
+            identity = str(observed.get("substrate_fragment_id", ""))
+            marker = digest_markers.get(status, "")
+            if marker:
+                failure_events.append((marker, index, identity))
+            if observed.get("heat_inactivate_after") is False:
+                failure_events.append(("no_heat_inactivation", index, identity))
+        elif name == "ligate" and status in {"wrong_ligase", "wrong_ratio"}:
+            marker = "wrong_ligase" if status == "wrong_ligase" else "extreme_molar_ratio"
+            failure_events.append((marker, index, ""))
+        elif name == "run_colony_pcr" and observed.get("screening_strategy") == "includes_blue":
+            failure_events.append(("screened_blue_background", index, ""))
 
-    for status in reconstructed["digest_statuses"]:
-        if status in {"wrong_buffer", "incomplete_digest", "wrong_enzyme_pair"}:
-            failure_markers.append("wrong_digest_buffer")
-            break
-    for status in reconstructed["ligate_statuses"]:
-        if status == "wrong_ligase":
-            failure_markers.append("wrong_ligase")
-        if status == "wrong_ratio":
-            failure_markers.append("extreme_molar_ratio")
-    if reconstructed["any_non_heat_inactivated_digest"]:
-        failure_markers.append("no_heat_inactivation")
-    if reconstructed["any_blue_screening"]:
-        failure_markers.append("screened_blue_background")
-
-    if not failure_markers:
+    if not failure_events:
         return _score_no_failure_troubleshooting(tool_calls, ground_truth)
 
     final_answer_lower = final_answer.lower()
     resolved = 0
-    for marker in failure_markers:
+    for marker, failure_index, identity in failure_events:
+        trajectory_resolved = False
+        for later_call in tool_calls[failure_index + 1 :]:
+            later_name = _normalize_tool_name(later_call.get("tool_name", ""))
+            later = _observed_values(later_call)
+            if marker in {
+                "wrong_digest_buffer",
+                "insufficient_digest_duration",
+                "wrong_digest_enzyme_pair",
+                "no_heat_inactivation",
+            }:
+                trajectory_resolved = (
+                    later_name == "restriction_digest"
+                    and later.get("status") == "digested"
+                    and (not identity or str(later.get("substrate_fragment_id", "")) == identity)
+                    and (
+                        marker != "no_heat_inactivation"
+                        or later.get("heat_inactivate_after") is True
+                    )
+                )
+            elif marker in {"wrong_ligase", "extreme_molar_ratio"}:
+                trajectory_resolved = later_name == "ligate" and later.get("status") == "ligated"
+            elif marker == "screened_blue_background":
+                trajectory_resolved = (
+                    later_name == "run_colony_pcr"
+                    and later.get("screening_strategy") == "white_only"
+                )
+            if trajectory_resolved:
+                break
+        if trajectory_resolved:
+            resolved += 1
+            continue
         diagnosis = ground_truth["failure_diagnosis_map"].get(marker)
         if diagnosis is None:
             continue
         acceptable = [diagnosis["canonical_diagnosis"]] + diagnosis.get("acceptable_variants", [])
         if any(candidate.lower() in final_answer_lower for candidate in acceptable):
             resolved += 1
-    return float(resolved) / float(len(failure_markers))
+    return float(resolved) / float(len(failure_events))
 
 
 def score_clone_trajectory(

@@ -19,8 +19,8 @@
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "The final answer reports CFU/ug for 10 pg, 100 pg, 1,000 pg, and 10,000 pg DNA inputs.",
-            "grading_notes": "Requires all four DNA inputs and an explicit CFU/ug report."
+                        "requirement": "The final answer unambiguously reports trajectory-matching CFU/ug for 10 pg, 100 pg, 1,000 pg, and 10,000 pg DNA inputs, either as labeled pairs or as ordered values followed by the same ordered masses and 'respectively', and describes the results as consistent or showing consistency.",
+                        "grading_notes": "Requires all four DNA inputs, explicit CFU/ug values matching the final usable counts, and an internal-consistency statement."
           }
         ]
       },
@@ -42,24 +42,24 @@
             "weight": 0.1666666667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each transformation uses a 30-second heat shock.",
-            "grading_notes": "Measured from transform tool arguments."
+                        "requirement": "Each transformation that contributes a usable final colony count uses a 30-second heat shock.",
+                        "grading_notes": "Measured from transform tool arguments linked to countable downstream measurements; abandoned cultures remain part of efficiency."
           },
           {
             "name": "Uses 60-minute outgrowth",
             "weight": 0.1666666667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each transformation uses a 60-minute recovery before plating.",
-            "grading_notes": "Measured from transform tool arguments."
+                        "requirement": "Each transformation that contributes a usable final colony count uses a 60-minute recovery before plating.",
+                        "grading_notes": "Measured from transform tool arguments linked to countable downstream measurements."
           },
           {
             "name": "Uses SOC for outgrowth",
             "weight": 0.1666666667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each transformation uses SOC rather than LB for outgrowth.",
-            "grading_notes": "Measured from transform tool arguments."
+                        "requirement": "Each transformation that contributes a usable final colony count uses SOC rather than LB for outgrowth.",
+                        "grading_notes": "Measured from transform tool arguments linked to countable downstream measurements."
           },
           {
             "name": "Uses a standard plating volume",
@@ -74,8 +74,8 @@
             "weight": 0.1666666667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each counted plate remains within the cited 25-250 colony countable range.",
-            "grading_notes": "Measured from the count_colonies tool status."
+                        "requirement": "The final workflow contains at least four countable results in the cited 25-250 colony range, covering the four required masses.",
+                        "grading_notes": "Measured from at least four count_colonies observations with status=plated; failed dilution estimates remain part of efficiency."
           }
         ]
       },

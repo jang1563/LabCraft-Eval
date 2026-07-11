@@ -227,6 +227,69 @@ def test_task_success_accepts_uncommaed_mass_labels():
     assert score_task_success(_good_answer(with_commas=False), _good_transcript()) == 1.0
 
 
+def test_task_success_accepts_ordered_respectively_report():
+    answer = (
+        "This gives 1.0e9, 1.0e9, 1.0e9, and 1.0e9 CFU/ug for "
+        "10, 100, 1,000, and 10,000 pg, respectively. "
+        "The runs were internally consistent."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
+def test_task_success_accepts_internal_consistency_noun():
+    answer = _good_answer().replace(
+        "The runs were internally consistent.", "The values show good internal consistency."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
+def test_transform_decisions_use_only_cultures_with_usable_counts():
+    abandoned = []
+    for index, mass in enumerate(TARGET_MASSES, start=10):
+        abandoned.append(
+            {
+                "type": "tool_call",
+                "tool_name": "transform",
+                "arguments": {
+                    "culture_id": "culture_{:03d}".format(index),
+                    "plasmid_mass_pg": mass,
+                    "heat_shock_seconds": 45,
+                    "recovery_minutes": 60,
+                    "outgrowth_media": "LB",
+                },
+            }
+        )
+
+    scores = score_transform_trajectory(
+        final_answer=_good_answer(),
+        transcript=abandoned + _good_transcript(),
+        ground_truth_path=str(TRANSFORM_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["heat_shock_duration_seconds"] == 1.0
+    assert scores["decision_scores"]["soc_outgrowth"] == 1.0
+
+
+def test_transform_efficiency_allows_one_full_dilution_retry_with_lookups():
+    lookup_calls = [
+        {
+            "type": "tool_call",
+            "tool_name": "lookup_reagent",
+            "arguments": {"reagent_name": "reference_{:02d}".format(index)},
+        }
+        for index in range(11)
+    ]
+    scores = score_transform_trajectory(
+        final_answer=_good_answer(),
+        transcript=_good_transcript() + lookup_calls,
+        ground_truth_path=str(TRANSFORM_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["efficiency"] == 0.5
+
+
 def test_uncountable_counts_zero_out_task_success_and_countability_decision():
     transcript = _good_transcript()
     transcript[-1]["arguments"]["observed_colonies"] = 1200
@@ -1197,6 +1260,66 @@ def test_clone_wrong_buffer_fails_decision_quality():
     assert scores["troubleshooting"] < 1.0
 
 
+def test_clone_successful_retry_controls_decisions_and_troubleshooting():
+    transcript = _good_clone_transcript()
+    failed_vector = {
+        "type": "tool_call",
+        "tool_name": "restriction_digest",
+        "arguments": {
+            **transcript[0]["arguments"],
+            "digest_id": "digest_failed",
+            "buffer_normalized": "neb1.1",
+            "duration_minutes": 30,
+            "status": "incomplete_digest",
+        },
+    }
+    transcript.insert(0, failed_vector)
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["digest_sufficient_duration"] == 1.0
+    assert scores["decision_scores"]["digest_uses_compatible_buffer"] == 1.0
+    assert scores["troubleshooting"] == 1.0
+
+
+def test_clone_filters_casefold_equivalent_reagent_names():
+    transcript = _good_clone_transcript()
+    transcript[3]["arguments"]["antibiotic"] = "Ampicillin"
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["ampicillin_selection_100"] == 1.0
+
+
+def test_clone_ignores_incomplete_ligate_call_for_successful_ligation_decisions():
+    transcript = _good_clone_transcript()
+    incomplete_call = {
+        "type": "tool_call",
+        "tool_name": "ligate",
+        "arguments": {
+            "vector_to_insert_molar_ratio": 3.0,
+            "temperature_c": 16.0,
+        },
+    }
+    transcript.insert(2, incomplete_call)
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["uses_t4_dna_ligase"] == 1.0
+
+
 def test_clone_wrong_ligase_fails_decision_quality():
     transcript = _good_clone_transcript()
     transcript[2]["arguments"]["ligase_normalized"] = "e. coli dna ligase"
@@ -1209,6 +1332,18 @@ def test_clone_wrong_ligase_fails_decision_quality():
     )
     assert scores["decision_scores"]["uses_t4_dna_ligase"] == 0.0
     assert score_clone_task_success(answer, transcript) == 0.0
+
+
+def test_clone_task_success_requires_successful_reactions_and_matching_transformants():
+    failed_digest = _good_clone_transcript()
+    failed_digest[0]["arguments"]["status"] = "wrong_buffer"
+    assert score_clone_task_success(_good_clone_answer(), failed_digest) == 0.0
+
+    fabricated_count = _good_clone_transcript()
+    fabricated_answer = _good_clone_answer().replace(
+        "Transformants observed: 200", "Transformants observed: 201"
+    )
+    assert score_clone_task_success(fabricated_answer, fabricated_count) == 0.0
 
 
 def test_clone_extreme_ratio_without_diagnosis_fails_troubleshooting():

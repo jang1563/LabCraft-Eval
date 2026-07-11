@@ -19,7 +19,7 @@
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "The final answer uses the required fields (Digest enzymes, Digest buffer, Ligase, Vector:insert molar ratio, Ligation temperature, Transformants observed, White colonies screened, Confirmed recombinant colonies, Confidence achieved, Interpretation), the digest enzymes are EcoRI + BamHI, the ligase is T4 DNA ligase, at least two digests and one ligation occurred, at least one transform_ligation was performed, the screened count and confirmed IDs match the trajectory, confidence matches the trajectory within tolerance, at least one recombinant colony was confirmed, and the interpretation mentions 'recombinant'.",
+            "requirement": "The final answer uses the required fields (Digest enzymes, Digest buffer, Ligase, Vector:insert molar ratio, Ligation temperature, Transformants observed, White colonies screened, Confirmed recombinant colonies, Confidence achieved, Interpretation), the digest enzymes are EcoRI + BamHI, the ligase is T4 DNA ligase, two distinct substrates were successfully digested, a ligation and transform_ligation succeeded, transformants observed matches the trajectory, the screened count and confirmed IDs match the trajectory, confidence matches the trajectory within tolerance, at least one recombinant colony was confirmed, and the interpretation mentions 'recombinant'.",
             "grading_notes": "Measured by score_clone_task_success against the reconstructed trajectory."
           }
         ]
@@ -34,56 +34,56 @@
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every restriction_digest call uses the EcoRI + BamHI pair.",
-            "grading_notes": "Measured from restriction_digest.enzymes_key."
+            "requirement": "The two successful substrate digests use the EcoRI + BamHI pair.",
+            "grading_notes": "Measured from restriction_digest.enzymes_key on status=digested observations; failed attempts remain part of troubleshooting and efficiency."
           },
           {
             "name": "Uses a CutSmart-compatible digest buffer",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every digest uses CutSmart, rCutSmart, or NEB 3.1.",
-            "grading_notes": "Measured from restriction_digest.buffer_normalized."
+            "requirement": "The two successful substrate digests use CutSmart, rCutSmart, or NEB 3.1.",
+            "grading_notes": "Measured from restriction_digest.buffer_normalized on status=digested observations."
           },
           {
             "name": "Digests for at least 60 minutes",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every digest incubates for at least 60 minutes.",
-            "grading_notes": "Measured from restriction_digest.duration_minutes."
+            "requirement": "The two successful substrate digests incubate for at least 60 minutes.",
+            "grading_notes": "Measured from restriction_digest.duration_minutes on status=digested observations."
           },
           {
             "name": "Heat-inactivates every digest",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every digest uses heat_inactivate_after=true.",
-            "grading_notes": "Measured from restriction_digest.heat_inactivate_after."
+            "requirement": "The two successful substrate digests use heat_inactivate_after=true.",
+            "grading_notes": "Measured from restriction_digest.heat_inactivate_after on status=digested observations."
           },
           {
             "name": "Uses T4 DNA ligase for ligation",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every ligate call uses T4 DNA ligase.",
-            "grading_notes": "Measured from ligate.ligase_normalized."
+            "requirement": "Every successful ligation uses T4 DNA ligase.",
+            "grading_notes": "Measured from ligate.ligase_normalized on status=ligated observations."
           },
           {
             "name": "Uses a reasonable vector:insert molar ratio",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Ligation vector:insert molar ratio is within 0.1-10.",
-            "grading_notes": "Measured from ligate.vector_to_insert_molar_ratio."
+            "requirement": "Successful ligation vector:insert molar ratio is within 0.1-10.",
+            "grading_notes": "Measured from ligate.vector_to_insert_molar_ratio on status=ligated observations."
           },
           {
             "name": "Uses a standard T4 ligation temperature",
             "weight": 0.1,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Ligation temperature is within 15-26 C.",
-            "grading_notes": "Measured from ligate.temperature_c."
+            "requirement": "Successful ligation temperature is within 15-26 C.",
+            "grading_notes": "Measured from ligate.temperature_c on status=ligated observations."
           },
           {
             "name": "Uses 100 ug/mL ampicillin for selection",
@@ -121,8 +121,8 @@
             "weight": 1.0,
             "is_leaf": true,
             "category": "troubleshooting",
-            "requirement": "If any digest reports a buffer/enzyme issue, the ligase is wrong, the molar ratio is extreme, digests were not heat-inactivated, or blue colonies were screened, the final answer explains the corresponding failure mode.",
-            "grading_notes": "Defaults to full credit when no troubleshooting trigger occurs."
+            "requirement": "If any digest reports a buffer, duration, or enzyme issue, the ligase is wrong, the molar ratio is extreme, digests were not heat-inactivated, or blue colonies were screened, the trajectory corrects the same failure before success or the final answer explains the corresponding failure mode.",
+            "grading_notes": "A later successful correction for the same substrate/workflow earns resolution credit; otherwise an explicit diagnosis is required. Defaults to full credit when no trigger occurs."
           }
         ]
       },

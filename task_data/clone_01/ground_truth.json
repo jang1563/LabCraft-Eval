@@ -8,6 +8,10 @@
       "matcher": {
         "tool_name": "restriction_digest",
         "argument": "enzymes_key",
+        "filters": {
+          "status": "digested"
+        },
+        "minimum_matches": 2,
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -31,6 +35,10 @@
       "matcher": {
         "tool_name": "restriction_digest",
         "argument": "buffer_normalized",
+        "filters": {
+          "status": "digested"
+        },
+        "minimum_matches": 2,
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -54,6 +62,10 @@
       "matcher": {
         "tool_name": "restriction_digest",
         "argument": "duration_minutes",
+        "filters": {
+          "status": "digested"
+        },
+        "minimum_matches": 2,
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -78,6 +90,10 @@
       "matcher": {
         "tool_name": "restriction_digest",
         "argument": "heat_inactivate_after",
+        "filters": {
+          "status": "digested"
+        },
+        "minimum_matches": 2,
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -101,6 +117,9 @@
       "matcher": {
         "tool_name": "ligate",
         "argument": "ligase_normalized",
+        "filters": {
+          "status": "ligated"
+        },
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -128,6 +147,9 @@
       "matcher": {
         "tool_name": "ligate",
         "argument": "vector_to_insert_molar_ratio",
+        "filters": {
+          "status": "ligated"
+        },
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -152,6 +174,9 @@
       "matcher": {
         "tool_name": "ligate",
         "argument": "temperature_c",
+        "filters": {
+          "status": "ligated"
+        },
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -252,8 +277,7 @@
       "canonical_diagnosis": "The digest buffer was incompatible with simultaneous EcoRI + BamHI activity.",
       "acceptable_variants": [
         "CutSmart, rCutSmart, or NEB 3.1 should have been used for the EcoRI + BamHI double digest.",
-        "The chosen buffer did not support both enzymes at full activity.",
-        "The digest did not use the EcoRI + BamHI pair required for this directional cloning workflow."
+        "The chosen buffer did not support both enzymes at full activity."
       ],
       "judge_strategy": "substring_any",
       "minimum_tier_required": "Bronze",
@@ -263,6 +287,40 @@
           "canonical_url": "https://www.neb.com/en-us/tools-and-resources/selection-charts/double-digest-finder",
           "tier": "Bronze",
           "tier_justification": "Authoritative NEB buffer-compatibility reference."
+        }
+      ]
+    },
+    "insufficient_digest_duration": {
+      "canonical_diagnosis": "The digest incubation was shorter than the 60-minute minimum needed for complete plasmid digestion.",
+      "acceptable_variants": [
+        "The restriction digest was incomplete because the incubation was too short.",
+        "EcoRI and BamHI needed at least 60 minutes of digestion before ligation."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "title": "NEB Optimizing Restriction Endonuclease Reactions",
+          "canonical_url": "https://www.neb.com/en-us/protocols/2012/12/07/optimizing-restriction-endonuclease-reactions",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative NEB protocol recommending at least one hour of incubation for complete plasmid digestion."
+        }
+      ]
+    },
+    "wrong_digest_enzyme_pair": {
+      "canonical_diagnosis": "The digest did not use the EcoRI + BamHI pair required for this directional cloning workflow.",
+      "acceptable_variants": [
+        "Both EcoRI and BamHI were required for directional cloning into pUC19.",
+        "The restriction-enzyme pair was incompatible with the vector and insert sites."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "title": "NEB Double-Digest Finder (EcoRI and BamHI)",
+          "canonical_url": "https://www.neb.com/en-us/tools-and-resources/selection-charts/double-digest-finder",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor tool confirming EcoRI + BamHI as the required directional double-digest pair for this task."
         }
       ]
     },

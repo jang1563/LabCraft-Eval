@@ -22,6 +22,13 @@ recorded rather than silently rewriting history.
   not receive behavior or warnings that contradict their normalized identity.
 - Score PCR decision quality from clean-target-band reactions rather than
   combining favorable parameters across unrelated failed attempts.
+- Separate `transform_01` turn and message limits, accept unambiguous ordered
+  CFU reports and consistency wording, score final usable cultures/counts, and
+  allow one complete dilution retry within the reasonable call budget.
+- Score `clone_01` decisions from successful digest/ligation reactions, treat
+  same-workflow corrections as troubleshooting, match reagent filters without
+  case sensitivity, and require successful reactions plus the observed
+  transformant count for task-success credit.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

@@ -98,16 +98,18 @@ Each task ground-truth file defines decision scoring, troubleshooting references
       "description": "Duration used during heat shock.",
       "matcher": {
         "tool_name": "transform",
-        "match_strategy": "first_call"
+        "argument": "heat_shock_seconds",
+        "filters": {
+          "status": "transformed"
+        },
+        "minimum_matches": 4,
+        "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "range",
-        "min": 20,
-        "max": 45,
-        "optimal": 30,
-        "units": "seconds"
+        "type": "exact",
+        "value": 30
       },
-      "scoring_rule": "partial_credit",
+      "scoring_rule": "binary",
       "citations": [
         {
           "doi": "10.1016/0378-1119(90)90336-P",
@@ -156,6 +158,11 @@ Each task ground-truth file defines decision scoring, troubleshooting references
 - `id`: required unique string.
 - `description`: required string.
 - `matcher`: required object describing how the scorer identifies the corresponding tool call in the transcript.
+- `matcher.tool_name` and `matcher.argument`: identify the tool and observed field.
+- `matcher.filters`: optional exact filters applied to merged call/result fields; string filters are whitespace-trimmed and case-insensitive.
+- `matcher.minimum_matches`: optional positive count floor, defaulting to one, before an occurrence rule can earn credit.
+- `matcher.occurrence`: optional `first`, `last`, `any`, or `all` policy, defaulting to `all`.
+- `matcher.consistent`: optional boolean requiring all matched values to be identical.
 - `acceptable_values`: required object. The exact shape depends on whether the decision is a range, enum set, boolean, free-text judgment target, or structured argument block.
 - `scoring_rule`: required string such as `binary`, `partial_credit`, or `structured_match`.
 - `judge_strategy`: when present in `failure_diagnosis_map`, currently uses deterministic strategies such as `substring_any`; live task scoring does not depend on an LLM judge.

@@ -60,7 +60,7 @@ You can override that with `--session-out /tmp/my_session.json`.
 
 If you rerun the same session command and the JSON is still `in_progress`, the CLI now restores the recorded tool-state transcript instead of silently wiping it. Use the `history` command to review prior tool calls and recover generated IDs such as `culture_...`, `plate_...`, or `growth_...`. If the target JSON is already `completed`, the CLI refuses to overwrite it unless you choose a different `--session-out` path.
 
-Before a session is finalized, the CLI shows a provisional deterministic score and task-specific formatting notes. That gives a human operator one last chance to fix missing labels, missing `"consistent"` wording on `transform_01`, or missing troubleshooting language on `growth_01` before the JSON is marked `completed`.
+Before a session is finalized, the CLI shows a provisional deterministic score and task-specific formatting notes. That gives a human operator one last chance to fix missing labels, a missing consistency statement on `transform_01`, or missing troubleshooting language on `growth_01` before the JSON is marked `completed`.
 
 ## REPL commands
 
