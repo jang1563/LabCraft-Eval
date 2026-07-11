@@ -4,7 +4,7 @@
 
 - Gold: 2
 - Bronze: 0
-- Silver: 6
+- Silver: 7
 - Copper: 0
 
 ## Included Sources
@@ -33,7 +33,7 @@
 
 4. RqcH supports survival in the absence of non-stop ribosome rescue factors
    - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC8006063/
-   - Used for the starting OD600 of 0.05 and 15-minute measurement cadence.
+   - Used to anchor the defensible starting-OD range at OD600 0.05 and the defensible cadence range at 15 minutes.
 
 5. The *E. coli* molecular phenotype under different growth conditions
    - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC5394689/
@@ -42,6 +42,15 @@
 6. The *E. coli* molecular phenotype under different growth conditions
    - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC5394689/
    - Reused for the growth-fit troubleshooting rationale when a trajectory does not yield enough usable points.
+
+7. Invariance of initiation mass and predictability of cell size in *Escherichia coli*
+   - URL: https://pmc.ncbi.nlm.nih.gov/articles/PMC5474944/
+   - Used to support the early-exponential OD600 range; the cited experiment maintained cultures between OD600 0.05 and 0.20, while this benchmark conservatively caps the starting range at 0.10.
+
+The approximately 20-minute LB doubling-time source above also defines the
+maximum accepted measurement interval. This makes cadence credit reflect the
+task instruction to choose a defensible cadence instead of requiring one hidden
+exact value.
 
 ## Rejected Sources
 

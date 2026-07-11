@@ -30,19 +30,19 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses the cited starting OD600",
+            "name": "Uses a defensible early-exponential starting OD600",
             "weight": 0.3333333333,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each inoculation starts at OD600 0.05.",
+            "requirement": "Each inoculation starts between OD600 0.05 and 0.10.",
             "grading_notes": "Measured from inoculate_growth tool arguments."
           },
           {
-            "name": "Uses the cited measurement interval",
+            "name": "Uses a defensible measurement interval",
             "weight": 0.3333333333,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Incubation intervals between OD600 measurements are 15 minutes.",
+            "requirement": "Incubation intervals between OD600 measurements are regular and between 10 and 20 minutes, no slower than the fastest expected doubling time.",
             "grading_notes": "Measured from incubate tool arguments."
           },
           {

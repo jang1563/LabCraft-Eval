@@ -103,6 +103,14 @@ TASK_PRESETS = {
     "all": ALL_TASKS,
 }
 
+# Growth trajectories batch tool calls across three conditions. Inspect counts
+# each parallel tool result as a separate message, so a message-only cap can
+# terminate a scientifically valid run between the final fit call and its
+# results. Bound actual agent iterations separately and retain a hard message
+# ceiling for provider-neutral runaway protection.
+GROWTH_TURN_LIMIT = 40
+GROWTH_MESSAGE_LIMIT = 160
+
 
 def available_task_ids(preset: str = "all") -> tuple[str, ...]:
     """Return the task ids included in a named portfolio preset."""
@@ -176,7 +184,8 @@ def growth_01(seeds: int = 1, seed_start: int = 0):
         solver=build_growth_solver(),
         scorer=build_growth_trajectory_scorer(),
         cleanup=_cleanup_transform_sample,
-        message_limit=80,
+        turn_limit=GROWTH_TURN_LIMIT,
+        message_limit=GROWTH_MESSAGE_LIMIT,
     )
 
 

@@ -393,6 +393,61 @@ def test_good_growth_trajectory_scores_high():
     assert scores["overall"] > 0.9
 
 
+def test_growth_decision_quality_accepts_defensible_non_exact_parameters():
+    transcript = _good_growth_transcript()
+    for call in transcript:
+        if call["tool_name"] == "inoculate_growth":
+            call["arguments"]["starting_od600"] = 0.08
+        elif call["tool_name"] == "incubate":
+            call["arguments"]["duration_minutes"] = 20
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 1.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 1.0
+
+
+def test_growth_decision_quality_rejects_undersampling_and_late_start():
+    transcript = _good_growth_transcript()
+    for call in transcript:
+        if call["tool_name"] == "inoculate_growth":
+            call["arguments"]["starting_od600"] = 0.11
+        elif call["tool_name"] == "incubate":
+            call["arguments"]["duration_minutes"] = 30
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 0.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 0.0
+
+
+def test_growth_decision_quality_requires_consistent_parameters():
+    transcript = _good_growth_transcript()
+    inoculations = [
+        call for call in transcript if call["tool_name"] == "inoculate_growth"
+    ]
+    incubations = [call for call in transcript if call["tool_name"] == "incubate"]
+    inoculations[-1]["arguments"]["starting_od600"] = 0.08
+    incubations[-1]["arguments"]["duration_minutes"] = 20
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 0.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 0.0
+
+
 def test_growth_task_success_requires_matching_doubling_times():
     answer = (
         "LB: about 20 minutes; M9 + glucose: about 30 minutes; "

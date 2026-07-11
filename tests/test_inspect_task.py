@@ -130,6 +130,12 @@ def test_task_inventory_constants_are_consistent():
     assert set(inspect_task.ALL_TASKS).issubset(set(inspect_task.__all__))
 
 
+def test_growth_task_separates_turn_and_message_limits():
+    assert inspect_task.GROWTH_TURN_LIMIT == 40
+    assert inspect_task.GROWTH_MESSAGE_LIMIT == 160
+    assert inspect_task.GROWTH_MESSAGE_LIMIT > inspect_task.GROWTH_TURN_LIMIT
+
+
 def test_available_task_ids_returns_named_preset():
     assert inspect_task.available_task_ids("discovery") == inspect_task.DISCOVERY_TASKS
 

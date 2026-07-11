@@ -113,9 +113,12 @@ def test_expression_prompt_does_not_supply_t7_host_decision():
     assert "ni-nta downstream" not in prompt
 
 
-def test_growth_prompts_do_not_supply_exact_scored_measurement_interval():
+def test_growth_prompts_do_not_supply_scored_parameter_bounds():
     assert "15-minute" not in build_growth_01_prompt().casefold()
     assert "15-minute" not in build_followup_01_prompt().casefold()
+    assert "0.05" not in build_growth_01_prompt().casefold()
+    assert "10-minute" not in build_growth_01_prompt().casefold()
+    assert "20-minute" not in build_growth_01_prompt().casefold()
 
 
 def test_discovery_tool_docs_do_not_supply_exact_scored_identifiers():

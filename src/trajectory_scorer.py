@@ -335,6 +335,16 @@ def _value_matches(value: Any, acceptable_values: Dict[str, Any]) -> bool:
     return False
 
 
+def _values_are_consistent(values: List[Any]) -> bool:
+    """Require one finite numeric value or one exactly repeated non-numeric value."""
+    if not values:
+        return False
+    numeric_values = [_coerce_float(value) for value in values]
+    if all(value is not None and math.isfinite(value) for value in numeric_values):
+        return len(set(numeric_values)) == 1
+    return all(value == values[0] for value in values)
+
+
 def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict[str, Any]) -> float:
     matcher = decision_point["matcher"]
     matched_calls = []
@@ -362,6 +372,8 @@ def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict
     else:
         values = [arguments.get(argument_name) for arguments in matched_calls]
 
+    if matcher.get("consistent") and not _values_are_consistent(values):
+        return 0.0
     return 1.0 if all(_value_matches(value, decision_point["acceptable_values"]) for value in values) else 0.0
 
 

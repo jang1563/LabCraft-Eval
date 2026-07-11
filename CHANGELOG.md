@@ -6,6 +6,10 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
+- Align `growth_01` with its non-answer-bearing prompt by scoring defensible
+  starting-OD and measurement-cadence ranges instead of hidden exact values,
+  and separate agent-turn and hard-message caps so parallel tool results cannot
+  terminate a valid final fit before completion.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

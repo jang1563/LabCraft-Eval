@@ -22,8 +22,8 @@ Conditions to test:
 - LB + chloramphenicol (1.8 uM)
 
 Goal:
-1. Inoculate all three conditions at the cited starting OD600.
-2. Choose a scientifically defensible regular measurement cadence and collect OD600 values until each condition has enough usable points for an analyzable fit.
+1. Choose a scientifically defensible early-exponential starting OD600 and use it for all three conditions.
+2. Choose a scientifically defensible regular measurement cadence, no slower than the fastest expected doubling time, and collect OD600 values until each condition has enough usable points for an analyzable fit.
 3. Use dilution when helpful so the growth-fit tool has enough usable OD600 points.
 4. Run the growth-fit tool for each condition.
 5. In your final answer, report the estimated doubling time for each condition and rank them from fastest to slowest.
@@ -46,8 +46,8 @@ Conditions to test:
 - LB + chloramphenicol (1.8 uM)
 
 Goal:
-1. Inoculate all three conditions at the cited starting OD600.
-2. Choose a scientifically defensible regular measurement cadence and collect OD600 values until each condition has enough usable points for an analyzable fit.
+1. Choose a scientifically defensible early-exponential starting OD600 and use it for all three conditions.
+2. Choose a scientifically defensible regular measurement cadence, no slower than the fastest expected doubling time, and collect OD600 values until each condition has enough usable points for an analyzable fit.
 3. Use dilution when helpful so the growth-fit tool has enough usable OD600 points.
 4. Run the growth-fit tool for each condition.
 5. In your final answer, for each condition report the estimated doubling time, then rank them from fastest to slowest. IMPORTANT: if any of the fit_growth_curve calls returned status "insufficient_points" or warned that not enough OD600 measurements were in the usable fitting range, you must briefly explain which condition was affected and that the fit was undersampled before giving the final ranking.

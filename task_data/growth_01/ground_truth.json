@@ -3,16 +3,18 @@
   "decision_points": [
     {
       "id": "growth_starting_od600",
-      "description": "Inoculate each growth condition at the cited starting OD600 of 0.05.",
+      "description": "Inoculate each growth condition at a defensible early-exponential OD600 between 0.05 and 0.10.",
       "minimum_tier_required": "Silver",
       "matcher": {
         "tool_name": "inoculate_growth",
         "argument": "starting_od600",
-        "occurrence": "all"
+        "occurrence": "all",
+        "consistent": true
       },
       "acceptable_values": {
-        "type": "exact",
-        "value": 0.05
+        "type": "range",
+        "min": 0.05,
+        "max": 0.10
       },
       "scoring_rule": "binary",
       "citations": [
@@ -20,22 +22,30 @@
           "title": "RqcH supports survival in the absence of non-stop ribosome rescue factors",
           "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8006063/",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed E. coli growth-curve protocol using a starting OD600 of 0.05."
+          "tier_justification": "Peer-reviewed E. coli growth-curve protocol using a starting OD600 of 0.05, anchoring the lower bound."
+        },
+        {
+          "title": "Invariance of initiation mass and predictability of cell size in Escherichia coli",
+          "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5474944/",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed E. coli growth-rate measurements maintained cultures from OD600 0.05 to 0.20; the benchmark conservatively caps the start at 0.10."
         }
       ]
     },
     {
       "id": "growth_measurement_interval",
-      "description": "Use the cited 15-minute OD600 measurement interval.",
+      "description": "Use a regular 10-20 minute OD600 measurement interval so sampling is no slower than the fastest expected doubling time.",
       "minimum_tier_required": "Silver",
       "matcher": {
         "tool_name": "incubate",
         "argument": "duration_minutes",
-        "occurrence": "all"
+        "occurrence": "all",
+        "consistent": true
       },
       "acceptable_values": {
-        "type": "exact",
-        "value": 15
+        "type": "range",
+        "min": 10,
+        "max": 20
       },
       "scoring_rule": "binary",
       "citations": [
@@ -44,6 +54,12 @@
           "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8006063/",
           "tier": "Silver",
           "tier_justification": "Peer-reviewed E. coli growth-curve protocol collecting OD600 measurements every 15 minutes."
+        },
+        {
+          "title": "Growth and Maintenance of Escherichia coli Laboratory Strains",
+          "canonical_url": "https://pubmed.ncbi.nlm.nih.gov/33484484/",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed protocol reporting approximately 20-minute doubling in rich medium, which defines the maximum defensible sampling interval for the fastest benchmark condition."
         }
       ]
     },
