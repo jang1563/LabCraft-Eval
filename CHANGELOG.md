@@ -18,6 +18,8 @@ recorded rather than silently rewriting history.
   root in each HPC cell manifest.
 - Count explicit screened-colony ID lists correctly instead of interpreting the
   numeric suffix of the first ID as the total screen size.
+- Canonicalize common Q5 and Phusion labels before PCR simulation so aliases do
+  not receive behavior or warnings that contradict their normalized identity.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

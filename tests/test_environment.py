@@ -182,6 +182,46 @@ def test_good_pcr_condition_yields_clean_target_band():
     assert gel["visible_bands_bp"] == [2000]
 
 
+@pytest.mark.parametrize(
+    ("polymerase_name", "expected_canonical"),
+    [
+        ("Q5", "Q5 High-Fidelity DNA polymerase"),
+        ("Q5 High-Fidelity Polymerase", "Q5 High-Fidelity DNA polymerase"),
+        ("Phusion High-Fidelity Polymerase", "Phusion High-Fidelity DNA polymerase"),
+    ],
+)
+def test_pcr_polymerase_aliases_use_canonical_simulator_behavior(
+    polymerase_name, expected_canonical
+):
+    state = create_lab_state(sample_id="pcr-alias-{}".format(polymerase_name), seed=7)
+    reaction = run_pcr(
+        state=state,
+        polymerase_name=polymerase_name,
+        additive="DMSO",
+        extension_seconds=60,
+        cycle_count=32,
+    )
+
+    assert reaction["status"] == "clean_target_band"
+    assert reaction["normalized_polymerase_name"] == expected_canonical
+    assert reaction["notes"] == []
+
+
+def test_pcr_unsupported_polymerase_note_does_not_misstate_proofreading_status():
+    state = create_lab_state(sample_id="pcr-unsupported-pfu", seed=7)
+    reaction = run_pcr(
+        state=state,
+        polymerase_name="Pfu DNA Polymerase",
+        additive="DMSO",
+        extension_seconds=60,
+        cycle_count=32,
+    )
+
+    assert reaction["status"] == "nonspecific_amplification"
+    assert "supported high-fidelity choices" in reaction["notes"][0]
+    assert "non-proofreading" not in reaction["notes"][0]
+
+
 def test_pcr_without_gc_additive_fails_clean_amplification():
     state = create_lab_state(sample_id="pcr-no-additive", seed=7)
     reaction = run_pcr(
