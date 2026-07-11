@@ -754,6 +754,49 @@ def test_pcr_task_success_requires_matching_reported_condition():
     assert score_pcr_task_success(answer, _good_pcr_transcript()) == 0.0
 
 
+def test_pcr_decision_quality_uses_successful_condition_not_failed_attempt_mix():
+    failed = _good_pcr_transcript()[0]
+    failed["arguments"].update(
+        {
+            "reaction_id": "pcr_001",
+            "status": "gc_rich_failure",
+            "visible_bands_bp": [],
+        }
+    )
+    successful, gel = _good_pcr_transcript()
+    successful["arguments"].update(
+        {
+            "reaction_id": "pcr_002",
+            "extension_seconds": 75,
+        }
+    )
+    gel["arguments"].update(
+        {
+            "reaction_id": "pcr_002",
+            "extension_seconds": 75,
+        }
+    )
+    answer = (
+        "Polymerase: Q5 High-Fidelity DNA polymerase\n"
+        "Additive: DMSO\n"
+        "Extension: 75 seconds\n"
+        "Cycles: 32\n"
+        "Result: single clean 2 kb band"
+    )
+
+    scores = score_pcr_trajectory(
+        final_answer=answer,
+        transcript=[failed, successful, gel],
+        ground_truth_path=str(PCR_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_scores"]["gc_rich_polymerase_choice"] == 1.0
+    assert scores["decision_scores"]["gc_rich_additive_choice"] == 1.0
+    assert scores["decision_scores"]["gc_rich_extension_time"] == 0.0
+    assert scores["decision_scores"]["genomic_pcr_cycle_count"] == 1.0
+
+
 def test_failed_pcr_requires_troubleshooting_for_credit():
     transcript = [
         {

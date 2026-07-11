@@ -20,6 +20,8 @@ recorded rather than silently rewriting history.
   numeric suffix of the first ID as the total screen size.
 - Canonicalize common Q5 and Phusion labels before PCR simulation so aliases do
   not receive behavior or warnings that contradict their normalized identity.
+- Score PCR decision quality from clean-target-band reactions rather than
+  combining favorable parameters across unrelated failed attempts.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.
