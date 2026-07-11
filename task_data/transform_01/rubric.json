@@ -20,7 +20,7 @@
             "is_leaf": true,
             "category": "task_success",
                         "requirement": "The final answer unambiguously reports trajectory-matching CFU/ug for 10 pg, 100 pg, 1,000 pg, and 10,000 pg DNA inputs, either as labeled pairs or as ordered values followed by the same ordered masses and 'respectively', and describes the results as consistent or showing consistency.",
-                        "grading_notes": "Requires all four DNA inputs, explicit CFU/ug values matching the final usable counts, and an internal-consistency statement."
+                        "grading_notes": "Requires all four DNA inputs, explicit CFU/ug values matching the final usable counts, and an internal-consistency statement. Standard e notation, x 10^n notation, and Unicode superscript exponents are accepted."
           }
         ]
       },

@@ -24,6 +24,7 @@ FOLLOWUP_CONDITION = "LB + chloramphenicol (1.8 uM)"
 FOLLOWUP_TASK_SUCCESS_RELATIVE_TOLERANCE = 0.15
 PCR_TARGET_BAND_REGEX = re.compile(r"(single\s+clean[\s\S]{0,40}(?:2(?:\.0)?\s*kb|2000\s*bp))|((?:2(?:\.0)?\s*kb|2000\s*bp)[\s\S]{0,40}single\s+clean)", re.IGNORECASE)
 SCREEN_CONFIDENCE_ABSOLUTE_TOLERANCE = 0.2
+SUPERSCRIPT_TRANSLATION = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻", "0123456789+-")
 
 
 def load_ground_truth(path: str) -> Dict[str, Any]:
@@ -210,6 +211,12 @@ def _interpretation_reports_success(interpretation: Any) -> bool:
 
 def _parse_scientific_number(value: str) -> float | None:
     normalized = value.replace(",", "").strip()
+    normalized = re.sub(
+        r"\s*[x×]\s*10([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)",
+        lambda match: "e" + match.group(1).translate(SUPERSCRIPT_TRANSLATION),
+        normalized,
+        flags=re.IGNORECASE,
+    )
     normalized = re.sub(r"\s*[x×]\s*10\^?\s*([+-]?\d+)", r"e\1", normalized, flags=re.IGNORECASE)
     try:
         return float(normalized)
@@ -220,7 +227,7 @@ def _parse_scientific_number(value: str) -> float | None:
 def _extract_reported_efficiencies(final_answer: str) -> Dict[int, float]:
     reported: Dict[int, float] = {}
     unit_pattern = r"cfu\s*(?:/|per)\s*(?:u|μ|µ|\\mu)?g|cfu\s+per\s+microgram"
-    numeric_pattern = r"([-+]?\d[\d,]*(?:\.\d+)?(?:\s*[x×]\s*10\^?\s*[+-]?\d+|e[+-]?\d+)?)"
+    numeric_pattern = r"([-+]?\d[\d,]*(?:\.\d+)?(?:\s*[x×]\s*10(?:\^?\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)|e[+-]?\d+)?)"
     mass_patterns = {
         10: r"10\s*pg",
         100: r"100\s*pg",
@@ -1401,6 +1408,8 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         "cumulative_confidence_pct": 0.0,
     }
     transformants_observed = 0
+    plating_context: Dict[str, tuple[str, float]] = {}
+    counts_by_plating: Dict[str, tuple[str, float, int]] = {}
 
     for call in tool_calls:
         name = _normalize_tool_name(call.get("tool_name", ""))
@@ -1440,10 +1449,29 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
                 )
                 or 0.0,
             }
+        elif name == "plate":
+            plating_id = observed.get("plating_id")
+            culture_id = observed.get("culture_id")
+            dilution = _coerce_float(observed.get("dilution_factor"))
+            if plating_id and culture_id and dilution is not None:
+                plating_context[str(plating_id)] = (str(culture_id), dilution)
         elif name == "count_colonies":
             observed_value = _coerce_int(observed.get("observed_colonies"))
             if observed_value is not None and observed_value > transformants_observed:
                 transformants_observed = observed_value
+            plating_id = str(observed.get("plating_id", ""))
+            context = plating_context.get(plating_id)
+            if context is not None and observed_value is not None:
+                counts_by_plating[plating_id] = (*context, observed_value)
+
+    acceptable_transformant_counts: set[int] = set()
+    counts_by_condition: Dict[tuple[str, float], List[int]] = {}
+    for culture_id, dilution, observed_value in counts_by_plating.values():
+        acceptable_transformant_counts.add(observed_value)
+        counts_by_condition.setdefault((culture_id, dilution), []).append(observed_value)
+    for condition_counts in counts_by_condition.values():
+        if len(condition_counts) > 1:
+            acceptable_transformant_counts.add(sum(condition_counts))
 
     return {
         "digest_count": digest_count,
@@ -1458,6 +1486,7 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         "any_blue_screening": any_blue_screening,
         "final_screen": final_screen,
         "transformants_observed": transformants_observed,
+        "acceptable_transformant_counts": sorted(acceptable_transformant_counts),
     }
 
 
@@ -1492,7 +1521,7 @@ def score_clone_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]
         return 0.0
     if reconstructed["successful_transform_ligation_count"] < 1:
         return 0.0
-    if reported["transformants_observed"] != reconstructed["transformants_observed"]:
+    if reported["transformants_observed"] not in reconstructed["acceptable_transformant_counts"]:
         return 0.0
     if not reconstructed["final_screen"]["confirmed_recombinant_ids"]:
         return 0.0

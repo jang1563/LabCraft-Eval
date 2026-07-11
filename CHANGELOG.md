@@ -29,6 +29,9 @@ recorded rather than silently rewriting history.
   same-workflow corrections as troubleshooting, match reagent filters without
   case sensitivity, and require successful reactions plus the observed
   transformant count for task-success credit.
+- Accept Unicode superscript scientific notation in transformation reports and
+  same-culture, same-dilution plate sums in clone transformant counts without
+  permitting raw-count addition across different dilution factors.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

@@ -20,7 +20,7 @@
             "is_leaf": true,
             "category": "task_success",
             "requirement": "The final answer uses the required fields (Digest enzymes, Digest buffer, Ligase, Vector:insert molar ratio, Ligation temperature, Transformants observed, White colonies screened, Confirmed recombinant colonies, Confidence achieved, Interpretation), the digest enzymes are EcoRI + BamHI, the ligase is T4 DNA ligase, two distinct substrates were successfully digested, a ligation and transform_ligation succeeded, transformants observed matches the trajectory, the screened count and confirmed IDs match the trajectory, confidence matches the trajectory within tolerance, at least one recombinant colony was confirmed, and the interpretation mentions 'recombinant'.",
-            "grading_notes": "Measured by score_clone_task_success against the reconstructed trajectory."
+            "grading_notes": "Measured by score_clone_task_success against the reconstructed trajectory. Transformant counts may match one plate or the sum of distinct plates from the same culture at the same dilution; counts across different dilutions are not added."
           }
         ]
       },

@@ -245,6 +245,16 @@ def test_task_success_accepts_internal_consistency_noun():
     assert score_task_success(answer, _good_transcript()) == 1.0
 
 
+def test_task_success_accepts_unicode_superscript_scientific_notation():
+    answer = (
+        "10 pg: 1.0 × 10⁹ CFU/ug; 100 pg: 1.0 × 10⁹ CFU/ug; "
+        "1,000 pg: 1.0 × 10⁹ CFU/ug; 10,000 pg: 1.0 × 10⁹ CFU/ug. "
+        "The runs show good internal consistency."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
 def test_transform_decisions_use_only_cultures_with_usable_counts():
     abandoned = []
     for index, mass in enumerate(TARGET_MASSES, start=10):
@@ -1161,6 +1171,7 @@ def _good_clone_transcript():
         "arguments": {
             "culture_id": "culture_001",
             "plate_id": "plate_001",
+            "plating_id": "plating_001",
             "dilution_factor": 1.0,
             "volume_ul": 100,
         },
@@ -1344,6 +1355,43 @@ def test_clone_task_success_requires_successful_reactions_and_matching_transform
         "Transformants observed: 200", "Transformants observed: 201"
     )
     assert score_clone_task_success(fabricated_answer, fabricated_count) == 0.0
+
+
+def test_clone_task_success_accepts_same_dilution_plate_sum_only():
+    same_dilution = _good_clone_transcript()
+    same_dilution.insert(
+        6,
+        {
+            "type": "tool_call",
+            "tool_name": "plate",
+            "arguments": {
+                "culture_id": "culture_001",
+                "plate_id": "plate_002",
+                "plating_id": "plating_002",
+                "dilution_factor": 1.0,
+                "volume_ul": 100,
+            },
+        },
+    )
+    same_dilution.insert(
+        8,
+        {
+            "type": "tool_call",
+            "tool_name": "count_colonies",
+            "arguments": {
+                "plating_id": "plating_002",
+                "observed_colonies": 47,
+                "status": "plated",
+            },
+        },
+    )
+    summed_answer = _good_clone_answer().replace(
+        "Transformants observed: 200", "Transformants observed: 247"
+    )
+    assert score_clone_task_success(summed_answer, same_dilution) == 1.0
+
+    same_dilution[6]["arguments"]["dilution_factor"] = 10.0
+    assert score_clone_task_success(summed_answer, same_dilution) == 0.0
 
 
 def test_clone_extreme_ratio_without_diagnosis_fails_troubleshooting():
