@@ -3,7 +3,7 @@
   "decision_points": [
     {
       "id": "growth_starting_od600",
-      "description": "Inoculate each growth condition at a defensible early-exponential OD600 between 0.05 and 0.10.",
+      "description": "Inoculate each growth condition at a defensible early-exponential OD600 between 0.01 and 0.10.",
       "minimum_tier_required": "Silver",
       "matcher": {
         "tool_name": "inoculate_growth",
@@ -13,7 +13,7 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 0.05,
+        "min": 0.01,
         "max": 0.10
       },
       "scoring_rule": "binary",
@@ -22,13 +22,19 @@
           "title": "RqcH supports survival in the absence of non-stop ribosome rescue factors",
           "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8006063/",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed E. coli growth-curve protocol using a starting OD600 of 0.05, anchoring the lower bound."
+          "tier_justification": "Peer-reviewed E. coli growth-curve protocol using a starting OD600 of 0.05 within the accepted range."
         },
         {
           "title": "Invariance of initiation mass and predictability of cell size in Escherichia coli",
           "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5474944/",
           "tier": "Silver",
           "tier_justification": "Peer-reviewed E. coli growth-rate measurements maintained cultures from OD600 0.05 to 0.20; the benchmark conservatively caps the start at 0.10."
+        },
+        {
+          "title": "Single-cell mass distributions reveal simple rules for achieving steady-state growth",
+          "canonical_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10653891/",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed E. coli guidance identifies OD600 0.01 as the approximate lower accuracy boundary and describes starting longitudinal measurements at that value, supporting the inclusive lower bound."
         }
       ]
     },

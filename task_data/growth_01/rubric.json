@@ -34,7 +34,7 @@
             "weight": 0.3333333333,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Each inoculation starts between OD600 0.05 and 0.10.",
+            "requirement": "Each inoculation starts between OD600 0.01 and 0.10.",
             "grading_notes": "Measured from inoculate_growth tool arguments."
           },
           {

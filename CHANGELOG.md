@@ -10,6 +10,9 @@ recorded rather than silently rewriting history.
   starting-OD and measurement-cadence ranges instead of hidden exact values,
   and separate agent-turn and hard-message caps so parallel tool results cannot
   terminate a valid final fit before completion.
+- Accept source-backed OD600 0.01-0.10 starts and common colon, dash, and
+  Markdown-table doubling-time reports so scientifically valid trajectories do
+  not fail on arbitrary punctuation.
 - Add one central model registry with current cross-provider matrices,
   model-specific generation profiles, and exact requested/resolved model
   expectations for local and Slurm runners.

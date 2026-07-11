@@ -498,15 +498,16 @@ def score_transform_trajectory(
 
 def _extract_reported_growth_doubling_times(final_answer: str) -> Dict[str, float]:
     patterns = {
-        "LB + chloramphenicol (1.8 uM)": r"LB\s*\+\s*chloramphenicol\s*\(1\.8\s*[uµμ]M\)\s*:",
-        "M9 + glucose": r"M9\s*\+\s*glucose\s*:",
-        "LB": r"\bLB\b\s*:",
+        "LB + chloramphenicol (1.8 uM)": r"LB\s*\+\s*chloramphenicol\s*\(1\.8\s*[uµμ]M\)",
+        "M9 + glucose": r"M9\s*\+\s*glucose",
+        "LB": r"\bLB\b",
     }
+    separator_pattern = r"\s*\*{0,2}\s*(?::|\||[-–—])\s*"
     reported: Dict[str, float] = {}
     for condition, label_pattern in patterns.items():
         matches = list(
             re.finditer(
-                rf"{label_pattern}[\s\S]{{0,120}}?([-+]?\d[\d,]*(?:\.\d+)?)\s*(?:min|minutes)",
+                rf"{label_pattern}{separator_pattern}([\d,]+(?:\.\d+)?)\s*min(?:ute)?s?\b",
                 final_answer,
                 flags=re.IGNORECASE,
             )

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from src.trajectory_scorer import (
     score_clone_task_success,
     score_clone_trajectory,
@@ -397,7 +399,7 @@ def test_growth_decision_quality_accepts_defensible_non_exact_parameters():
     transcript = _good_growth_transcript()
     for call in transcript:
         if call["tool_name"] == "inoculate_growth":
-            call["arguments"]["starting_od600"] = 0.08
+            call["arguments"]["starting_od600"] = 0.01
         elif call["tool_name"] == "incubate":
             call["arguments"]["duration_minutes"] = 20
 
@@ -411,11 +413,12 @@ def test_growth_decision_quality_accepts_defensible_non_exact_parameters():
     assert scores["decision_scores"]["growth_measurement_interval"] == 1.0
 
 
-def test_growth_decision_quality_rejects_undersampling_and_late_start():
+@pytest.mark.parametrize("starting_od600", [0.009, 0.11])
+def test_growth_decision_quality_rejects_out_of_range_parameters(starting_od600):
     transcript = _good_growth_transcript()
     for call in transcript:
         if call["tool_name"] == "inoculate_growth":
-            call["arguments"]["starting_od600"] = 0.11
+            call["arguments"]["starting_od600"] = starting_od600
         elif call["tool_name"] == "incubate":
             call["arguments"]["duration_minutes"] = 30
 
@@ -454,6 +457,27 @@ def test_growth_task_success_requires_matching_doubling_times():
         "LB + chloramphenicol (1.8 uM): about 40 minutes."
     )
     assert score_growth_task_success(answer, _good_growth_transcript()) == 0.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        (
+            "LB — 20.0 min; "
+            "LB + chloramphenicol (1.8 uM) — 40.0 min; "
+            "M9 + glucose — 57.0 min."
+        ),
+        (
+            "| Condition | Doubling time |\n"
+            "|---|---|\n"
+            "| **LB** | 20.0 minutes |\n"
+            "| **LB + chloramphenicol (1.8 uM)** | 40.0 minutes |\n"
+            "| **M9 + glucose** | 57.0 minutes |"
+        ),
+    ],
+)
+def test_growth_task_success_accepts_common_report_separators(answer):
+    assert score_growth_task_success(answer, _good_growth_transcript()) == 1.0
 
 
 def test_growth_fit_failure_reduces_decision_quality_and_task_success():
