@@ -1,8 +1,9 @@
 # Model Refresh Status — 2026-07-11
 
 This is a compatibility and infrastructure checkpoint, not a model-quality
-result. The runs below used an intentionally dirty implementation checkout and
-must not be promoted into a scored release.
+result. Early runs below used an intentionally dirty implementation checkout;
+only sections explicitly labeled as clean-revision verification satisfy the
+current provenance gate.
 
 ## Implemented contract
 
@@ -105,10 +106,54 @@ commit above, and the expected runtime source root. These four rows are still
 compatibility smokes from one task and one seed, not comparative model-quality
 estimates.
 
+## Non-growth sentinel verification
+
+The next gate used `pcr_01` and `screen_01`, seed 0, across the same four-model
+matrix. Initial clean array `3079897` exposed a screen-parser false negative:
+three models listed six explicit colony IDs, but the parser read the numeric
+suffix of `white_001` as a total count of one. The source trajectories were
+correct and remain unchanged. Commit `35b8221d6f7dc856e6f49659575166baf6938aaf`
+fixed ID-list counting; check job `3079916` then passed 468 tests and array
+`3079917` stored full-success screen scores:
+
+| Screen model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `openai/gpt-5.6-luna` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-sonnet-5` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | 9 | 4 | 3 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+PCR audit found that common Q5 labels normalized to canonical Q5 in the output
+but could still receive unsupported-polymerase simulator behavior. Commit
+`cbbebbd128bbf2fde99de1e57507018d72abf9ce` canonicalized Q5 and Phusion before
+simulation; check job `3079925` passed 472 tests and PCR array `3079926`
+completed cleanly. A final scorer audit then prevented favorable parameters
+from unrelated failed attempts being combined into decision credit: commit
+`5229e270297357a7a6adbed3b6aec5a77bcc62d9` restricts PCR decision matching to
+`clean_target_band` reactions, and check job `3079935` passed 473 tests.
+
+Replaying the clean `3079926` trajectories under that final scorer contract
+produced:
+
+| PCR model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 26 | 9 | 15 | 1.000 | 0.750 | 1.000 | 0.000 | 0.825 |
+| `openai/gpt-5.6-luna` | 22 | 8 | 12 | 1.000 | 1.000 | 1.000 | 0.000 | 0.900 |
+| `anthropic/claude-sonnet-5` | 13 | 5 | 6 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `anthropic/claude-haiku-4-5-20251001` | 17 | 6 | 9 | 1.000 | 1.000 | 1.000 | 0.000 | 0.900 |
+
+Sol's PCR decision score is a legitimate protocol-choice difference: its
+successful reaction used a 75-second extension, outside the cited 40-60 second
+range. All eight retained screen/PCR cells passed requested/resolved model,
+generation profile, clean worktree, schema 1.2.0, runtime-source-root, and
+no-limit-exhaustion gates. These remain one-seed sentinel runs, and neither the
+initial parser-diagnostic rows nor frozen historical artifacts were rewritten.
+
 ## Scale decision
 
-The current four-model core matrix and runtime-provenance path are compatible.
-The next scale gate should remain small: run selected non-growth tasks at one
-seed from a clean revision, confirm task-specific scorer validity, and only
-then choose a multi-seed matrix. Keep the frozen historical results and the
-invalidated/cancelled diagnostic arrays out of any promoted aggregate.
+The four-model core matrix, runtime-provenance path, growth task, PCR task, and
+screen task now pass the sentinel gate. The next small gate is the remaining
+snapshot pair, `transform_01` and `clone_01`, at one seed. Audit their scorer
+contracts before considering any multi-seed matrix. Keep frozen historical
+results and invalidated, cancelled, or parser-diagnostic arrays out of any
+promoted aggregate.
