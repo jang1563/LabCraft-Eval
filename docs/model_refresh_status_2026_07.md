@@ -19,6 +19,11 @@ current provenance gate.
   starting-OD/cadence answers, with consistency required across each run
 - `growth_01` separates a 40-turn agent cap from a 160-message hard cap so
   parallel tool results do not consume the agent-iteration budget
+- `transform_01` uses the same separate 40-turn/160-message protection and
+  scores conditions from cultures that produced usable downstream counts
+- `clone_01` scores successful digest/ligation conditions, credits corrected
+  retries as troubleshooting, and verifies successful reactions and reported
+  transformant counts against the trajectory
 
 ## Cayuga verification
 
@@ -149,11 +154,68 @@ generation profile, clean worktree, schema 1.2.0, runtime-source-root, and
 no-limit-exhaustion gates. These remain one-seed sentinel runs, and neither the
 initial parser-diagnostic rows nor frozen historical artifacts were rewritten.
 
+## Remaining snapshot sentinel verification
+
+The first `transform_01` / `clone_01` array (`3080504`) at clean revision
+`50f5cdd72e903745fb07d7c1357a69c1ae430ca6` exposed four contract issues while
+leaving the source logs unchanged: a 40-message-only transform cap terminated a
+valid batched run; successful dilution, digest, and ligation retries were mixed
+with failed attempts for decision scoring; reagent filters treated
+`Ampicillin` and `ampicillin` differently; and clone task success did not verify
+successful reactions or the reported transformant count.
+
+Commit `9a60771a0d1f8c9d72901ddacf065df91f848a3b` separated the transform
+turn/message limits, restricted decision scoring to usable final workflows,
+made string filters case-insensitive, credited trajectory-resolved clone
+failures, and strengthened clone task-success reconstruction. Its clean
+diagnostic array (`3080521`) then exposed two report-shape false negatives:
+Unicode superscript exponents such as `10⁹` were not parsed, and a valid sum of
+two same-culture, same-dilution plates was compared only with the largest
+individual plate count. Commit `5168651364ad29529c14b9275b04f794a340f15f`
+accepts those forms while continuing to reject raw-count sums across different
+dilutions.
+
+One infrastructure retry was also required. The shared Cayuga environment had
+drifted to Inspect 0.3.222, so check job `3080514` failed the pinned metadata
+test and array `3080515` was cancelled. A new immutable environment at
+`/home/fs01/jak4013/labcraft-py313-20260712` restored Inspect 0.3.245, OpenAI
+2.45.0, and Anthropic 0.116.0. The cancelled bundle is diagnostic-only and must
+not be aggregated.
+
+Final revision `5168651364ad29529c14b9275b04f794a340f15f` was copied to:
+
+```text
+/home/fs01/jak4013/codex_runs/BioProtocolBench-snapshot-5168651
+```
+
+Check job `3080529` passed 484 tests, Ruff, shell syntax, registry validation,
+wheel build, isolated installation, and package smoke. Final serial array
+`3080530` used RUN_ID `2026_07_12_snapshot_remaining_final_5168651`:
+
+| Task | Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `transform_01` | `openai/gpt-5.6-sol` | 33 | 8 | 23 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `transform_01` | `openai/gpt-5.6-luna` | 47 | 10 | 35 | 1.000 | 0.667 | 1.000 | 0.000 | 0.800 |
+| `transform_01` | `anthropic/claude-sonnet-5` | 41 | 9 | 30 | 1.000 | 0.833 | 1.000 | 0.000 | 0.850 |
+| `transform_01` | `anthropic/claude-haiku-4-5-20251001` | 24 | 5 | 17 | 0.000 | 0.500 | 1.000 | 0.500 | 0.400 |
+| `clone_01` | `openai/gpt-5.6-sol` | 44 | 17 | 25 | 1.000 | 1.000 | 1.000 | 0.000 | 0.900 |
+| `clone_01` | `openai/gpt-5.6-luna` | 27 | 11 | 14 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `clone_01` | `anthropic/claude-sonnet-5` | 28 | 11 | 15 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `clone_01` | `anthropic/claude-haiku-4-5-20251001` | 29 | 13 | 14 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+
+Haiku's transform task failure is substantive rather than parser-related. Only
+one count observation reached `status=plated`; the remaining observations were
+outside the cited 25-250 range, so the trajectory never produced a valid
+four-mass measurement set. All eight final cells passed requested/resolved
+model, generation profile, clean worktree, schema 1.2.0, exact runtime source,
+Inspect-version, and no-limit-exhaustion gates.
+
 ## Scale decision
 
-The four-model core matrix, runtime-provenance path, growth task, PCR task, and
-screen task now pass the sentinel gate. The next small gate is the remaining
-snapshot pair, `transform_01` and `clone_01`, at one seed. Audit their scorer
-contracts before considering any multi-seed matrix. Keep frozen historical
-results and invalidated, cancelled, or parser-diagnostic arrays out of any
-promoted aggregate.
+All five snapshot tasks now have a strict one-seed sentinel across the four
+current-core models. These runs validate compatibility and scorer contracts;
+they are not comparative quality estimates. Human-baseline and multi-seed work
+remain intentionally skipped. The next bounded gate should use the same
+four-model, seed-zero protocol on the newer current wet-lab tasks, while frozen
+historical results and every cancelled or diagnostic bundle remain excluded
+from promoted aggregates.
