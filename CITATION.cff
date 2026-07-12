@@ -9,8 +9,8 @@ authors:
   - name: "The LabCraft-Eval Authors"
 repository-code: "https://github.com/jang1563/LabCraft-Eval"
 url: "https://github.com/jang1563/LabCraft-Eval"
-version: "0.1.1"
-date-released: "2026-06-16"
+version: "0.1.2"
+date-released: "2026-07-12"
 license: "Apache-2.0"
 abstract: >-
   LabCraft-Eval is an Inspect AI evaluation environment for measuring how

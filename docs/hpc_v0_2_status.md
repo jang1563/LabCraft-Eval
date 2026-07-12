@@ -68,22 +68,22 @@ validator fail safety-case logs with empty model completions.
 
 ## Latest HPC Verification
 
-- Job `2955181`: `hpc/slurm_checks.sh` passed on Cayuga with `296 passed`.
-- Job `2955183`: safety-case Anthropic live eval completed 6/6 cells with
+- `hpc/slurm_checks.sh` passed on Cayuga with `296 passed`.
+- The safety-case Anthropic live evaluation completed 6/6 cells with
   non-empty completions and validator success.
-- Job `2955193`: safety-case aggregation wrote 180 rows and intentionally
+- The safety-case aggregation wrote 180 rows and intentionally
   skipped scorecard plots because safety-case axes are not wet-lab scorecard
   axes.
-- Job `2955343`: OpenAI quota probe passed on `golden_gate_01 x gpt-4o-mini`.
-- Job `2955344`: OpenAI missing current-task fill-in completed 120/120 cells.
-- Job `2955465`: OpenAI missing current-task aggregation wrote 120 rows and
+- The OpenAI quota probe passed on `golden_gate_01 x gpt-4o-mini`.
+- The OpenAI missing current-task fill-in completed 120/120 cells.
+- The OpenAI missing current-task aggregation wrote 120 rows and
   scorecard plots.
 - Manual HPC aggregation `2026_05_v0_2_current_n10_completed` wrote 440
   deduplicated current-task rows and plots from the original current bundle plus
   the OpenAI fill-in bundle.
-- Job `2955472`: OpenAI safety-case live eval completed 6/6 cells with
+- The OpenAI safety-case live evaluation completed 6/6 cells with
   non-empty completions and validator success.
-- Job `2955481`: OpenAI safety-case aggregation wrote 180 rows and intentionally
+- The OpenAI safety-case aggregation wrote 180 rows and intentionally
   skipped scorecard plots.
 - Manual HPC aggregation `2026_05_v0_2_safety_all_s3_completed` wrote 360
   deduplicated safety-case rows across all four models.
@@ -91,10 +91,10 @@ validator fail safety-case logs with empty model completions.
 ## Next Actions
 
 1. Decide whether `2026_05_v0_2_current_n10_completed` should become the public
-   v0.2 current-task result page, or whether to keep it as an internal candidate
+   v0.2 current-task result page, or whether to keep it as an unreleased candidate
    until release notes and narrative framing are polished.
 2. Decide whether Anthropic seed 0-19 should become a public N=20 stability
-   slice, or remain an internal variance probe.
+   slice, or remain a diagnostic variance probe.
 3. Decide whether `2026_05_v0_2_safety_all_s3_completed` should be promoted into
    a short public safety-case live-smoke page, separate from the simulator
    scorecard.

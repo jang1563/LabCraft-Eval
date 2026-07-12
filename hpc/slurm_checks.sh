@@ -9,7 +9,7 @@
 set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-${SLURM_SUBMIT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}}"
-: "${VENV_DIR:=/home/fs01/jak4013/labcraft-py313}"
+: "${VENV_DIR:=${HOME}/labcraft-py313}"
 : "${CHECK_ROOT:=${TMPDIR:-/tmp}/bioprotocolbench_checks_${SLURM_JOB_ID:-manual}}"
 
 mkdir -p "${REPO_ROOT}/results/hpc/slurm"

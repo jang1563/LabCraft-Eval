@@ -109,7 +109,7 @@ into the main leaderboard; report them as a prompt-sensitivity analysis.
 
 ### Phase 4: Human Baseline Pilot
 
-Goal: add a reviewer-facing anchor point without pretending to have a large
+Goal: add an external reference point without pretending to have a large
 human study.
 
 Minimum viable design:

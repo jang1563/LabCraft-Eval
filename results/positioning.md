@@ -81,19 +81,19 @@ Across `golden_gate_01`, `gibson_01`, `miniprep_01`, `express_01`, and `purify_0
 
 That extension does not change the provisional portfolio framing above. It illustrates that the hard-coded axis outputs can label "bad plan," "wasted effort," and "correct recorded decisions but wrong final quantitative report" separately; it does not by itself validate those axes as independent scientific constructs.
 
-Separately, the discovery-facing [followup extension](followup_extension.md) adds a small but useful second growth task: `growth_01` measures whether an agent can execute an assay cleanly, while `followup_01` measures whether it can choose the minimum next experiment after an ambiguous intervention result. On a three-repeat historical slice, `claude-sonnet-4-5` reached `0.933 ± 0.029` and `gpt-4o-mini` reached `0.633 ± 0.227`, with the failures concentrated in conclusion framing and troubleshooting rather than raw doubling-time measurement. That is closer to the sort of discovery-workflow reliability question a biomedical AI reviewer will care about.
+Separately, the discovery-facing [followup extension](followup_extension.md) adds a small but useful second growth task: `growth_01` measures whether an agent can execute an assay cleanly, while `followup_01` measures whether it can choose the minimum next experiment after an ambiguous intervention result. On a three-repeat historical slice, `claude-sonnet-4-5` reached `0.933 ± 0.029` and `gpt-4o-mini` reached `0.633 ± 0.227`, with the failures concentrated in conclusion framing and troubleshooting rather than raw doubling-time measurement. This directly tests a discovery-workflow reliability question that broader biomedical-agent evaluations often leave implicit.
 
 ## What the Discovery Decision Track adds
 
-The newer Discovery Decision Track pushes the repo beyond protocol execution into a more company-portable biomedical-agent evaluation surface. It does not attempt to recreate an end-to-end autonomous discovery platform. Instead, it isolates one narrower but relevant question:
+The newer Discovery Decision Track pushes the repo beyond protocol execution into a reusable biomedical-agent evaluation surface. It does not attempt to recreate an end-to-end autonomous discovery platform. Instead, it isolates one narrower but relevant question:
 
 > Can a biomedical agent inspect perturbation-style evidence, choose the right next experiment, and interpret the result without wasting work?
 
-That is the value of `perturb_followup_01`, `target_prioritize_01`, and `target_validate_01`. They are still small and synthetic, so this repo is not competing with Biomni on breadth, with FutureHouse on full autonomous scientific workflows, or with physical wet-lab systems on real-world execution. What it does offer is a compact, auditable evaluation surface for discovery-decision quality, which is exactly the sort of reliability framing that complements broader biomedical-agent portfolio work.
+That is the value of `perturb_followup_01`, `target_prioritize_01`, and `target_validate_01`. They are still small and synthetic, so this repo is not competing with Biomni on breadth, with FutureHouse on full autonomous scientific workflows, or with physical wet-lab systems on real-world execution. What it does offer is a compact, auditable evaluation surface for discovery-decision quality that complements broader biomedical-agent benchmark work.
 
-For the runnable bundle and public score summary, see [results/discovery_track.md](discovery_track.md). Company-specific positioning drafts should be made from [docs/company_briefs/company_brief_template.md](../docs/company_briefs/company_brief_template.md) so the public project framing stays company-portable.
+For the runnable bundle and public score summary, see [results/discovery_track.md](discovery_track.md).
 
-## Recommended framing for a portfolio reviewer
+## Interpretation for benchmark readers
 
 The honest one-sentence pitch is:
 
@@ -103,12 +103,12 @@ It is *not* a BioProBench competitor on scale, *not* a BoxingGym competitor on r
 
 ## Concrete next moves suggested by this literature scan
 
-If the user wanted to strengthen the portfolio *against this competitive landscape* specifically, in descending leverage:
+The highest-leverage next validation steps are:
 
 1. **Run a clean, predeclared HPC study.** Separate environment seeds from model-generation replicates, pin generation settings, retain public raw logs, and export only clean native evaluation revisions. See [docs/hpc_plan.md](../docs/hpc_plan.md) and [hpc/README.md](../hpc/README.md).
-2. **Add a 1–2 person human baseline** on `transform_01`, `growth_01`, and one discovery task (N=3–5 each). Even n=1 expert creates a reviewer-facing anchor point. TroubleshootingBench's 12-PhD baseline is the bar this aligns with.
+2. **Add a 1–2 person human baseline** on `transform_01`, `growth_01`, and one discovery task (N=3–5 each). Even n=1 expert creates an external reference point. TroubleshootingBench's 12-PhD baseline is the bar this aligns with.
 3. **Split `transform_01` into an execution variant and a reasoning variant.** The current task is criticised fairly as execution-reliability. A sister task where the dilution strategy must be *derived* from cited stock concentrations (not given) would shift the scoring into reasoning.
 4. **Run one additional prompt-sensitivity sweep** (3–5 variants, not 1) on the OpenAI growth_01 troubleshooting gap. This would turn a single-point ablation into a proper sensitivity curve.
 5. **Write a short methodology note** explicitly positioning against LABBench2, BioProBench, BioMysteryBench, CompBioBench, GeneBench, and SciGym. The public claim should be narrower than the v0.1 framing but better defended.
 
-None of these are required to ship; they are all ways of making the repo's defensive surface stronger against the specific benchmarks a senior reviewer will already have in their head.
+None of these are required for the current release; they would strengthen construct validity and comparative grounding in later studies.

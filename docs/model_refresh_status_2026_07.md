@@ -27,18 +27,17 @@ current provenance gate.
 
 ## Cayuga verification
 
-Remote implementation checkout:
+The implementation was copied to an isolated Cayuga scratch checkout before
+verification. Site-specific paths and scheduler identifiers are omitted because
+they do not affect reproduction; immutable code revisions and check outcomes
+are recorded below.
 
-```text
-/home/fs01/jak4013/codex_runs/BioProtocolBench-model-refresh-20260711
-```
-
-Environment setup job `3077724` completed successfully. Final check job
-`3077811` passed 458 tests, Ruff, shell syntax, registry validation, wheel
+Environment setup completed successfully. The final check passed 458 tests,
+Ruff, shell syntax, registry validation, wheel
 build, isolated wheel installation, Inspect entry-point import, and GPT-5.6
 metadata registration.
 
-Compatibility array `3077769` ran `growth_01`, seed 0, serially across the four
+The compatibility array ran `growth_01`, seed 0, serially across the four
 current-core models. All four providers returned the expected resolved model
 ID with the registered `{max_tokens: 16384, reasoning_effort: medium}` profile
 and Inspect 0.3.245:
@@ -50,7 +49,7 @@ and Inspect 0.3.245:
 | `anthropic/claude-sonnet-5` | `claude-sonnet-5` | Valid |
 | `anthropic/claude-haiku-4-5-20251001` | `claude-haiku-4-5-20251001` | Compatible; original run incomplete |
 
-Haiku retry job `3077812` recorded `--message-limit 120` in its cell manifest
+The Haiku retry recorded `--message-limit 120` in its cell manifest
 but again exhausted the message limit. The strengthened validator rejected the
 cell. Trajectory inspection showed that this was not a repeated-call loop: the
 model completed a reasonable 30-minute pilot, diagnosed one undersampled fit,
@@ -59,8 +58,8 @@ before the message-only limit terminated the sample. Inspect counts each
 parallel tool result as a separate message, so raising only that limit did not
 address the task-contract problem.
 
-After aligning the non-answer-bearing prompt and scorer, Haiku smoke job
-`3079675` completed in 63 seconds and passed the strict cell validator. It used
+After aligning the non-answer-bearing prompt and scorer, the Haiku compatibility
+smoke completed in 63 seconds and passed the strict cell validator. It used
 59 messages, 15 assistant turns, and 42 tool calls: all three cultures started
 at OD600 0.05, every incubation used a 15-minute interval, and all three final
 fits were analyzable. Re-scoring that transcript with the final consistency
@@ -68,13 +67,13 @@ rule produced 1.0 on task success, decision quality, troubleshooting, and
 efficiency. This is a single compatibility smoke from a dirty checkout, not a
 model-quality estimate.
 
-Final contract check job `3079676` passed 462 tests, Ruff, shell syntax,
+The final contract check passed 462 tests, Ruff, shell syntax,
 registry validation, wheel build, isolated installation, and package smoke in
 the pinned Cayuga environment.
 
 ## Clean revision verification
 
-The first clean-checkout array (`3079678`) exposed two remaining scorer false
+The first clean-checkout array exposed two remaining scorer false
 negatives: colon-only final-answer parsing rejected dash-formatted reports, and
 the OD600 lower bound rejected scientifically defensible 0.01 and 0.02 starts.
 The original logs remain unchanged. Replaying their trajectories after the
@@ -82,20 +81,16 @@ source-backed OD600 0.01-0.10 correction and colon/dash/Markdown-table parser
 fix produced 1.0 on all four axes for all four models.
 
 During the next clean run, source-path inspection found that the reused virtual
-environment was editable-installed from an older checkout. Array `3079683` was
+environment was editable-installed from an older checkout. That array was
 cancelled and is invalid for release use. The runner now prefixes the submitted
 checkout on `PYTHONPATH`, fails before any API call when the imported `src` root
 does not match `REPO_ROOT`, and records that root in cell manifest schema 1.2.0.
 
-Final code revision `557194792520d27e64c545bed127402061fb9d0c` was copied to:
-
-```text
-/home/fs01/jak4013/codex_runs/BioProtocolBench-runtime-5571947
-```
-
-Check job `3079688` passed 467 tests, Ruff, shell syntax, registry validation,
-wheel build, isolated installation, and package smoke. Compatibility array
-`3079689` then completed `growth_01`, seed 0, serially across the four current
+Final code revision `557194792520d27e64c545bed127402061fb9d0c` was copied to a
+fresh isolated checkout. The isolated check passed 467 tests, Ruff, shell
+syntax, registry validation, wheel build, isolated installation, and package
+smoke. The compatibility array then completed `growth_01`, seed 0, serially
+across the four current
 core models:
 
 | Requested model | Resolved model | Messages | Assistant turns | Tool calls | Stored overall |
@@ -114,12 +109,12 @@ estimates.
 ## Non-growth sentinel verification
 
 The next gate used `pcr_01` and `screen_01`, seed 0, across the same four-model
-matrix. Initial clean array `3079897` exposed a screen-parser false negative:
+matrix. The initial clean array exposed a screen-parser false negative:
 three models listed six explicit colony IDs, but the parser read the numeric
 suffix of `white_001` as a total count of one. The source trajectories were
 correct and remain unchanged. Commit `35b8221d6f7dc856e6f49659575166baf6938aaf`
-fixed ID-list counting; check job `3079916` then passed 468 tests and array
-`3079917` stored full-success screen scores:
+fixed ID-list counting; the post-fix check passed 468 tests and the clean array
+stored full-success screen scores:
 
 | Screen model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -131,13 +126,13 @@ fixed ID-list counting; check job `3079916` then passed 468 tests and array
 PCR audit found that common Q5 labels normalized to canonical Q5 in the output
 but could still receive unsupported-polymerase simulator behavior. Commit
 `cbbebbd128bbf2fde99de1e57507018d72abf9ce` canonicalized Q5 and Phusion before
-simulation; check job `3079925` passed 472 tests and PCR array `3079926`
+simulation; the post-fix check passed 472 tests and the clean PCR array
 completed cleanly. A final scorer audit then prevented favorable parameters
 from unrelated failed attempts being combined into decision credit: commit
 `5229e270297357a7a6adbed3b6aec5a77bcc62d9` restricts PCR decision matching to
-`clean_target_band` reactions, and check job `3079935` passed 473 tests.
+`clean_target_band` reactions, and the final check passed 473 tests.
 
-Replaying the clean `3079926` trajectories under that final scorer contract
+Replaying the clean PCR trajectories under that final scorer contract
 produced:
 
 | PCR model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
@@ -156,7 +151,7 @@ initial parser-diagnostic rows nor frozen historical artifacts were rewritten.
 
 ## Remaining snapshot sentinel verification
 
-The first `transform_01` / `clone_01` array (`3080504`) at clean revision
+The first `transform_01` / `clone_01` array at clean revision
 `50f5cdd72e903745fb07d7c1357a69c1ae430ca6` exposed four contract issues while
 leaving the source logs unchanged: a 40-message-only transform cap terminated a
 valid batched run; successful dilution, digest, and ligation retries were mixed
@@ -168,7 +163,7 @@ Commit `9a60771a0d1f8c9d72901ddacf065df91f848a3b` separated the transform
 turn/message limits, restricted decision scoring to usable final workflows,
 made string filters case-insensitive, credited trajectory-resolved clone
 failures, and strengthened clone task-success reconstruction. Its clean
-diagnostic array (`3080521`) then exposed two report-shape false negatives:
+diagnostic array then exposed two report-shape false negatives:
 Unicode superscript exponents such as `10⁹` were not parsed, and a valid sum of
 two same-culture, same-dilution plates was compared only with the largest
 individual plate count. Commit `5168651364ad29529c14b9275b04f794a340f15f`
@@ -176,21 +171,16 @@ accepts those forms while continuing to reject raw-count sums across different
 dilutions.
 
 One infrastructure retry was also required. The shared Cayuga environment had
-drifted to Inspect 0.3.222, so check job `3080514` failed the pinned metadata
-test and array `3080515` was cancelled. A new immutable environment at
-`/home/fs01/jak4013/labcraft-py313-20260712` restored Inspect 0.3.245, OpenAI
-2.45.0, and Anthropic 0.116.0. The cancelled bundle is diagnostic-only and must
-not be aggregated.
+drifted to Inspect 0.3.222, so the pinned metadata check failed and the
+evaluation array was cancelled. A new immutable environment restored Inspect
+0.3.245, OpenAI 2.45.0, and Anthropic 0.116.0. The cancelled bundle is
+diagnostic-only and must not be aggregated.
 
-Final revision `5168651364ad29529c14b9275b04f794a340f15f` was copied to:
-
-```text
-/home/fs01/jak4013/codex_runs/BioProtocolBench-snapshot-5168651
-```
-
-Check job `3080529` passed 484 tests, Ruff, shell syntax, registry validation,
-wheel build, isolated installation, and package smoke. Final serial array
-`3080530` used RUN_ID `2026_07_12_snapshot_remaining_final_5168651`:
+Final revision `5168651364ad29529c14b9275b04f794a340f15f` was copied to a fresh
+isolated checkout. The final check passed 484 tests, Ruff, shell syntax,
+registry validation, wheel build, isolated installation, and package smoke.
+The final serial array used RUN_ID
+`2026_07_12_snapshot_remaining_final_5168651`:
 
 | Task | Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|

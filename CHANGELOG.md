@@ -4,8 +4,11 @@ All notable public-facing changes to LabCraft-Eval should be documented here.
 This project keeps result bundles reproducible, so corrections should be
 recorded rather than silently rewriting history.
 
-## Unreleased
+## 0.1.2 - 2026-07-12
 
+- Publish the integrity and provenance corrections as v0.1.2, generalize
+  public HPC documentation, remove application-only framing, and add a
+  regression check for public-surface hygiene.
 - Align `growth_01` with its non-answer-bearing prompt by scoring defensible
   starting-OD and measurement-cadence ranges instead of hidden exact values,
   and separate agent-turn and hard-message caps so parallel tool results cannot

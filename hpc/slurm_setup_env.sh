@@ -11,7 +11,7 @@ set -euo pipefail
 REPO_ROOT="${REPO_ROOT:-${SLURM_SUBMIT_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}}"
 cd "$REPO_ROOT"
 
-: "${VENV_DIR:=/home/fs01/jak4013/labcraft-py313}"
+: "${VENV_DIR:=${HOME}/labcraft-py313}"
 : "${PYTHON_MODULE:=python/3.13.7}"
 
 if [ -n "${PYTHON_MODULE}" ]; then

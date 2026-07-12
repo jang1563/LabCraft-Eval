@@ -1,8 +1,8 @@
 {
   "title": "LabCraft-Eval: A stochastic agent evaluation environment for benign molecular-microbiology protocols",
   "upload_type": "software",
-  "publication_date": "2026-06-16",
-  "version": "0.1.1",
+  "publication_date": "2026-07-12",
+  "version": "0.1.2",
   "creators": [
     {
       "name": "Kim, Jihoon",

@@ -31,7 +31,7 @@ Or submit the setup helper on HPC:
 
 ```bash
 mkdir -p results/hpc/slurm
-VENV_DIR=/home/fs01/jak4013/labcraft-py313 sbatch hpc/slurm_setup_env.sh
+VENV_DIR="$HOME/labcraft-py313" sbatch hpc/slurm_setup_env.sh
 ```
 
 API keys should be made available on the compute node through the cluster's
@@ -62,7 +62,7 @@ Before API-backed evaluation, run code checks on HPC:
 
 ```bash
 mkdir -p results/hpc/slurm
-VENV_DIR=/home/fs01/jak4013/labcraft-py313 sbatch hpc/slurm_checks.sh
+VENV_DIR="$HOME/labcraft-py313" sbatch hpc/slurm_checks.sh
 ```
 
 Example: run the current plus discovery tasks across 10 seeds and 4 models.

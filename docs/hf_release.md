@@ -12,6 +12,12 @@ agent guidance, so they are not leakage-free current-task results. Schema 0.3.0
 applies to new exports; do not silently rewrite or retag v0.1.1 as though it
 met the new clean-evaluation contract.
 
+The v0.1.2 Hub snapshot is a metadata-only release of the current task, schema,
+citation, and manifest contracts. It intentionally omits score rows and raw
+evaluation logs. The frozen v0.1.1 tag remains available for the historical
+score-bearing artifact, while new scored releases must satisfy the schema 0.3.0
+clean-provenance contract.
+
 ## Repository Layout
 
 Recommended dataset repository files:

@@ -44,5 +44,5 @@
 - General educational growth-curve tutorials without protocol specifics
   - Rejected because they do not meet the minimum Silver requirement for task parameters or fitting-window decisions.
 
-- Non-citable internal notes about company-specific applications
-  - Rejected because application framing is not a public scientific source for task ground truth.
+- Non-citable project-planning notes
+  - Rejected because planning material is not a scientific source for task ground truth.
