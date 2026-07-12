@@ -10,6 +10,11 @@ import zipfile
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_dockerfile_copies_model_registry():
+    dockerfile = (REPO_ROOT / "environments" / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY config/ /workspace/config/" in dockerfile
+
+
 def test_wheel_contains_registry_and_registers_model_info_outside_repo(tmp_path):
     project = tmp_path / "project"
     project.mkdir()

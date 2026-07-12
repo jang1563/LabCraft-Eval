@@ -3,6 +3,7 @@ FROM python:3.11-slim-bookworm
 WORKDIR /workspace
 
 # Copy benchmark content and reference databases
+COPY config/ /workspace/config/
 COPY data/ /workspace/data/
 COPY task_data/ /workspace/task_data/
 
