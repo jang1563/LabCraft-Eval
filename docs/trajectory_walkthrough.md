@@ -25,9 +25,13 @@ sample metadata. During execution, `src/solvers.py` exposes lab operations such
 as media preparation, transformation, plating, incubation, and colony counting.
 
 Those operations mutate `LabState` objects in `src/environment/state.py`.
-Stochastic draws come from citation-backed parameter bundles under
-`data/parameters/`, so repeated seeds are reproducible while still producing
-realistic measurement variation.
+The current runner passes the explicit seed index into the simulator RNG. Some
+operations, including plating and colony generation, use seeded draws; other
+operations, including the growth model, are deterministic across seed labels.
+The parameter bundles under `data/parameters/` record the values and citation
+metadata used by both kinds of operation. Replaying a fixed tool trajectory with
+the same current code and seed reproduces simulator observations, but a model
+rerun is not guaranteed to reproduce the same generated trajectory.
 
 ## 3. Agent Trajectory
 
@@ -40,6 +44,11 @@ Useful audit locations:
 - `results/logs/` for the frozen April 2026 snapshot logs.
 - `results/current_*_logs/` for newer task bundles.
 - `results/discovery_logs/` for Discovery Decision Track runs.
+
+The tracked historical logs preserve their original task and scorer behavior.
+Several early bundles used answer-bearing agent guidance that has since been
+removed, so those scores should be re-aggregated as historical artifacts rather
+than compared directly with a current rerun.
 
 ## 4. Four-Axis Scoring
 
@@ -54,6 +63,9 @@ Useful audit locations:
 
 The scorer is deterministic. It parses tool calls and final answers, applies
 task-specific scoring helpers, and writes per-axis values into result rows.
+The checked-in JSON rubric trees document the intended hierarchy, but the live
+v0.1.x scorer uses the hard-coded logic and fixed weights in
+`src/trajectory_scorer.py`.
 
 ## 5. Published Result Row
 

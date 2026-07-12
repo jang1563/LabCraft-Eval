@@ -8,6 +8,11 @@ The raw `.eval` archives remain under ignored local artifact directories in
 `results/hpc/`. Do not treat this page as replacing [results.md](results.md);
 it is a v0.2 candidate slice for the current implemented task surface.
 
+> **Historical/pre-remediation artifact:** the source commits predate removal
+> of answer-bearing agent guidance, explicit integer seed propagation, and the
+> stricter report scorer. The raw logs are not public. This table is therefore
+> not a leakage-free current-task result or a validated provider comparison.
+
 ## Configuration
 
 - Candidate bundle: `2026_05_v0_2_current_n10_completed`
@@ -21,7 +26,7 @@ it is a v0.2 candidate slice for the current implemented task surface.
   `followup_01`
 - Models: `openai/gpt-4o-mini`, `openai/gpt-4o`,
   `anthropic/claude-haiku-4-5`, `anthropic/claude-sonnet-4-5`
-- Seeds: 10 per `(model, task)` cell
+- Stored seed-labelled repetitions: 10 per `(model, task)` cell
 
 The original current bundle was partial because OpenAI quota blocked the newer
 current-task cells. The fill-in bundle completed those missing OpenAI cells on

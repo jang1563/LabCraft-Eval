@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -49,6 +50,40 @@ def _source_reference_tokens(citation):
         tokens.append(normalized)
         tokens.append(normalized.removeprefix("https://").removeprefix("http://"))
     return [token for token in tokens if token]
+
+
+def _iter_nested_citations(value):
+    if isinstance(value, dict):
+        citations = value.get("citations")
+        if isinstance(citations, list):
+            yield from citations
+        for child in value.values():
+            yield from _iter_nested_citations(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _iter_nested_citations(child)
+
+
+def _normalized_doi(value):
+    return (
+        str(value)
+        .strip()
+        .lower()
+        .removeprefix("https://doi.org/")
+        .removeprefix("http://doi.org/")
+    )
+
+
+def _bib_entry_doi(bib_text, entry_key):
+    match = re.search(
+        r"@[^{]+\{" + re.escape(entry_key) + r",(?P<body>.*?)\n\}",
+        bib_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    assert match, "Missing BibTeX entry {}".format(entry_key)
+    doi_match = re.search(r"\bdoi\s*=\s*\{([^}]+)\}", match.group("body"), re.IGNORECASE)
+    assert doi_match, "BibTeX entry {} is missing a DOI".format(entry_key)
+    return _normalized_doi(doi_match.group(1))
 
 
 def test_parameter_files_exist():
@@ -116,3 +151,44 @@ def test_ground_truth_citations_are_documented_in_sources_files():
                         sources_path.relative_to(ROOT),
                     )
                 )
+
+
+def test_corrected_dois_match_parameter_json_sources_and_bibliography():
+    """Keep corrected source identifiers identical across the public citation surfaces."""
+    bib_text = (ROOT / "data" / "parameters" / "references.bib").read_text()
+    cases = (
+        {
+            "title": "The Growth of Bacterial Cultures",
+            "doi": "10.1146/annurev.mi.03.100149.002103",
+            "bib_key": "monod1949",
+            "json_paths": (ROOT / "data" / "parameters" / "growth.json",),
+            "source_paths": (
+                ROOT / "task_data" / "growth_01" / "SOURCES.md",
+                ROOT / "task_data" / "followup_01" / "SOURCES.md",
+            ),
+        },
+        {
+            "title": "Colony PCR",
+            "doi": "10.1016/B978-0-12-418687-3.00025-2",
+            "bib_key": "bergkessel2013",
+            "json_paths": (ROOT / "data" / "parameters" / "screening.json",),
+            "source_paths": (ROOT / "task_data" / "screen_01" / "SOURCES.md",),
+        },
+    )
+
+    for case in cases:
+        expected = _normalized_doi(case["doi"])
+        json_dois = set()
+        for path in case["json_paths"]:
+            payload = _load_json(path)
+            json_dois.update(
+                _normalized_doi(citation["doi"])
+                for citation in _iter_nested_citations(payload)
+                if citation.get("title") == case["title"] and citation.get("doi")
+            )
+        assert json_dois == {expected}
+
+        for path in case["source_paths"]:
+            assert expected in path.read_text().lower()
+
+        assert _bib_entry_doi(bib_text, case["bib_key"]) == expected

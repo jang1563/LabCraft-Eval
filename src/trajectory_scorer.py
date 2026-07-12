@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from typing import Any, Dict, Iterable, List
 
@@ -23,6 +24,7 @@ FOLLOWUP_CONDITION = "LB + chloramphenicol (1.8 uM)"
 FOLLOWUP_TASK_SUCCESS_RELATIVE_TOLERANCE = 0.15
 PCR_TARGET_BAND_REGEX = re.compile(r"(single\s+clean[\s\S]{0,40}(?:2(?:\.0)?\s*kb|2000\s*bp))|((?:2(?:\.0)?\s*kb|2000\s*bp)[\s\S]{0,40}single\s+clean)", re.IGNORECASE)
 SCREEN_CONFIDENCE_ABSOLUTE_TOLERANCE = 0.2
+SUPERSCRIPT_TRANSLATION = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻", "0123456789+-")
 
 
 def load_ground_truth(path: str) -> Dict[str, Any]:
@@ -145,7 +147,11 @@ def _coerce_content_dict(content: Any) -> Dict[str, Any]:
 
 def _matches_filters(arguments: Dict[str, Any], filters: Dict[str, Any]) -> bool:
     for key, expected in filters.items():
-        if arguments.get(key) != expected:
+        observed = arguments.get(key)
+        if isinstance(observed, str) and isinstance(expected, str):
+            if observed.strip().casefold() != expected.strip().casefold():
+                return False
+        elif observed != expected:
             return False
     return True
 
@@ -174,8 +180,43 @@ def _coerce_int(value: Any) -> int | None:
     return int(round(as_float))
 
 
+def _numeric_values_match(reported: Any, observed: Any, *, tolerance: float) -> bool:
+    """Compare a reported numeric field with a finite observed tool value."""
+    reported_float = _coerce_float(reported)
+    observed_float = _coerce_float(observed)
+    if reported_float is None or observed_float is None:
+        return False
+    if not math.isfinite(reported_float) or not math.isfinite(observed_float):
+        return False
+    return abs(reported_float - observed_float) <= tolerance
+
+
+def _normalize_reported_text(value: Any) -> str:
+    """Normalize superficial punctuation/spacing differences in report fields."""
+    if value is None:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+
+
+def _reported_text_matches(reported: Any, observed: Any) -> bool:
+    reported_normalized = _normalize_reported_text(reported)
+    observed_normalized = _normalize_reported_text(observed)
+    return bool(reported_normalized) and reported_normalized == observed_normalized
+
+
+def _interpretation_reports_success(interpretation: Any) -> bool:
+    """Accept only the fail-closed structured success token."""
+    return str(interpretation or "").strip().casefold() == "success"
+
+
 def _parse_scientific_number(value: str) -> float | None:
     normalized = value.replace(",", "").strip()
+    normalized = re.sub(
+        r"\s*[x×]\s*10([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)",
+        lambda match: "e" + match.group(1).translate(SUPERSCRIPT_TRANSLATION),
+        normalized,
+        flags=re.IGNORECASE,
+    )
     normalized = re.sub(r"\s*[x×]\s*10\^?\s*([+-]?\d+)", r"e\1", normalized, flags=re.IGNORECASE)
     try:
         return float(normalized)
@@ -186,7 +227,7 @@ def _parse_scientific_number(value: str) -> float | None:
 def _extract_reported_efficiencies(final_answer: str) -> Dict[int, float]:
     reported: Dict[int, float] = {}
     unit_pattern = r"cfu\s*(?:/|per)\s*(?:u|μ|µ|\\mu)?g|cfu\s+per\s+microgram"
-    numeric_pattern = r"([-+]?\d[\d,]*(?:\.\d+)?(?:\s*[x×]\s*10\^?\s*[+-]?\d+|e[+-]?\d+)?)"
+    numeric_pattern = r"([-+]?\d[\d,]*(?:\.\d+)?(?:\s*[x×]\s*10(?:\^?\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)|e[+-]?\d+)?)"
     mass_patterns = {
         10: r"10\s*pg",
         100: r"100\s*pg",
@@ -207,6 +248,32 @@ def _extract_reported_efficiencies(final_answer: str) -> Dict[int, float]:
         parsed = _parse_scientific_number(matches[-1].group(1))
         if parsed is not None:
             reported[mass_pg] = parsed
+
+    if reported:
+        return reported
+
+    # Also accept a compact, unambiguous ordered report such as
+    # "This gives A, B, C, and D CFU/ug for 10, 100, 1,000, and 10,000 pg,
+    # respectively." The prompt requires the four values but does not require
+    # one mass-value pair per line.
+    ordered_match = re.search(
+        rf"(?:gives?|values?\s*(?:are|were|:))\s+"
+        rf"(?P<values>[\s\S]{{1,240}}?)\s*(?:{unit_pattern})\s+for\s+"
+        rf"(?P<masses>[\d,\s]*(?:and\s+)?[\d,]+\s*pg)\s*,?\s*respectively\b",
+        final_answer,
+        flags=re.IGNORECASE,
+    )
+    if not ordered_match:
+        return reported
+
+    mass_values = [
+        int(token.replace(",", ""))
+        for token in re.findall(r"\d[\d,]*", ordered_match.group("masses"))
+    ]
+    value_tokens = re.findall(numeric_pattern, ordered_match.group("values"), flags=re.IGNORECASE)
+    parsed_values = [_parse_scientific_number(token) for token in value_tokens]
+    if mass_values == list(TARGET_MASSES_PG) and len(parsed_values) == len(TARGET_MASSES_PG):
+        return dict(zip(TARGET_MASSES_PG, parsed_values))
     return reported
 
 
@@ -294,8 +361,25 @@ def _value_matches(value: Any, acceptable_values: Dict[str, Any]) -> bool:
     if value_type == "one_of":
         return value in acceptable_values["values"]
     if value_type == "range":
-        return acceptable_values["min"] <= float(value) <= acceptable_values["max"]
+        numeric_value = _coerce_float(value)
+        minimum = _coerce_float(acceptable_values.get("min"))
+        maximum = _coerce_float(acceptable_values.get("max"))
+        if numeric_value is None or minimum is None or maximum is None:
+            return False
+        if not all(math.isfinite(item) for item in (numeric_value, minimum, maximum)):
+            return False
+        return minimum <= numeric_value <= maximum
     return False
+
+
+def _values_are_consistent(values: List[Any]) -> bool:
+    """Require one finite numeric value or one exactly repeated non-numeric value."""
+    if not values:
+        return False
+    numeric_values = [_coerce_float(value) for value in values]
+    if all(value is not None and math.isfinite(value) for value in numeric_values):
+        return len(set(numeric_values)) == 1
+    return all(value == values[0] for value in values)
 
 
 def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict[str, Any]) -> float:
@@ -310,7 +394,12 @@ def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict
             continue
         matched_calls.append(observed_values)
 
-    if not matched_calls:
+    minimum_matches = matcher.get("minimum_matches", 1)
+    if isinstance(minimum_matches, bool) or not isinstance(minimum_matches, int):
+        return 0.0
+    if minimum_matches < 1:
+        return 0.0
+    if len(matched_calls) < minimum_matches:
         return 0.0
 
     occurrence = matcher.get("occurrence", "all")
@@ -325,6 +414,8 @@ def _score_decision_point(tool_calls: List[Dict[str, Any]], decision_point: Dict
     else:
         values = [arguments.get(argument_name) for arguments in matched_calls]
 
+    if matcher.get("consistent") and not _values_are_consistent(values):
+        return 0.0
     return 1.0 if all(_value_matches(value, decision_point["acceptable_values"]) for value in values) else 0.0
 
 
@@ -415,9 +506,40 @@ def score_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> f
             return 0.0
 
     final_answer_lower = final_answer.lower()
-    if not re.search(r"\bconsistent\b", final_answer_lower):
+    if not re.search(r"\bconsisten(?:t|cy)\b", final_answer_lower):
         return 0.0
     return 1.0
+
+
+def _transform_decision_calls(tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Score transformation conditions from cultures that produced usable data.
+
+    Failed dilution estimates remain part of efficiency and troubleshooting,
+    but an abandoned transformation should not poison the conditions used by a
+    later, complete four-mass workflow.
+    """
+    plating_to_culture: Dict[str, str] = {}
+    successful_cultures: set[str] = set()
+    for call in tool_calls:
+        name = _normalize_tool_name(call.get("tool_name", ""))
+        observed = _observed_values(call)
+        if name == "plate" and observed.get("plating_id") and observed.get("culture_id"):
+            plating_to_culture[str(observed["plating_id"])] = str(observed["culture_id"])
+        elif name == "count_colonies" and observed.get("status") == "plated":
+            culture_id = observed.get("culture_id") or plating_to_culture.get(
+                str(observed.get("plating_id", ""))
+            )
+            if culture_id:
+                successful_cultures.add(str(culture_id))
+
+    if not successful_cultures:
+        return tool_calls
+    return [
+        call
+        for call in tool_calls
+        if _normalize_tool_name(call.get("tool_name", "")) != "transform"
+        or str(_observed_values(call).get("culture_id", "")) in successful_cultures
+    ]
 
 
 def score_transform_trajectory(
@@ -427,7 +549,7 @@ def score_transform_trajectory(
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
     tool_calls = _extract_tool_calls(transcript)
-    decision_quality = score_decision_quality(tool_calls, ground_truth)
+    decision_quality = score_decision_quality(_transform_decision_calls(tool_calls), ground_truth)
     task_success = score_task_success(final_answer, tool_calls)
     troubleshooting = score_troubleshooting(final_answer, tool_calls, ground_truth)
     efficiency = score_efficiency(tool_calls, ground_truth)
@@ -449,15 +571,16 @@ def score_transform_trajectory(
 
 def _extract_reported_growth_doubling_times(final_answer: str) -> Dict[str, float]:
     patterns = {
-        "LB + chloramphenicol (1.8 uM)": r"LB\s*\+\s*chloramphenicol\s*\(1\.8\s*[uµμ]M\)\s*:",
-        "M9 + glucose": r"M9\s*\+\s*glucose\s*:",
-        "LB": r"\bLB\b\s*:",
+        "LB + chloramphenicol (1.8 uM)": r"LB\s*\+\s*chloramphenicol\s*\(1\.8\s*[uµμ]M\)",
+        "M9 + glucose": r"M9\s*\+\s*glucose",
+        "LB": r"\bLB\b",
     }
+    separator_pattern = r"\s*\*{0,2}\s*(?::|\||[-–—])\s*"
     reported: Dict[str, float] = {}
     for condition, label_pattern in patterns.items():
         matches = list(
             re.finditer(
-                rf"{label_pattern}[\s\S]{{0,120}}?([-+]?\d[\d,]*(?:\.\d+)?)\s*(?:min|minutes)",
+                rf"{label_pattern}{separator_pattern}([\d,]+(?:\.\d+)?)\s*min(?:ute)?s?\b",
                 final_answer,
                 flags=re.IGNORECASE,
             )
@@ -884,11 +1007,15 @@ def _extract_reported_screen_summary(final_answer: str) -> Dict[str, Any]:
 
     if screened_match:
         screened_value = screened_match.group(1).strip()
-        screened_count_match = re.search(r"\d+", screened_value)
-        if screened_count_match:
-            summary["white_colonies_screened"] = int(screened_count_match.group(0))
+        screened_ids = {
+            colony_id.lower() for colony_id in _parse_colony_id_list(screened_value)
+        }
+        if screened_ids:
+            summary["white_colonies_screened"] = len(screened_ids)
         else:
-            summary["white_colonies_screened"] = len(_parse_colony_id_list(screened_value))
+            screened_count_match = re.search(r"\d+", screened_value)
+            if screened_count_match:
+                summary["white_colonies_screened"] = int(screened_count_match.group(0))
     if confirmed_match:
         confirmed_value = confirmed_match.group(1).strip()
         if re.fullmatch(r"none", confirmed_value, flags=re.IGNORECASE):
@@ -1270,6 +1397,9 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
     transform_ligation_count = 0
     digest_statuses: List[str] = []
     ligate_statuses: List[str] = []
+    successful_digest_substrates: set[str] = set()
+    successful_ligation_count = 0
+    successful_transform_ligation_count = 0
     any_non_heat_inactivated_digest = False
     any_blue_screening = False
     final_screen = {
@@ -1278,20 +1408,30 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         "cumulative_confidence_pct": 0.0,
     }
     transformants_observed = 0
+    plating_context: Dict[str, tuple[str, float]] = {}
+    counts_by_plating: Dict[str, tuple[str, float, int]] = {}
 
     for call in tool_calls:
         name = _normalize_tool_name(call.get("tool_name", ""))
         observed = _observed_values(call)
         if name == "restriction_digest":
             digest_count += 1
-            digest_statuses.append(str(observed.get("status", "")))
+            status = str(observed.get("status", ""))
+            digest_statuses.append(status)
+            if status == "digested" and observed.get("substrate_fragment_id"):
+                successful_digest_substrates.add(str(observed["substrate_fragment_id"]))
             if observed.get("heat_inactivate_after") is False:
                 any_non_heat_inactivated_digest = True
         elif name == "ligate":
             ligate_count += 1
-            ligate_statuses.append(str(observed.get("status", "")))
+            status = str(observed.get("status", ""))
+            ligate_statuses.append(status)
+            if status == "ligated":
+                successful_ligation_count += 1
         elif name == "transform_ligation":
             transform_ligation_count += 1
+            if observed.get("status") == "transformed":
+                successful_transform_ligation_count += 1
         elif name == "run_colony_pcr":
             if observed.get("screening_strategy") == "includes_blue":
                 any_blue_screening = True
@@ -1309,10 +1449,29 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
                 )
                 or 0.0,
             }
+        elif name == "plate":
+            plating_id = observed.get("plating_id")
+            culture_id = observed.get("culture_id")
+            dilution = _coerce_float(observed.get("dilution_factor"))
+            if plating_id and culture_id and dilution is not None:
+                plating_context[str(plating_id)] = (str(culture_id), dilution)
         elif name == "count_colonies":
             observed_value = _coerce_int(observed.get("observed_colonies"))
             if observed_value is not None and observed_value > transformants_observed:
                 transformants_observed = observed_value
+            plating_id = str(observed.get("plating_id", ""))
+            context = plating_context.get(plating_id)
+            if context is not None and observed_value is not None:
+                counts_by_plating[plating_id] = (*context, observed_value)
+
+    acceptable_transformant_counts: set[int] = set()
+    counts_by_condition: Dict[tuple[str, float], List[int]] = {}
+    for culture_id, dilution, observed_value in counts_by_plating.values():
+        acceptable_transformant_counts.add(observed_value)
+        counts_by_condition.setdefault((culture_id, dilution), []).append(observed_value)
+    for condition_counts in counts_by_condition.values():
+        if len(condition_counts) > 1:
+            acceptable_transformant_counts.add(sum(condition_counts))
 
     return {
         "digest_count": digest_count,
@@ -1320,10 +1479,14 @@ def _reconstruct_clone_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, An
         "transform_ligation_count": transform_ligation_count,
         "digest_statuses": digest_statuses,
         "ligate_statuses": ligate_statuses,
+        "successful_digest_substrates": sorted(successful_digest_substrates),
+        "successful_ligation_count": successful_ligation_count,
+        "successful_transform_ligation_count": successful_transform_ligation_count,
         "any_non_heat_inactivated_digest": any_non_heat_inactivated_digest,
         "any_blue_screening": any_blue_screening,
         "final_screen": final_screen,
         "transformants_observed": transformants_observed,
+        "acceptable_transformant_counts": sorted(acceptable_transformant_counts),
     }
 
 
@@ -1351,6 +1514,14 @@ def score_clone_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]
     if reconstructed["ligate_count"] < 1:
         return 0.0
     if reconstructed["transform_ligation_count"] < 1:
+        return 0.0
+    if len(reconstructed["successful_digest_substrates"]) < 2:
+        return 0.0
+    if reconstructed["successful_ligation_count"] < 1:
+        return 0.0
+    if reconstructed["successful_transform_ligation_count"] < 1:
+        return 0.0
+    if reported["transformants_observed"] not in reconstructed["acceptable_transformant_counts"]:
         return 0.0
     if not reconstructed["final_screen"]["confirmed_recombinant_ids"]:
         return 0.0
@@ -1380,36 +1551,75 @@ def score_clone_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]
 def score_clone_troubleshooting(
     final_answer: str, tool_calls: List[Dict[str, Any]], ground_truth: Dict[str, Any]
 ) -> float:
-    reconstructed = _reconstruct_clone_results(tool_calls)
-    failure_markers: List[str] = []
+    digest_markers = {
+        "wrong_buffer": "wrong_digest_buffer",
+        "incomplete_digest": "insufficient_digest_duration",
+        "wrong_enzyme_pair": "wrong_digest_enzyme_pair",
+    }
+    failure_events: List[tuple[str, int, str]] = []
+    for index, call in enumerate(tool_calls):
+        name = _normalize_tool_name(call.get("tool_name", ""))
+        observed = _observed_values(call)
+        status = str(observed.get("status", ""))
+        identity = ""
+        marker = ""
+        if name == "restriction_digest":
+            identity = str(observed.get("substrate_fragment_id", ""))
+            marker = digest_markers.get(status, "")
+            if marker:
+                failure_events.append((marker, index, identity))
+            if observed.get("heat_inactivate_after") is False:
+                failure_events.append(("no_heat_inactivation", index, identity))
+        elif name == "ligate" and status in {"wrong_ligase", "wrong_ratio"}:
+            marker = "wrong_ligase" if status == "wrong_ligase" else "extreme_molar_ratio"
+            failure_events.append((marker, index, ""))
+        elif name == "run_colony_pcr" and observed.get("screening_strategy") == "includes_blue":
+            failure_events.append(("screened_blue_background", index, ""))
 
-    for status in reconstructed["digest_statuses"]:
-        if status in {"wrong_buffer", "incomplete_digest", "wrong_enzyme_pair"}:
-            failure_markers.append("wrong_digest_buffer")
-            break
-    for status in reconstructed["ligate_statuses"]:
-        if status == "wrong_ligase":
-            failure_markers.append("wrong_ligase")
-        if status == "wrong_ratio":
-            failure_markers.append("extreme_molar_ratio")
-    if reconstructed["any_non_heat_inactivated_digest"]:
-        failure_markers.append("no_heat_inactivation")
-    if reconstructed["any_blue_screening"]:
-        failure_markers.append("screened_blue_background")
-
-    if not failure_markers:
+    if not failure_events:
         return _score_no_failure_troubleshooting(tool_calls, ground_truth)
 
     final_answer_lower = final_answer.lower()
     resolved = 0
-    for marker in failure_markers:
+    for marker, failure_index, identity in failure_events:
+        trajectory_resolved = False
+        for later_call in tool_calls[failure_index + 1 :]:
+            later_name = _normalize_tool_name(later_call.get("tool_name", ""))
+            later = _observed_values(later_call)
+            if marker in {
+                "wrong_digest_buffer",
+                "insufficient_digest_duration",
+                "wrong_digest_enzyme_pair",
+                "no_heat_inactivation",
+            }:
+                trajectory_resolved = (
+                    later_name == "restriction_digest"
+                    and later.get("status") == "digested"
+                    and (not identity or str(later.get("substrate_fragment_id", "")) == identity)
+                    and (
+                        marker != "no_heat_inactivation"
+                        or later.get("heat_inactivate_after") is True
+                    )
+                )
+            elif marker in {"wrong_ligase", "extreme_molar_ratio"}:
+                trajectory_resolved = later_name == "ligate" and later.get("status") == "ligated"
+            elif marker == "screened_blue_background":
+                trajectory_resolved = (
+                    later_name == "run_colony_pcr"
+                    and later.get("screening_strategy") == "white_only"
+                )
+            if trajectory_resolved:
+                break
+        if trajectory_resolved:
+            resolved += 1
+            continue
         diagnosis = ground_truth["failure_diagnosis_map"].get(marker)
         if diagnosis is None:
             continue
         acceptable = [diagnosis["canonical_diagnosis"]] + diagnosis.get("acceptable_variants", [])
         if any(candidate.lower() in final_answer_lower for candidate in acceptable):
             resolved += 1
-    return float(resolved) / float(len(failure_markers))
+    return float(resolved) / float(len(failure_events))
 
 
 def score_clone_trajectory(
@@ -1903,8 +2113,12 @@ def _reconstruct_miniprep_results(tool_calls: List[Dict[str, Any]]) -> Dict[str,
     return {"last": last, "call_count": call_count, "statuses": statuses}
 
 
+MINIPREP_CULTURE_VOLUME_TOLERANCE_ML = 0.1
+MINIPREP_LYSIS_DURATION_TOLERANCE_MIN = 0.0
+MINIPREP_ELUTION_VOLUME_TOLERANCE_UL = 1.0
 MINIPREP_CONCENTRATION_TOLERANCE = 2.0  # ng/uL
 MINIPREP_RATIO_TOLERANCE = 0.05
+MINIPREP_TOTAL_YIELD_TOLERANCE_UG = 0.2
 
 
 def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
@@ -1928,14 +2142,30 @@ def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, An
     last = reconstructed["last"]
     if str(last.get("status")) != "prepared":
         return 0.0
-    if (
-        abs(float(last.get("final_concentration_ng_ul", 0.0)) - reported["final_concentration_ng_ul"])
-        > MINIPREP_CONCENTRATION_TOLERANCE
+    numeric_fields = {
+        "culture_volume_ml": MINIPREP_CULTURE_VOLUME_TOLERANCE_ML,
+        "lysis_duration_min": MINIPREP_LYSIS_DURATION_TOLERANCE_MIN,
+        "elution_volume_ul": MINIPREP_ELUTION_VOLUME_TOLERANCE_UL,
+        "final_concentration_ng_ul": MINIPREP_CONCENTRATION_TOLERANCE,
+        "a260_a280_ratio": MINIPREP_RATIO_TOLERANCE,
+        "total_yield_ug": MINIPREP_TOTAL_YIELD_TOLERANCE_UG,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if abs(float(last.get("a260_a280_ratio", 0.0)) - reported["a260_a280_ratio"]) > MINIPREP_RATIO_TOLERANCE:
+    if not _reported_text_matches(
+        reported["lysis_buffer_sequence"],
+        last.get("lysis_buffer_sequence_normalized") or last.get("lysis_buffer_sequence"),
+    ):
         return 0.0
-    if "pur" not in reported["interpretation"].lower():
+    if not _reported_text_matches(
+        reported["purification_method"],
+        last.get("purification_method_normalized") or last.get("purification_method"),
+    ):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 
@@ -2038,7 +2268,12 @@ def build_miniprep_trajectory_scorer():
 # Express-01 scorer (Phase 2a)
 # ---------------------------------------------------------------------------
 
-EXPRESS_YIELD_TOLERANCE_MG_PER_L = 3.0
+EXPRESS_IPTG_TOLERANCE_MM = 0.01
+EXPRESS_OD600_TOLERANCE = 0.01
+EXPRESS_TEMPERATURE_TOLERANCE_C = 0.5
+EXPRESS_DURATION_TOLERANCE_H = 0.1
+EXPRESS_PH_TOLERANCE = 0.05
+EXPRESS_YIELD_TOLERANCE_MG_PER_L = 0.5
 
 
 def _extract_reported_express_summary(final_answer: str) -> Dict[str, Any]:
@@ -2104,12 +2339,25 @@ def score_express_task_success(final_answer: str, tool_calls: List[Dict[str, Any
     last = reconstructed["last"]
     if str(last.get("status")) != "induced":
         return 0.0
-    if (
-        abs(float(last.get("soluble_yield_mg_per_l", 0.0)) - reported["soluble_yield_mg_per_l"])
-        > EXPRESS_YIELD_TOLERANCE_MG_PER_L
+    if not _reported_text_matches(
+        reported["host_strain"],
+        last.get("host_strain_normalized") or last.get("host_strain"),
     ):
         return 0.0
-    if "express" not in reported["interpretation"].lower():
+    numeric_fields = {
+        "iptg_concentration_mm": EXPRESS_IPTG_TOLERANCE_MM,
+        "induction_od600": EXPRESS_OD600_TOLERANCE,
+        "induction_temperature_c": EXPRESS_TEMPERATURE_TOLERANCE_C,
+        "induction_hours": EXPRESS_DURATION_TOLERANCE_H,
+        "lysis_buffer_ph": EXPRESS_PH_TOLERANCE,
+        "soluble_yield_mg_per_l": EXPRESS_YIELD_TOLERANCE_MG_PER_L,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
+    ):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 
@@ -2208,8 +2456,10 @@ def build_express_trajectory_scorer():
 # Purify-01 scorer (Phase 2b)
 # ---------------------------------------------------------------------------
 
-PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 1.0
-PURIFY_PURITY_TOLERANCE_PCT = 3.0
+PURIFY_IMIDAZOLE_TOLERANCE_MM = 1.0
+PURIFY_BAND_TOLERANCE_KDA = 0.5
+PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 0.1
+PURIFY_PURITY_TOLERANCE_PCT = 1.0
 
 
 def _extract_reported_purify_summary(final_answer: str) -> Dict[str, Any]:
@@ -2279,17 +2529,27 @@ def score_purify_task_success(final_answer: str, tool_calls: List[Dict[str, Any]
     last = reconstructed["last"]
     if str(last.get("status")) != "purified":
         return 0.0
-    if (
-        abs(float(last.get("purified_concentration_mg_per_ml", 0.0)) - reported["purified_concentration_mg_per_ml"])
-        > PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML
+    if not _reported_text_matches(
+        reported["resin"],
+        last.get("resin_normalized") or last.get("resin_name"),
     ):
         return 0.0
-    if (
-        abs(float(last.get("purity_percent", 0.0)) - reported["purity_percent"])
-        > PURIFY_PURITY_TOLERANCE_PCT
+    numeric_fields = {
+        "load_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "wash_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "elute_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "expected_band_kda": PURIFY_BAND_TOLERANCE_KDA,
+        "purified_concentration_mg_per_ml": PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML,
+        "purity_percent": PURIFY_PURITY_TOLERANCE_PCT,
+    }
+    if any(
+        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if "pur" not in reported["interpretation"].lower():
+    if not _reported_text_matches(reported["sds_page_result"], last.get("sds_page_result")):
+        return 0.0
+    if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
     return 1.0
 

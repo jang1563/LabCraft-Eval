@@ -144,6 +144,23 @@ def test_growth_sequence_is_deterministic():
     assert first == second
 
 
+def test_growth_truth_is_observed_from_measurements_not_inoculation():
+    state = create_lab_state(sample_id="growth-no-answer-leak", seed=12345)
+    inoculated = inoculate_growth(state=state, condition="LB", starting_od600=0.05)
+
+    assert "doubling_time_minutes" not in inoculated
+
+    growth_id = inoculated["growth_id"]
+    measure_od600(state=state, growth_id=growth_id, dilution_factor=1.0)
+    for _ in range(8):
+        incubate(state=state, growth_id=growth_id, duration_minutes=15)
+        measure_od600(state=state, growth_id=growth_id, dilution_factor=1.0)
+
+    fitted = fit_growth_curve(state=state, growth_id=growth_id)
+    assert fitted["status"] == "analyzable"
+    assert fitted["estimated_doubling_time_minutes"] == pytest.approx(20.0)
+
+
 def test_pcr_sequence_is_deterministic():
     first = _run_pcr_sequence("pcr-seed-a", seed=12345)
     second = _run_pcr_sequence("pcr-seed-b", seed=12345)
@@ -163,6 +180,46 @@ def test_good_pcr_condition_yields_clean_target_band():
     assert reaction["status"] == "clean_target_band"
     assert gel["status"] == "single_clean_target_band"
     assert gel["visible_bands_bp"] == [2000]
+
+
+@pytest.mark.parametrize(
+    ("polymerase_name", "expected_canonical"),
+    [
+        ("Q5", "Q5 High-Fidelity DNA polymerase"),
+        ("Q5 High-Fidelity Polymerase", "Q5 High-Fidelity DNA polymerase"),
+        ("Phusion High-Fidelity Polymerase", "Phusion High-Fidelity DNA polymerase"),
+    ],
+)
+def test_pcr_polymerase_aliases_use_canonical_simulator_behavior(
+    polymerase_name, expected_canonical
+):
+    state = create_lab_state(sample_id="pcr-alias-{}".format(polymerase_name), seed=7)
+    reaction = run_pcr(
+        state=state,
+        polymerase_name=polymerase_name,
+        additive="DMSO",
+        extension_seconds=60,
+        cycle_count=32,
+    )
+
+    assert reaction["status"] == "clean_target_band"
+    assert reaction["normalized_polymerase_name"] == expected_canonical
+    assert reaction["notes"] == []
+
+
+def test_pcr_unsupported_polymerase_note_does_not_misstate_proofreading_status():
+    state = create_lab_state(sample_id="pcr-unsupported-pfu", seed=7)
+    reaction = run_pcr(
+        state=state,
+        polymerase_name="Pfu DNA Polymerase",
+        additive="DMSO",
+        extension_seconds=60,
+        cycle_count=32,
+    )
+
+    assert reaction["status"] == "nonspecific_amplification"
+    assert "supported high-fidelity choices" in reaction["notes"][0]
+    assert "non-proofreading" not in reaction["notes"][0]
 
 
 def test_pcr_without_gc_additive_fails_clean_amplification():
@@ -391,7 +448,7 @@ def test_tool_wrappers_report_validation_errors_as_tool_errors():
         set_active_sample(sample_id, seed=101)
         try:
             bad_prepare = json.loads(await prepare_media_call("LB agar", "ampicillin", 0, 1))
-            bad_transform = json.loads(await transform_call(0, 30, 60))
+            bad_transform = json.loads(await transform_call(0, 30, 60, "SOC", True, 30))
             inoculated = json.loads(await inoculate_growth_call("LB", 0.05))
             bad_incubate = json.loads(await incubate_call(inoculated["growth_id"], -15))
             bad_measure = json.loads(await measure_od600_call(inoculated["growth_id"], 0))
@@ -416,7 +473,9 @@ def test_plate_tool_reports_nonpositive_dilution_as_tool_error():
         set_active_sample(sample_id, seed=101)
         try:
             prepared = json.loads(await prepare_media_call("LB agar", "ampicillin", 100, 1))
-            transformed = json.loads(await transform_call(1000, 30, 60))
+            transformed = json.loads(
+                await transform_call(1000, 30, 60, "SOC", True, 30)
+            )
             return json.loads(
                 await plate_call(
                     culture_id=transformed["culture_id"],
@@ -432,6 +491,32 @@ def test_plate_tool_reports_nonpositive_dilution_as_tool_error():
     assert payload["status"] == "tool_error"
     assert payload["tool_name"] == "plate"
     assert "dilution_factor must be positive" in payload["message"]
+
+
+def test_tool_wrappers_report_invalid_ids_and_pcr_values_as_tool_errors():
+    async def run_bad_calls():
+        sample_id = "tool-invalid-identifiers"
+        set_active_sample(sample_id, seed=101)
+        try:
+            return (
+                json.loads(await count_colonies_call("missing_plating")),
+                json.loads(await fit_growth_curve_call("missing_growth")),
+                json.loads(await run_gel_call("missing_reaction")),
+                json.loads(await run_pcr_call("Q5", "none", "not-a-number", 30)),
+            )
+        finally:
+            cleanup_sample(sample_id)
+
+    bad_count, bad_fit, bad_gel, bad_pcr = asyncio.run(run_bad_calls())
+    for payload, tool_name in (
+        (bad_count, "count_colonies"),
+        (bad_fit, "fit_growth_curve"),
+        (bad_gel, "run_gel"),
+        (bad_pcr, "run_pcr"),
+    ):
+        assert payload["status"] == "tool_error"
+        assert payload["tool_name"] == tool_name
+        assert payload["message"]
 
 
 def test_concurrent_sample_isolation():
@@ -453,7 +538,16 @@ async def _run_tool_sequence(sample_id, seed):
     set_active_sample(sample_id, seed=seed)
     try:
         prepared = json.loads(await prepare_media_call("LB agar", "ampicillin", 100, 1))
-        transformed = json.loads(await transform_call(1000, 30, 60, outgrowth_media="SOC", shaking=True))
+        transformed = json.loads(
+            await transform_call(
+                1000,
+                30,
+                60,
+                outgrowth_media="SOC",
+                shaking=True,
+                ice_incubation_minutes=30,
+            )
+        )
         plated = json.loads(
             await plate_call(
                 culture_id=transformed["culture_id"],

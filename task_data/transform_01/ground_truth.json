@@ -127,6 +127,10 @@
       "matcher": {
         "tool_name": "count_colonies",
         "argument": "status",
+        "filters": {
+          "status": "plated"
+        },
+        "minimum_matches": 4,
         "occurrence": "all"
       },
       "acceptable_values": {
@@ -165,7 +169,7 @@
   },
   "efficiency_reference": {
     "optimal_tool_calls": 13,
-    "max_reasonable_tool_calls": 20,
+    "max_reasonable_tool_calls": 24,
     "reagent_budget": {
       "selection_plates": 4,
       "soc_outgrowth_ml": 4.0,

@@ -6,6 +6,11 @@ This bundle isolates the repo’s discovery-decision tasks:
 - `target_prioritize_01`
 - `target_validate_01`
 
+> **Historical/pre-remediation artifact:** these stored runs predate removal of
+> answer-bearing summary fields and exact scored identifiers from the discovery
+> tool surface. The table describes that earlier prompt/tool contract and is not
+> a leakage-free current model comparison.
+
 What this track measures:
 
 - whether an agent inspects perturbation-style evidence before acting
@@ -13,9 +18,9 @@ What this track measures:
 - whether it interprets that result correctly
 - whether it avoids wasted tool use
 
-This track is intentionally small and auditable. It is not trying to be a general biomedical agent benchmark. The point is to create a compact, recruiter-readable demonstration that LabCraft-Eval can evaluate discovery-decision quality as well as wet-lab execution reliability.
+This track is intentionally small and auditable. It is not trying to be a general biomedical agent benchmark. The current implementation is a compact demonstration of discovery-decision scoring alongside simulator protocol execution; the historical numbers below should not be used as capability evidence.
 
-Current 2-model / 3-seed bundle:
+Historical 2-model / 3-repeat bundle:
 
 | Task | gpt-4o-mini | claude-sonnet-4-5 |
 |---|---:|---:|
@@ -26,9 +31,9 @@ Current 2-model / 3-seed bundle:
 
 Interpretation:
 
-- `perturb_followup_01` is already the strongest discriminator in this bundle. Both models complete the task, but `claude-sonnet-4-5` is better at explaining the QC ambiguity and the orthogonal non-support cleanly.
-- `target_validate_01` is also healthy: both models choose the right assay and decision, with the remaining spread coming from interpretation quality rather than experimental choice.
-- `target_prioritize_01` is the current weak point for both models. The failure mode is not coverage or tool use; it is getting the final ranking/risk framing exactly right. That makes it a useful discovery-facing task because it exposes a real decision-quality gap rather than a simulator-execution bug.
+- Under the historical scorer, `perturb_followup_01` shows the largest stored model separation, concentrated in explanation of QC ambiguity and orthogonal non-support.
+- The historical `target_validate_01` rows pass the assay and decision checks; their remaining score spread comes from the interpretation parser.
+- Historical `target_prioritize_01` misses concentrate in final ranking/risk framing. A clean rerun is required before treating that as a current decision-quality signal.
 
 Artifacts from this bundle:
 
@@ -39,17 +44,13 @@ Artifacts from this bundle:
 Recommended public comparison bundle:
 
 ```bash
+# Produces a new timestamped build/eval_runs/discovery_*/ bundle.
 ./scripts/run_discovery_bundle.sh
-
-# Equivalent explicit commands:
-LOG_DIR=results/discovery_logs \
-TASK_PRESET=discovery \
-SEEDS=3 \
-MODELS="openai/gpt-4o-mini anthropic/claude-sonnet-4-5" \
-  ./scripts/run_portfolio_eval.sh
-uv run python scripts/aggregate_eval_results.py --log-dir results/discovery_logs --out results/discovery_track_results.md
-uv run python scripts/plot_scorecard.py --log-dir results/discovery_logs --out-dir results/discovery_track_plots --task-preset discovery --models openai/gpt-4o-mini anthropic/claude-sonnet-4-5
 ```
+
+The tracked paths above are historical artifacts. The wrapper refuses to
+overwrite them unless `ALLOW_TRACKED_DISCOVERY_OUTPUT=1` is explicitly set for
+intentional maintenance.
 
 Public-note framing:
 

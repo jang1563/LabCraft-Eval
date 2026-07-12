@@ -8,7 +8,7 @@
     {
       "task_id": "transform_01",
       "seed_index": 2,
-      "selection_rationale": "Strong disagreement case on the hardest snapshot task; useful for testing whether the model spread reflects genuine ambiguity or agent-formatting fragility."
+      "selection_rationale": "Strong historical disagreement on the hardest snapshot task; useful for checking current human execution and formatting without claiming a matched historical instance."
     },
     {
       "task_id": "transform_01",
@@ -23,7 +23,7 @@
     {
       "task_id": "growth_01",
       "seed_index": 2,
-      "selection_rationale": "Broadest cross-model spread on growth_01, with all four frontier models landing in different overall-score bands."
+      "selection_rationale": "Broadest historical cross-model spread on growth_01; useful as a current reporting check even though the deterministic growth environment is not a matched historical instance."
     },
     {
       "task_id": "growth_01",

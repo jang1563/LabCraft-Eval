@@ -170,3 +170,38 @@ def test_parse_tool_command_requires_json_object():
 
     assert tool_name == "prepare_media"
     assert arguments == {"medium": "LB agar", "plate_count": 2}
+
+
+def test_help_uses_placeholders_instead_of_scored_protocol_values(capsys):
+    human_baseline._print_help()
+    help_text = capsys.readouterr().out.casefold()
+
+    assert "<choose medium>" in help_text
+    for leaked_value in ('"lb agar"', '"soc"', ": 100", ": 30", ": 60"):
+        assert leaked_value not in help_text
+
+
+def test_human_baseline_binds_same_explicit_seed_as_agent_eval(monkeypatch, tmp_path):
+    session = human_baseline.build_task_session(
+        task_id="transform_01",
+        seed_index=4,
+        operator_id="expert_a",
+    )
+    seed_calls = []
+
+    monkeypatch.setattr(
+        human_baseline,
+        "set_active_sample",
+        lambda sample_id, seed=None: seed_calls.append((sample_id, seed)),
+    )
+    monkeypatch.setattr(human_baseline, "cleanup_sample", lambda sample_id: None)
+
+    def raise_eof(_prompt):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", raise_eof)
+
+    exit_code = human_baseline.run_human_baseline(session, tmp_path / "session.json")
+
+    assert exit_code == 0
+    assert seed_calls == [("transform_01_seeded_seed_04", 4)]

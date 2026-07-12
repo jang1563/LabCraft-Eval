@@ -1,7 +1,10 @@
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import sys
+
+import pytest
 
 from scripts import upload_hf_space
 
@@ -78,7 +81,94 @@ def test_score_summary_groups_by_model_task_and_track():
     assert rows[0]["task"] == "transform_01"
     assert rows[0]["n"] == 2
     assert rows[0]["overall_mean"] == 0.75
+    assert rows[0]["overall_std"] == pytest.approx(0.3535533906)
     assert rows[0]["decision_quality"] == 0.75
+
+
+def test_score_summary_displays_resolved_model_for_current_rows():
+    app = load_space_app()
+    rows = sample_results()
+    for row in rows:
+        row.update(
+            {
+                "model": "anthropic/claude-sonnet-5",
+                "requested_model": "anthropic/claude-sonnet-5",
+                "resolved_model": "claude-sonnet-5-20260701",
+                "provider": "anthropic",
+            }
+        )
+
+    summary = app.summarize_scores(rows, "snapshot")
+
+    assert summary[0]["model"] == (
+        "anthropic/claude-sonnet-5 → anthropic/claude-sonnet-5-20260701"
+    )
+
+
+def test_current_snapshot_model_provenance_fails_closed_on_mixed_resolution():
+    app = load_space_app()
+    rows = sample_results()
+    for index, row in enumerate(rows):
+        row.update(
+            {
+                "model": "anthropic/claude-sonnet-5",
+                "requested_model": "anthropic/claude-sonnet-5",
+                "resolved_model": "claude-sonnet-5-202607{:02d}".format(index + 1),
+                "provider": "anthropic",
+                "model_generate_config": {"max_tokens": 8192},
+                "effective_generation_config": {"max_tokens": 8192},
+                "inspect_version": "0.3.245",
+            }
+        )
+
+    errors = app.validate_model_provenance({"schema_version": "0.3.0"}, rows)
+
+    assert any("resolves to multiple snapshots" in error for error in errors)
+
+
+def test_legacy_snapshot_model_provenance_remains_readable():
+    app = load_space_app()
+
+    assert app.validate_model_provenance(
+        {"schema_version": "0.2.0"}, sample_results()
+    ) == []
+
+
+def test_snapshot_validation_checks_manifest_hashes_and_counts(tmp_path):
+    app = load_space_app()
+    payloads = {
+        "tasks.jsonl": '{"task_id":"transform_01"}\n',
+        "result_rows.jsonl": '{"sample_id":"s0"}\n',
+        "eval_log_manifest.jsonl": '{"path":"logs/example.eval"}\n',
+    }
+    for relative, content in payloads.items():
+        path = tmp_path / relative
+        path.write_text(content)
+    for relative in app.PLOT_FILES:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"plot")
+
+    files = []
+    for relative in app.REQUIRED_FILES[1:] + app.PLOT_FILES:
+        path = tmp_path / relative
+        files.append(
+            {
+                "path": relative,
+                "sha256": app.sha256_file(path),
+                "bytes": path.stat().st_size,
+                "record_count": (
+                    len(app.read_jsonl(path)) if path.suffix == ".jsonl" else 1
+                ),
+            }
+        )
+    (tmp_path / "release_manifest.json").write_text(json.dumps({"files": files}))
+
+    app.validate_snapshot(tmp_path)
+    (tmp_path / "result_rows.jsonl").write_text('{"sample_id":"tampered"}\n')
+
+    with pytest.raises(RuntimeError, match="sha256 mismatch for result_rows.jsonl"):
+        app.validate_snapshot(tmp_path)
 
 
 def test_render_track_includes_tables_and_provenance():

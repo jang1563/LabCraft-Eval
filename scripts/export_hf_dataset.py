@@ -6,19 +6,37 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 from typing import Any
 
 try:
-    from aggregate_eval_results import dedupe_rows, extract_scores
+    from aggregate_eval_results import (
+        dedupe_rows,
+        extract_scores,
+        infer_provider,
+        model_resolution_conflicts,
+    )
 except ModuleNotFoundError:  # pragma: no cover - used when imported as scripts.export_hf_dataset
-    from scripts.aggregate_eval_results import dedupe_rows, extract_scores
+    from scripts.aggregate_eval_results import (
+        dedupe_rows,
+        extract_scores,
+        infer_provider,
+        model_resolution_conflicts,
+    )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "0.1.0"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.model_registry import RegistryError, load_registry  # noqa: E402
+
+SCHEMA_VERSION = "0.3.0"
 DEFAULT_OUT_DIR = REPO_ROOT / "build" / "hf_dataset"
+SAFE_CLEAN_ROOT = REPO_ROOT / "build"
 DEFAULT_LOG_DIRS = [REPO_ROOT / "results" / "logs"]
 DEFAULT_PLOT_PATHS = [
     REPO_ROOT / "results" / "scorecard.png",
@@ -120,6 +138,16 @@ TASK_METADATA = {
     },
 }
 
+MODEL_REGISTRY = load_registry()
+
+
+def model_ids_match(expected: str, actual: str, provider: str) -> bool:
+    if expected == actual:
+        return True
+    return expected == "{}/{}".format(provider, actual) or actual == "{}/{}".format(
+        provider, expected
+    )
+
 
 def repo_path(path: Path) -> str:
     resolved = path.resolve()
@@ -127,6 +155,15 @@ def repo_path(path: Path) -> str:
         return resolved.relative_to(REPO_ROOT).as_posix()
     except ValueError:
         return resolved.as_posix()
+
+
+def portable_source_path(path: Path) -> str:
+    """Return a release-safe source label without leaking host directory names."""
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return resolved.name
 
 
 def export_path(path: Path, export_root: Path) -> str:
@@ -165,6 +202,25 @@ def source_commit() -> str:
 
 def source_repository() -> str:
     return git_value(["config", "--get", "remote.origin.url"])
+
+
+def require_clean_packaging_worktree() -> None:
+    """Reject exports whose packaging commit omits local tracked or untracked changes."""
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=normal"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as exc:
+        raise RuntimeError("Unable to verify packaging worktree cleanliness") from exc
+    if completed.stdout.strip():
+        raise ValueError(
+            "Refusing to export from a dirty packaging worktree. Commit or stash all "
+            "changes before generating a release bundle."
+        )
 
 
 def read_json(path: Path) -> Any:
@@ -235,11 +291,37 @@ def copy_file(source: Path, destination: Path, export_root: Path) -> dict[str, A
     shutil.copy2(source, destination)
     return {
         "path": export_path(destination, export_root),
-        "source_path": repo_path(source),
+        "source_path": portable_source_path(source),
         "sha256": sha256_file(destination),
         "bytes": destination.stat().st_size,
         "record_count": 1,
     }
+
+
+def prepare_output_directory(out_dir: Path, *, clean: bool = False) -> None:
+    """Create an empty export directory, refusing stale output by default."""
+    resolved = out_dir.resolve()
+    if resolved in {REPO_ROOT, REPO_ROOT.parent, Path(resolved.anchor)}:
+        raise ValueError("Refusing to use unsafe export directory: {}".format(resolved))
+    if resolved.exists() and any(resolved.iterdir()):
+        if not clean:
+            raise ValueError(
+                "Export directory is not empty: {}. Choose a new directory or pass "
+                "--clean-output to replace it.".format(resolved)
+            )
+        safe_root = SAFE_CLEAN_ROOT.resolve()
+        try:
+            relative = resolved.relative_to(safe_root)
+        except ValueError as exc:
+            raise ValueError(
+                "--clean-output is restricted to a child of {}: {}".format(
+                    safe_root, resolved
+                )
+            ) from exc
+        if not relative.parts:
+            raise ValueError("Refusing to clean the build root itself: {}".format(resolved))
+        shutil.rmtree(resolved)
+    resolved.mkdir(parents=True, exist_ok=True)
 
 
 def classify_task(task_id: str) -> str:
@@ -428,16 +510,26 @@ def dataset_card_text(
         "for audit context."
     )
     result_verification_line = (
-        "3. Published scores in `result_rows.jsonl` can be traced back to\n"
-        "   `eval_log_manifest.jsonl`.\n"
+        "3. Published scores in `result_rows.jsonl` can be traced back to both\n"
+        "   `eval_log_manifest.jsonl` and the clean native evaluation revision.\n"
         if include_results
-        else "3. This metadata-only export has no published score rows; use\n"
-        "   `eval_log_manifest.jsonl` only to inspect available log checksums.\n"
+        else "3. This metadata-only export has no published score rows or eval logs;\n"
+        "   `eval_log_manifest.jsonl` is intentionally empty.\n"
     )
     plot_line = (
         "- `plots/`: copied PNG plot files for quick visual review.\n"
         if include_plots
         else "- `plots/`: omitted from this export.\n"
+    )
+    eval_logs_line = (
+        "- `eval_logs/`: raw Inspect `.eval` evidence referenced by the log manifest.\n"
+        if include_results
+        else "- `eval_logs/`: omitted from this metadata-only export.\n"
+    )
+    quickstart_result_line = (
+        'results = [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]'
+        if include_results
+        else '# This metadata-only export intentionally has no "result_rows.jsonl".'
     )
     return f"""---
 pretty_name: LabCraft-Eval
@@ -464,8 +556,9 @@ configs:
 
 LabCraft-Eval is an Inspect AI evaluation environment for measuring how well AI
 agents execute benign molecular-microbiology protocols inside a seeded
-stochastic laboratory simulator. It pairs task prompts and tool-accessible lab
-operations with deterministic, multi-axis trajectory scoring.
+laboratory simulator with task-dependent stochasticity. It pairs task prompts
+and tool-accessible lab operations with deterministic, multi-axis trajectory
+scoring.
 
 This Hugging Face dataset export is generated from the GitHub repository:
 {repository}
@@ -476,7 +569,8 @@ https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard
 ## Release
 
 - Release name: `{release_name}`
-- Source commit: `{commit}`
+- Packaging commit: `{commit}`
+- Packaging worktree dirty: `false`
 - Schema version: `{SCHEMA_VERSION}`
 - Exported tasks: {task_count}
 - Exported citation records: {citation_count}
@@ -498,8 +592,9 @@ large, differently shaped records do not get collapsed into one mixed schema.
 - `rubrics.jsonl`: full checked-in rubric JSON by task.
 - `ground_truth.jsonl`: full checked-in ground-truth JSON by task.
 - `citations.jsonl`: extracted citation objects from task and parameter files.
-- `eval_log_manifest.jsonl`: checksums and sizes for included `.eval` logs.
-{result_line}{plot_line}
+- `eval_log_manifest.jsonl`: provenance, checksums, and bundled paths for
+  included `.eval` logs.
+{result_line}{eval_logs_line}{plot_line}
 ## Data Fields
 
 | File | Grain | Key fields |
@@ -508,18 +603,20 @@ large, differently shaped records do not get collapsed into one mixed schema.
 | `rubrics.jsonl` | one row per task with a rubric | `task_id`, `track`, `path`, `rubric` |
 | `ground_truth.jsonl` | one row per task with ground truth | `task_id`, `track`, `path`, `ground_truth` |
 | `citations.jsonl` | one row per citation object | `citation_id`, `source_file`, `json_path`, `task_id`, `citation` |
-| `eval_log_manifest.jsonl` | one row per included `.eval` log | `path`, `log_dir`, `filename`, `sha256`, `bytes` |
-| `result_rows.jsonl` | one row per deduplicated scored sample | `model`, `task`, `track`, `status`, `sample_id`, `eval_log_path`, `created`, `tokens`, `scores` |
+| `eval_log_manifest.jsonl` | one row per included `.eval` log | `path`, `sha256`, `requested_model`, `resolved_model`, `provider`, `evaluation_revision`, `effective_generation_config`, `inspect_version`, `sample_count` |
+| `result_rows.jsonl` | one row per deduplicated scored sample | `requested_model`, `resolved_model`, `provider`, `task`, `sample_id`, `evaluation_revision`, `effective_generation_config`, `inspect_version`, `tokens`, `scores` |
 
-All JSONL records include `schema_version` and `source_commit` unless the file
-is a copied binary plot. Use `release_manifest.json` to verify SHA-256 checksums,
-byte counts, record counts, and the source GitHub commit for the snapshot.
+All JSONL records include `schema_version` and the packaging `source_commit`
+unless the file is a copied binary plot. Result and log-manifest records also
+preserve the native Inspect `evaluation_revision` and generation configuration.
+Only clean packaging and evaluation revisions with provider-resolved model
+provenance can be exported under schema {SCHEMA_VERSION}.
 
 ## Provenance and Verification
 
 This export is manifest-backed. Before citing or comparing scores, verify:
 
-1. `release_manifest.json` points to the intended GitHub source commit.
+1. `release_manifest.json` points to the intended packaging commit.
 2. Each consumed file's SHA-256 and record count match the manifest.
 {result_verification_line.rstrip()}
 4. Task contracts can be audited through `tasks.jsonl`, `rubrics.jsonl`,
@@ -557,7 +654,7 @@ from huggingface_hub import snapshot_download
 
 snapshot_dir = Path(snapshot_download("jang1563/LabCraft-Eval", repo_type="dataset"))
 tasks = [json.loads(line) for line in (snapshot_dir / "tasks.jsonl").open()]
-results = [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]
+{quickstart_result_line}
 ```
 
 ## Out-of-Scope Use
@@ -573,10 +670,12 @@ deployment without additional domain-specific review.
 
 ## Known Limitations
 
-- Scores come from a synthetic stochastic simulator and deterministic scorers,
-  not from physical experiments.
+- Scores come from a seeded simulator with task-dependent stochastic operations
+  and deterministic scorers, not from physical experiments.
 - The frozen simulator snapshot is an April 2026 sample and should be compared
   only against the same release manifest.
+- Frozen historical rows predate removal of answer-bearing agent guidance and
+  are not leakage-free current-task results.
 - Some newer wet-lab, discovery, HPC, and safety-case bundles are reported as
   separate tracks to avoid mixing incompatible score semantics.
 - The export preserves source logs and rubric records for audit, but it does
@@ -605,27 +704,250 @@ https://github.com/jang1563/LabCraft-Eval/issues
 """
 
 
-def eval_log_manifest_records(commit: str, log_dirs: list[Path]) -> list[dict[str, Any]]:
+def _evaluation_revision(row: dict[str, Any], eval_path: Path) -> dict[str, Any]:
+    revision = row.get("eval_revision")
+    if not isinstance(revision, dict):
+        raise ValueError(
+            "Inspect eval log is missing native revision metadata: {}".format(eval_path)
+        )
+    required = {"type", "origin", "commit", "dirty"}
+    missing = required - set(revision)
+    if missing:
+        raise ValueError(
+            "Inspect eval log revision metadata is incomplete for {}: {}".format(
+                eval_path, ", ".join(sorted(missing))
+            )
+        )
+    if revision.get("commit") in (None, "", "unknown"):
+        raise ValueError("Inspect eval log revision commit is missing: {}".format(eval_path))
+    if revision.get("dirty") is not False:
+        raise ValueError(
+            "Refusing to export results from a dirty evaluation revision: {}".format(
+                eval_path
+            )
+        )
+    return {key: revision[key] for key in ("type", "origin", "commit", "dirty")}
+
+
+def _read_eval_rows(eval_path: Path) -> list[dict[str, Any]]:
+    rows = extract_scores(eval_path, strict=True)
+    if not rows:
+        raise ValueError("No scored samples found in Inspect eval log: {}".format(eval_path))
+    for row in rows:
+        if row.get("status") != "success":
+            raise ValueError(
+                "Refusing to export non-success Inspect eval log {}: {}".format(
+                    eval_path, row.get("status", "unknown")
+                )
+            )
+        if row.get("limit"):
+            raise ValueError(
+                "Refusing to export a limit-exhausted Inspect sample: {}".format(
+                    eval_path
+                )
+            )
+        _evaluation_revision(row, eval_path)
+        if not isinstance(row.get("model_generate_config"), dict) or not row[
+            "model_generate_config"
+        ]:
+            raise ValueError(
+                "Inspect eval log has no pinned model generation config: {}".format(
+                    eval_path
+                )
+            )
+        requested_model = row.get("requested_model") or row.get("model")
+        if not isinstance(requested_model, str) or not requested_model.strip():
+            raise ValueError(
+                "Inspect eval log has no requested model id: {}".format(eval_path)
+            )
+        if row.get("model") != requested_model:
+            raise ValueError(
+                "Inspect eval log model and requested_model disagree: {}".format(
+                    eval_path
+                )
+            )
+        row["requested_model"] = requested_model
+        resolved_candidates = row.get("resolved_model_candidates")
+        if isinstance(resolved_candidates, list) and len(set(resolved_candidates)) > 1:
+            raise ValueError(
+                "Inspect eval log sample mixes provider-resolved model snapshots "
+                "({}): {}".format(
+                    ", ".join(sorted(set(resolved_candidates))), eval_path
+                )
+            )
+        resolved_model = row.get("resolved_model")
+        if not isinstance(resolved_model, str) or not resolved_model.strip():
+            raise ValueError(
+                "Inspect eval log has no provider-resolved model id: {}".format(
+                    eval_path
+                )
+            )
+        provider = row.get("provider") or infer_provider(
+            requested_model, resolved_model
+        )
+        if not isinstance(provider, str) or not provider.strip():
+            raise ValueError(
+                "Inspect eval log has no model provider: {}".format(eval_path)
+            )
+        row["provider"] = provider
+        try:
+            model_spec = MODEL_REGISTRY.resolve(requested_model)
+        except RegistryError as exc:
+            raise ValueError(
+                "Inspect eval log requested model is not registered: {} ({})".format(
+                    requested_model, eval_path
+                )
+            ) from exc
+        if model_spec.provider != provider:
+            raise ValueError(
+                "Inspect eval log provider disagrees with model registry: "
+                "requested={} expected={} actual={} ({})".format(
+                    requested_model, model_spec.provider, provider, eval_path
+                )
+            )
+        if not model_ids_match(
+            model_spec.expected_resolved_model, resolved_model, provider
+        ):
+            raise ValueError(
+                "Inspect eval log resolved model disagrees with model registry: "
+                "requested={} expected={} actual={} ({})".format(
+                    requested_model,
+                    model_spec.expected_resolved_model,
+                    resolved_model,
+                    eval_path,
+                )
+            )
+        effective_config = row.get("effective_generation_config")
+        if effective_config is None:
+            effective_config = dict(row["model_generate_config"])
+            row["effective_generation_config"] = effective_config
+        if not isinstance(effective_config, dict) or not effective_config:
+            raise ValueError(
+                "Inspect eval log has no effective generation config: {}".format(
+                    eval_path
+                )
+            )
+        if effective_config != row["model_generate_config"]:
+            raise ValueError(
+                "Inspect eval log effective generation config disagrees with native "
+                "model_generate_config: {}".format(eval_path)
+            )
+        inspect_version = row.get("inspect_version")
+        if not isinstance(inspect_version, str) or not inspect_version.strip():
+            raise ValueError(
+                "Inspect eval log has no Inspect version metadata: {}".format(
+                    eval_path
+                )
+            )
+        overall = row.get("overall")
+        if (
+            isinstance(overall, bool)
+            or not isinstance(overall, (int, float))
+            or not math.isfinite(float(overall))
+            or not 0.0 <= float(overall) <= 1.0
+        ):
+            raise ValueError(
+                "Inspect eval log sample is missing a valid overall score: {}".format(
+                    eval_path
+                )
+            )
+    return rows
+
+
+def _eval_log_model_provenance(
+    rows: list[dict[str, Any]], eval_path: Path
+) -> dict[str, Any]:
+    """Return one internally consistent model-provenance record for a log."""
+    scalar_fields = ("requested_model", "resolved_model", "provider", "inspect_version")
+    provenance: dict[str, Any] = {}
+    for field in scalar_fields:
+        values = {str(row.get(field, "")) for row in rows}
+        if len(values) != 1 or not next(iter(values), ""):
+            raise ValueError(
+                "Inspect eval log has inconsistent {} values: {}".format(
+                    field, eval_path
+                )
+            )
+        provenance[field] = next(iter(values))
+
+    configs = {
+        json_dumps(row.get("effective_generation_config"))
+        for row in rows
+        if isinstance(row.get("effective_generation_config"), dict)
+    }
+    if len(configs) != 1:
+        raise ValueError(
+            "Inspect eval log has inconsistent effective generation configs: {}".format(
+                eval_path
+            )
+        )
+    provenance["effective_generation_config"] = json.loads(next(iter(configs)))
+    return provenance
+
+
+def exported_eval_log_destination(out_dir: Path, source: Path) -> Path:
+    digest_prefix = sha256_file(source)[:16]
+    return out_dir / "eval_logs" / "{}_{}".format(digest_prefix, source.name)
+
+
+def copy_eval_log_files(
+    out_dir: Path, log_dirs: list[Path]
+) -> list[dict[str, Any]]:
+    files = []
+    seen_destinations = set()
+    for log_dir in log_dirs:
+        for source in sorted(log_dir.glob("*.eval")):
+            destination = exported_eval_log_destination(out_dir, source)
+            if destination in seen_destinations:
+                continue
+            seen_destinations.add(destination)
+            files.append(copy_file(source, destination, out_dir))
+    return files
+
+
+def eval_log_manifest_records(
+    commit: str, log_dirs: list[Path], export_root: Path
+) -> list[dict[str, Any]]:
     records = []
+    seen_paths = set()
     for log_dir in log_dirs:
         if not log_dir.exists():
             continue
         for path in sorted(log_dir.glob("*.eval")):
+            rows = _read_eval_rows(path)
+            revision = _evaluation_revision(rows[0], path)
+            model_provenance = _eval_log_model_provenance(rows, path)
+            exported_path = export_path(
+                exported_eval_log_destination(export_root, path), export_root
+            )
+            if exported_path in seen_paths:
+                continue
+            seen_paths.add(exported_path)
             records.append(
                 {
                     "schema_version": SCHEMA_VERSION,
                     "source_commit": commit,
-                    "path": repo_path(path),
-                    "log_dir": repo_path(log_dir),
+                    "path": exported_path,
+                    "source_path": portable_source_path(path),
+                    "log_dir": portable_source_path(log_dir),
                     "filename": path.name,
                     "sha256": sha256_file(path),
                     "bytes": path.stat().st_size,
+                    "status": rows[0]["status"],
+                    "evaluation_revision": revision,
+                    "model_generate_config": rows[0]["model_generate_config"],
+                    **model_provenance,
+                    "sample_count": len(rows),
                 }
             )
     return records
 
 
-def result_records(commit: str, log_dirs: list[Path]) -> list[dict[str, Any]]:
+def result_records(
+    commit: str,
+    log_dirs: list[Path],
+    export_root: Path | None = None,
+) -> list[dict[str, Any]]:
     rows = []
     for log_dir in log_dirs:
         if not log_dir.exists():
@@ -640,17 +962,31 @@ def result_records(commit: str, log_dirs: list[Path]) -> list[dict[str, Any]]:
                 "exports.".format(log_dir)
             )
         for eval_path in eval_paths:
-            log_rows = extract_scores(eval_path, strict=True)
-            if not log_rows:
-                raise ValueError(
-                    "No scored samples found in Inspect eval log: {}".format(eval_path)
-                )
+            log_rows = _read_eval_rows(eval_path)
             rows.extend(log_rows)
     deduped = dedupe_rows(rows)
+    conflicts = model_resolution_conflicts(rows)
+    if conflicts:
+        details = "; ".join(
+            "{} -> {}".format(requested, ", ".join(resolved))
+            for requested, resolved in conflicts.items()
+        )
+        raise ValueError(
+            "Requested model alias resolved to multiple snapshots in one export: {}".format(
+                details
+            )
+        )
     if not deduped:
         raise ValueError("No scored result rows were exported.")
     records = []
     for row in deduped:
+        eval_path = Path(str(row.get("eval_log_path", "")))
+        revision = _evaluation_revision(row, eval_path)
+        exported_log_path = (
+            export_path(exported_eval_log_destination(export_root, eval_path), export_root)
+            if export_root is not None
+            else portable_source_path(eval_path)
+        )
         scores = {
             key: value
             for key, value in row.items()
@@ -660,13 +996,23 @@ def result_records(commit: str, log_dirs: list[Path]) -> list[dict[str, Any]]:
             {
                 "schema_version": SCHEMA_VERSION,
                 "source_commit": commit,
-                "model": row.get("model", "unknown"),
+                "evaluation_revision": revision,
+                "model_generate_config": row["model_generate_config"],
+                "effective_generation_config": row[
+                    "effective_generation_config"
+                ],
+                "inspect_version": row["inspect_version"],
+                "model": row["requested_model"],
+                "requested_model": row["requested_model"],
+                "resolved_model": row["resolved_model"],
+                "provider": row["provider"],
                 "task": row.get("task", "unknown"),
                 "track": classify_task(str(row.get("task", ""))),
                 "status": row.get("status", "unknown"),
                 "sample_id": str(row.get("sample_id", "")),
                 "eval_log": row.get("eval_log", ""),
-                "eval_log_path": repo_path(Path(str(row.get("eval_log_path", "")))),
+                "eval_log_path": exported_log_path,
+                "source_eval_log_path": portable_source_path(eval_path),
                 "created": row.get("created", ""),
                 "tokens": row.get("tokens", {}),
                 "scores": scores,
@@ -705,17 +1051,29 @@ def build_export(
     include_results: bool = True,
     copy_plots: bool = False,
     plot_paths: list[Path] | None = None,
+    clean_output: bool = False,
 ) -> dict[str, Any]:
+    require_clean_packaging_worktree()
+    if include_results and copy_plots and plot_paths is None:
+        raise ValueError(
+            "Score-bearing exports require explicit --plot files generated from the "
+            "same evaluation bundle; frozen default plots are not assumed compatible."
+        )
     commit = source_commit()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    prepare_output_directory(out_dir, clean=clean_output)
 
     repository = source_repository()
     task_rows = task_records(commit)
     rubric_rows = rubric_records(commit)
     ground_truth_rows = ground_truth_records(commit)
     citation_rows = citation_records(commit)
-    eval_log_rows = eval_log_manifest_records(commit, log_dirs)
-    result_rows = result_records(commit, log_dirs) if include_results else []
+    eval_log_rows = (
+        eval_log_manifest_records(commit, log_dirs, out_dir) if include_results else []
+    )
+    result_rows = (
+        result_records(commit, log_dirs, export_root=out_dir) if include_results else []
+    )
+    eval_log_files = copy_eval_log_files(out_dir, log_dirs) if include_results else []
     resolved_plot_paths = plot_paths if plot_paths is not None else DEFAULT_PLOT_PATHS
     plot_files = copy_plot_files(out_dir, resolved_plot_paths) if copy_plots else []
 
@@ -751,6 +1109,7 @@ def build_export(
 
     if include_results:
         files.append(write_jsonl(out_dir / "result_rows.jsonl", result_rows, out_dir))
+    files.extend(eval_log_files)
     files.extend(plot_files)
 
     manifest = {
@@ -758,9 +1117,25 @@ def build_export(
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "source_commit": commit,
         "source_repository": repository,
+        "packaging_worktree_dirty": False,
         "exporter": repo_path(Path(__file__)),
         "release_name": release_name,
-        "result_sources": [repo_path(log_dir) for log_dir in log_dirs],
+        "result_sources": (
+            [portable_source_path(log_dir) for log_dir in log_dirs]
+            if include_results
+            else []
+        ),
+        "evaluation_provenance": {
+            "policy": "clean-evaluation-revisions-required",
+            "log_count": len(eval_log_rows),
+            "dirty_log_count": 0,
+            "revision_commits": sorted(
+                {
+                    row["evaluation_revision"]["commit"]
+                    for row in eval_log_rows
+                }
+            ),
+        },
         "files": files,
     }
     write_json(out_dir / "release_manifest.json", manifest, out_dir)
@@ -770,6 +1145,11 @@ def build_export(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
+    parser.add_argument(
+        "--clean-output",
+        action="store_true",
+        help="Replace a non-empty export directory after safety checks.",
+    )
     parser.add_argument("--release-name", default="local_export")
     parser.add_argument(
         "--log-dir",
@@ -801,14 +1181,19 @@ def main() -> int:
         else DEFAULT_LOG_DIRS
     )
     plot_paths = [resolve_repo_path(path) for path in args.plot] if args.plot else None
-    manifest = build_export(
-        out_dir=resolve_repo_path(args.out_dir),
-        release_name=args.release_name,
-        log_dirs=log_dirs,
-        include_results=not args.no_results,
-        copy_plots=args.copy_plots or bool(args.plot),
-        plot_paths=plot_paths,
-    )
+    try:
+        manifest = build_export(
+            out_dir=resolve_repo_path(args.out_dir),
+            release_name=args.release_name,
+            log_dirs=log_dirs,
+            include_results=not args.no_results,
+            copy_plots=args.copy_plots or bool(args.plot),
+            plot_paths=plot_paths,
+            clean_output=args.clean_output,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        print("HF export refused: {}".format(exc), file=sys.stderr)
+        return 1
     print(
         "Wrote LabCraft-Eval HF export to {} with {} files.".format(
             resolve_repo_path(args.out_dir),

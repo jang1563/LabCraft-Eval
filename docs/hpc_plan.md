@@ -109,7 +109,7 @@ into the main leaderboard; report them as a prompt-sensitivity analysis.
 
 ### Phase 4: Human Baseline Pilot
 
-Goal: add a reviewer-facing anchor point without pretending to have a large
+Goal: add an external reference point without pretending to have a large
 human study.
 
 Minimum viable design:
@@ -139,8 +139,8 @@ benchmarks on breadth. The defensible v0.2 claim is narrower:
 
 > LabCraft-Eval is a compact, reproducible, interactive benchmark for benign
 > wet-lab protocol execution and discovery-decision reliability. Its distinctive
-> contribution is seeded stochastic simulation plus deterministic multi-axis
-> trajectory scoring.
+> contribution is a seeded simulator with task-dependent stochasticity plus
+> deterministic multi-axis trajectory scoring.
 
 This keeps the project complementary to LABBench2, BixBench, BioAgent Bench,
 BioMysteryBench, CompBioBench, GeneBench, and PromptBio-Bench rather than

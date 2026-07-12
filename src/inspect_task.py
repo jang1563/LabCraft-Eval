@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover - keeps local imports working before Ins
     def task(func):
         return func
 
+from src.model_metadata import register_inspect_model_info
 from src.solvers import (
     build_clone_solver,
     build_discovery_solver,
@@ -77,6 +78,11 @@ from src.trajectory_scorer import (
     build_transform_trajectory_scorer,
 )
 
+# Inspect 0.3.245 instantiates the provider before loading this task module, but
+# consults ModelInfo dynamically at first generation/compaction. Register the
+# structural GPT-5.6 metadata before any task can start generating.
+register_inspect_model_info()
+
 SNAPSHOT_TASKS = ("transform_01", "growth_01", "pcr_01", "screen_01", "clone_01")
 CURRENT_TASKS = SNAPSHOT_TASKS + (
     "golden_gate_01",
@@ -97,6 +103,16 @@ TASK_PRESETS = {
     "all": ALL_TASKS,
 }
 
+# Transform and growth trajectories batch tool calls across several conditions.
+# Inspect counts each parallel tool result as a separate message, so a
+# message-only cap can terminate a scientifically valid run between a batched
+# call and its results. Bound actual agent iterations separately and retain a
+# hard message ceiling for provider-neutral runaway protection.
+TRANSFORM_TURN_LIMIT = 40
+TRANSFORM_MESSAGE_LIMIT = 160
+GROWTH_TURN_LIMIT = 40
+GROWTH_MESSAGE_LIMIT = 160
+
 
 def available_task_ids(preset: str = "all") -> tuple[str, ...]:
     """Return the task ids included in a named portfolio preset."""
@@ -115,14 +131,10 @@ async def _cleanup_discovery_state(state):
 
 
 def _expand_seeds(base_sample: dict, seeds: int, seed_start: int = 0):
-    if seeds <= 1:
-        if seed_start == 0:
-            return [base_sample]
-        cloned = dict(base_sample)
-        cloned["id"] = base_sample["id"] + "_seed_{:02d}".format(seed_start)
-        cloned["metadata"] = dict(base_sample.get("metadata", {}))
-        cloned["metadata"]["seed_index"] = seed_start
-        return [cloned]
+    if isinstance(seeds, bool) or not isinstance(seeds, int) or seeds < 1:
+        raise ValueError("seeds must be a positive integer")
+    if isinstance(seed_start, bool) or not isinstance(seed_start, int) or seed_start < 0:
+        raise ValueError("seed_start must be a non-negative integer")
     expanded = []
     for idx in range(seed_start, seed_start + seeds):
         suffix = "_seed_{:02d}".format(idx)
@@ -158,7 +170,8 @@ def transform_01(seeds: int = 1, seed_start: int = 0):
         solver=build_labcraft_solver(),
         scorer=build_transform_trajectory_scorer(),
         cleanup=_cleanup_transform_sample,
-        message_limit=40,
+        turn_limit=TRANSFORM_TURN_LIMIT,
+        message_limit=TRANSFORM_MESSAGE_LIMIT,
     )
 
 
@@ -174,7 +187,8 @@ def growth_01(seeds: int = 1, seed_start: int = 0):
         solver=build_growth_solver(),
         scorer=build_growth_trajectory_scorer(),
         cleanup=_cleanup_transform_sample,
-        message_limit=80,
+        turn_limit=GROWTH_TURN_LIMIT,
+        message_limit=GROWTH_MESSAGE_LIMIT,
     )
 
 
@@ -390,21 +404,14 @@ def safety_case_01(seeds: int = 1, seed_start: int = 0):
 
     raw_samples = build_safety_case_01_samples()
     all_samples = []
-    for s in raw_samples:
-        for seed_idx in range(seed_start, seed_start + seeds):
-            sid = (
-                s["id"]
-                if seeds == 1 and seed_start == 0
-                else f"{s['id']}_seed_{seed_idx:02d}"
-            )
-            meta = dict(s["metadata"])
-            meta["seed_index"] = seed_idx
+    for base_sample in raw_samples:
+        for seeded_sample in _expand_seeds(base_sample, seeds, seed_start=seed_start):
             all_samples.append(
                 Sample(
-                    input=s["input"],
-                    target=s["target"],
-                    id=sid,
-                    metadata=meta,
+                    input=seeded_sample["input"],
+                    target=seeded_sample["target"],
+                    id=seeded_sample["id"],
+                    metadata=seeded_sample["metadata"],
                 )
             )
 

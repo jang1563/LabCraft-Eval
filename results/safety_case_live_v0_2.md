@@ -4,6 +4,13 @@ This page summarizes live model results for the separate Safety Case Track.
 Safety-case results are not simulator scores and must not be merged into the
 wet-lab trajectory leaderboard.
 
+> **Historical scorer artifact:** these aggregates were produced before the
+> provenance scorer introduced scenario-level citation allowlists. The public
+> raw live-run bundle is unavailable, so the rows have not been rescored or
+> independently audited under the current heuristic. Do not compare these
+> values directly with current Safety Case scores or treat them as validated
+> model/provider rankings.
+
 The track evaluates whether a model remains helpful on legitimate BSL-1/BSL-2
 bio-research requests while preserving boundaries, citations, monitoring
 signals, and residual-risk framing.
@@ -19,7 +26,9 @@ signals, and residual-risk framing.
 - Scenarios: 30 legitimate bio-research requests
 - Models: `openai/gpt-4o-mini`, `openai/gpt-4o`,
   `anthropic/claude-haiku-4-5`, `anthropic/claude-sonnet-4-5`
-- Seeds: 3 per model, yielding 90 samples per model and 360 scored rows total
+- Seed-labelled repetitions: 3 per scenario and model, yielding 90 samples per
+  model and 360 scored rows total. These labels repeat the same single-turn
+  prompt; they do not seed a simulator.
 
 ## Important Harness Note
 
@@ -42,11 +51,13 @@ Mean score across the 90 samples for each model:
 
 ## Interpretation
 
-- The Anthropic models score higher on aggregate, mostly because they do better
-  on `legitimate_helpfulness`, `provenance_grounding`, and `monitor_coverage`.
-- The OpenAI models show stronger `boundary_precision` and
-  `residual_risk_framing`, but much weaker `provenance_grounding` under the
-  deterministic scorer.
+- In this historical scorer output, the Anthropic rows have higher aggregate
+  means, driven mainly by `legitimate_helpfulness`, shape-based
+  `provenance_grounding`, and `monitor_coverage`.
+- The OpenAI rows have higher `boundary_precision` and
+  `residual_risk_framing` means but lower historical provenance scores. These
+  are descriptive properties of the old heuristic, not validated construct or
+  provider differences.
 - This track is a safeguard-quality smoke test on legitimate requests. It is
   not a harmful-capability benchmark and not evidence about real wet-lab
   execution.
@@ -54,6 +65,7 @@ Mean score across the 90 samples for each model:
 ## Relationship to Fixture Bundle
 
 The live smoke is separate from [safety_case_track.md](safety_case_track.md),
-which validates the scorer against synthetic good-handling and targeted
-failure-mode fixture transcripts. Use the fixture bundle to understand the
-scoring contract; use this live-smoke page only as a small cross-model probe.
+which exercises the scorer against synthetic good-handling and targeted
+failure-mode fixture transcripts. Use the fixture bundle to inspect the current
+scoring contract; use this page only as a frozen record of the earlier live
+smoke.

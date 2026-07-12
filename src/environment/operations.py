@@ -168,6 +168,18 @@ def _normalize_choice(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().lower()
 
 
+def _canonical_pcr_polymerase_name(value: str) -> str:
+    """Map common PCR polymerase labels to the names used by task parameters."""
+    normalized = _normalize_choice(value)
+    if re.search(r"\bq5\b", normalized):
+        return "Q5 High-Fidelity DNA polymerase"
+    if "phusion" in normalized:
+        return "Phusion High-Fidelity DNA polymerase"
+    if re.search(r"\btaq\b", normalized):
+        return "Taq DNA polymerase"
+    return str(value).strip()
+
+
 def _resolve_pcr_reaction_id(state: LabState, reaction_id: str) -> str:
     """Resolve exact or shorthand PCR reaction identifiers to a canonical id."""
     requested = str(reaction_id).strip()
@@ -480,7 +492,6 @@ def inoculate_growth(
         "growth_id": growth_id,
         "condition": condition,
         "starting_od600": starting_od,
-        "doubling_time_minutes": float(doubling_time_map[condition]),
     }
     state.log_event("inoculate_growth", payload)
     return payload
@@ -649,7 +660,8 @@ def run_pcr(
     extension_min, extension_max = bundle.range("gc_rich_extension_seconds_for_2kb_amplicon")
     cycles_min, cycles_max = bundle.range("genomic_pcr_cycle_count_range")
 
-    normalized_polymerase = _normalize_choice(polymerase_name)
+    canonical_polymerase = _canonical_pcr_polymerase_name(polymerase_name)
+    normalized_polymerase = _normalize_choice(canonical_polymerase)
     normalized_additive = _normalize_choice(additive)
     status = "clean_target_band"
     visible_bands_bp = [target_size_bp]
@@ -660,7 +672,10 @@ def run_pcr(
         status = "nonspecific_amplification"
         visible_bands_bp = [850, target_size_bp]
         smear_present = True
-        notes.append("A non-proofreading polymerase was used for a GC-rich genomic amplicon.")
+        notes.append(
+            "The selected polymerase was not one of the supported high-fidelity "
+            "choices for this GC-rich assay."
+        )
     elif normalized_additive not in helpful_additives:
         status = "gc_rich_failure"
         visible_bands_bp = []
@@ -702,15 +717,7 @@ def run_pcr(
         "status": status,
         "reaction_id": reaction_id,
         "polymerase_name": polymerase_name,
-        "normalized_polymerase_name": (
-            "Q5 High-Fidelity DNA polymerase"
-            if "q5" in normalized_polymerase
-            else "Phusion High-Fidelity DNA polymerase"
-            if "phusion" in normalized_polymerase
-            else "Taq DNA polymerase"
-            if "taq" in normalized_polymerase
-            else polymerase_name
-        ),
+        "normalized_polymerase_name": canonical_polymerase,
         "additive": additive,
         "normalized_additive": (
             "DMSO"

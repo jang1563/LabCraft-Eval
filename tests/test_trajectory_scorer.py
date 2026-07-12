@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from src.trajectory_scorer import (
     score_clone_task_success,
     score_clone_trajectory,
@@ -225,6 +227,79 @@ def test_task_success_accepts_uncommaed_mass_labels():
     assert score_task_success(_good_answer(with_commas=False), _good_transcript()) == 1.0
 
 
+def test_task_success_accepts_ordered_respectively_report():
+    answer = (
+        "This gives 1.0e9, 1.0e9, 1.0e9, and 1.0e9 CFU/ug for "
+        "10, 100, 1,000, and 10,000 pg, respectively. "
+        "The runs were internally consistent."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
+def test_task_success_accepts_internal_consistency_noun():
+    answer = _good_answer().replace(
+        "The runs were internally consistent.", "The values show good internal consistency."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
+def test_task_success_accepts_unicode_superscript_scientific_notation():
+    answer = (
+        "10 pg: 1.0 × 10⁹ CFU/ug; 100 pg: 1.0 × 10⁹ CFU/ug; "
+        "1,000 pg: 1.0 × 10⁹ CFU/ug; 10,000 pg: 1.0 × 10⁹ CFU/ug. "
+        "The runs show good internal consistency."
+    )
+
+    assert score_task_success(answer, _good_transcript()) == 1.0
+
+
+def test_transform_decisions_use_only_cultures_with_usable_counts():
+    abandoned = []
+    for index, mass in enumerate(TARGET_MASSES, start=10):
+        abandoned.append(
+            {
+                "type": "tool_call",
+                "tool_name": "transform",
+                "arguments": {
+                    "culture_id": "culture_{:03d}".format(index),
+                    "plasmid_mass_pg": mass,
+                    "heat_shock_seconds": 45,
+                    "recovery_minutes": 60,
+                    "outgrowth_media": "LB",
+                },
+            }
+        )
+
+    scores = score_transform_trajectory(
+        final_answer=_good_answer(),
+        transcript=abandoned + _good_transcript(),
+        ground_truth_path=str(TRANSFORM_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["heat_shock_duration_seconds"] == 1.0
+    assert scores["decision_scores"]["soc_outgrowth"] == 1.0
+
+
+def test_transform_efficiency_allows_one_full_dilution_retry_with_lookups():
+    lookup_calls = [
+        {
+            "type": "tool_call",
+            "tool_name": "lookup_reagent",
+            "arguments": {"reagent_name": "reference_{:02d}".format(index)},
+        }
+        for index in range(11)
+    ]
+    scores = score_transform_trajectory(
+        final_answer=_good_answer(),
+        transcript=_good_transcript() + lookup_calls,
+        ground_truth_path=str(TRANSFORM_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["efficiency"] == 0.5
+
+
 def test_uncountable_counts_zero_out_task_success_and_countability_decision():
     transcript = _good_transcript()
     transcript[-1]["arguments"]["observed_colonies"] = 1200
@@ -393,12 +468,89 @@ def test_good_growth_trajectory_scores_high():
     assert scores["overall"] > 0.9
 
 
+def test_growth_decision_quality_accepts_defensible_non_exact_parameters():
+    transcript = _good_growth_transcript()
+    for call in transcript:
+        if call["tool_name"] == "inoculate_growth":
+            call["arguments"]["starting_od600"] = 0.01
+        elif call["tool_name"] == "incubate":
+            call["arguments"]["duration_minutes"] = 20
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 1.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 1.0
+
+
+@pytest.mark.parametrize("starting_od600", [0.009, 0.11])
+def test_growth_decision_quality_rejects_out_of_range_parameters(starting_od600):
+    transcript = _good_growth_transcript()
+    for call in transcript:
+        if call["tool_name"] == "inoculate_growth":
+            call["arguments"]["starting_od600"] = starting_od600
+        elif call["tool_name"] == "incubate":
+            call["arguments"]["duration_minutes"] = 30
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 0.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 0.0
+
+
+def test_growth_decision_quality_requires_consistent_parameters():
+    transcript = _good_growth_transcript()
+    inoculations = [
+        call for call in transcript if call["tool_name"] == "inoculate_growth"
+    ]
+    incubations = [call for call in transcript if call["tool_name"] == "incubate"]
+    inoculations[-1]["arguments"]["starting_od600"] = 0.08
+    incubations[-1]["arguments"]["duration_minutes"] = 20
+
+    scores = score_growth_trajectory(
+        final_answer=_good_growth_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GROWTH_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["growth_starting_od600"] == 0.0
+    assert scores["decision_scores"]["growth_measurement_interval"] == 0.0
+
+
 def test_growth_task_success_requires_matching_doubling_times():
     answer = (
         "LB: about 20 minutes; M9 + glucose: about 30 minutes; "
         "LB + chloramphenicol (1.8 uM): about 40 minutes."
     )
     assert score_growth_task_success(answer, _good_growth_transcript()) == 0.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        (
+            "LB — 20.0 min; "
+            "LB + chloramphenicol (1.8 uM) — 40.0 min; "
+            "M9 + glucose — 57.0 min."
+        ),
+        (
+            "| Condition | Doubling time |\n"
+            "|---|---|\n"
+            "| **LB** | 20.0 minutes |\n"
+            "| **LB + chloramphenicol (1.8 uM)** | 40.0 minutes |\n"
+            "| **M9 + glucose** | 57.0 minutes |"
+        ),
+    ],
+)
+def test_growth_task_success_accepts_common_report_separators(answer):
+    assert score_growth_task_success(answer, _good_growth_transcript()) == 1.0
 
 
 def test_growth_fit_failure_reduces_decision_quality_and_task_success():
@@ -675,6 +827,49 @@ def test_pcr_task_success_requires_matching_reported_condition():
     assert score_pcr_task_success(answer, _good_pcr_transcript()) == 0.0
 
 
+def test_pcr_decision_quality_uses_successful_condition_not_failed_attempt_mix():
+    failed = _good_pcr_transcript()[0]
+    failed["arguments"].update(
+        {
+            "reaction_id": "pcr_001",
+            "status": "gc_rich_failure",
+            "visible_bands_bp": [],
+        }
+    )
+    successful, gel = _good_pcr_transcript()
+    successful["arguments"].update(
+        {
+            "reaction_id": "pcr_002",
+            "extension_seconds": 75,
+        }
+    )
+    gel["arguments"].update(
+        {
+            "reaction_id": "pcr_002",
+            "extension_seconds": 75,
+        }
+    )
+    answer = (
+        "Polymerase: Q5 High-Fidelity DNA polymerase\n"
+        "Additive: DMSO\n"
+        "Extension: 75 seconds\n"
+        "Cycles: 32\n"
+        "Result: single clean 2 kb band"
+    )
+
+    scores = score_pcr_trajectory(
+        final_answer=answer,
+        transcript=[failed, successful, gel],
+        ground_truth_path=str(PCR_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_scores"]["gc_rich_polymerase_choice"] == 1.0
+    assert scores["decision_scores"]["gc_rich_additive_choice"] == 1.0
+    assert scores["decision_scores"]["gc_rich_extension_time"] == 0.0
+    assert scores["decision_scores"]["genomic_pcr_cycle_count"] == 1.0
+
+
 def test_failed_pcr_requires_troubleshooting_for_credit():
     transcript = [
         {
@@ -795,6 +990,17 @@ def test_screen_task_success_requires_matching_screened_count():
         "Interpretation: Two recombinant colonies confirmed."
     )
     assert score_screen_task_success(mismatch, _good_screen_transcript()) == 0.0
+
+
+def test_screen_task_success_accepts_screened_colony_id_list():
+    answer = (
+        "White colonies screened: white_001, white_002, white_003, "
+        "white_004, white_005, white_006\n"
+        "Confirmed recombinant colonies: white_002, white_005\n"
+        "Confidence achieved: 95.3%\n"
+        "Interpretation: Two recombinant colonies confirmed."
+    )
+    assert score_screen_task_success(answer, _good_screen_transcript()) == 1.0
 
 
 def test_screen_task_success_requires_interpretation_keyword():
@@ -965,6 +1171,7 @@ def _good_clone_transcript():
         "arguments": {
             "culture_id": "culture_001",
             "plate_id": "plate_001",
+            "plating_id": "plating_001",
             "dilution_factor": 1.0,
             "volume_ul": 100,
         },
@@ -1064,6 +1271,66 @@ def test_clone_wrong_buffer_fails_decision_quality():
     assert scores["troubleshooting"] < 1.0
 
 
+def test_clone_successful_retry_controls_decisions_and_troubleshooting():
+    transcript = _good_clone_transcript()
+    failed_vector = {
+        "type": "tool_call",
+        "tool_name": "restriction_digest",
+        "arguments": {
+            **transcript[0]["arguments"],
+            "digest_id": "digest_failed",
+            "buffer_normalized": "neb1.1",
+            "duration_minutes": 30,
+            "status": "incomplete_digest",
+        },
+    }
+    transcript.insert(0, failed_vector)
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["digest_sufficient_duration"] == 1.0
+    assert scores["decision_scores"]["digest_uses_compatible_buffer"] == 1.0
+    assert scores["troubleshooting"] == 1.0
+
+
+def test_clone_filters_casefold_equivalent_reagent_names():
+    transcript = _good_clone_transcript()
+    transcript[3]["arguments"]["antibiotic"] = "Ampicillin"
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["ampicillin_selection_100"] == 1.0
+
+
+def test_clone_ignores_incomplete_ligate_call_for_successful_ligation_decisions():
+    transcript = _good_clone_transcript()
+    incomplete_call = {
+        "type": "tool_call",
+        "tool_name": "ligate",
+        "arguments": {
+            "vector_to_insert_molar_ratio": 3.0,
+            "temperature_c": 16.0,
+        },
+    }
+    transcript.insert(2, incomplete_call)
+
+    scores = score_clone_trajectory(
+        final_answer=_good_clone_answer(),
+        transcript=transcript,
+        ground_truth_path=str(CLONE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["uses_t4_dna_ligase"] == 1.0
+
+
 def test_clone_wrong_ligase_fails_decision_quality():
     transcript = _good_clone_transcript()
     transcript[2]["arguments"]["ligase_normalized"] = "e. coli dna ligase"
@@ -1076,6 +1343,55 @@ def test_clone_wrong_ligase_fails_decision_quality():
     )
     assert scores["decision_scores"]["uses_t4_dna_ligase"] == 0.0
     assert score_clone_task_success(answer, transcript) == 0.0
+
+
+def test_clone_task_success_requires_successful_reactions_and_matching_transformants():
+    failed_digest = _good_clone_transcript()
+    failed_digest[0]["arguments"]["status"] = "wrong_buffer"
+    assert score_clone_task_success(_good_clone_answer(), failed_digest) == 0.0
+
+    fabricated_count = _good_clone_transcript()
+    fabricated_answer = _good_clone_answer().replace(
+        "Transformants observed: 200", "Transformants observed: 201"
+    )
+    assert score_clone_task_success(fabricated_answer, fabricated_count) == 0.0
+
+
+def test_clone_task_success_accepts_same_dilution_plate_sum_only():
+    same_dilution = _good_clone_transcript()
+    same_dilution.insert(
+        6,
+        {
+            "type": "tool_call",
+            "tool_name": "plate",
+            "arguments": {
+                "culture_id": "culture_001",
+                "plate_id": "plate_002",
+                "plating_id": "plating_002",
+                "dilution_factor": 1.0,
+                "volume_ul": 100,
+            },
+        },
+    )
+    same_dilution.insert(
+        8,
+        {
+            "type": "tool_call",
+            "tool_name": "count_colonies",
+            "arguments": {
+                "plating_id": "plating_002",
+                "observed_colonies": 47,
+                "status": "plated",
+            },
+        },
+    )
+    summed_answer = _good_clone_answer().replace(
+        "Transformants observed: 200", "Transformants observed: 247"
+    )
+    assert score_clone_task_success(summed_answer, same_dilution) == 1.0
+
+    same_dilution[6]["arguments"]["dilution_factor"] = 10.0
+    assert score_clone_task_success(summed_answer, same_dilution) == 0.0
 
 
 def test_clone_extreme_ratio_without_diagnosis_fails_troubleshooting():
@@ -1387,7 +1703,14 @@ def _good_miniprep_answer() -> str:
         "Plasmid concentration: 200.0 ng/uL\n"
         "A260/A280: 1.90\n"
         "Total yield: 10.0 ug\n"
-        "Interpretation: Plasmid is pure and ready for downstream use."
+        "Interpretation: success"
+    )
+
+
+def _replace_report_line(answer: str, prefix: str, replacement: str) -> str:
+    return "\n".join(
+        replacement if line.startswith(prefix) else line
+        for line in answer.splitlines()
     )
 
 
@@ -1400,6 +1723,86 @@ def test_good_miniprep_trajectory_scores_high():
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_miniprep_missing_range_argument_scores_zero_instead_of_raising():
+    malformed_call = {
+        "type": "tool_call",
+        "tool_name": "perform_miniprep",
+        "arguments": {
+            "culture_volume_ml": 5.0,
+            "lysis_buffer_sequence": "P1,P2,P3",
+            "lysis_duration_min": 3,
+            "purification_method": "silica column",
+            "elution_volume": 50.0,
+        },
+    }
+
+    scores = score_miniprep_trajectory(
+        final_answer=_good_miniprep_answer(),
+        transcript=[malformed_call, *_good_miniprep_transcript()],
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["elution_volume_min_30"] == 0.0
+    assert scores["decision_quality"] < 1.0
+    assert scores["task_success"] == 0.0
+    for metric in ("overall", "decision_quality", "task_success", "troubleshooting", "efficiency"):
+        assert 0.0 <= scores[metric] <= 1.0
+
+
+def test_miniprep_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Culture volume:": "Culture volume: 999 mL",
+        "Lysis buffer sequence:": "Lysis buffer sequence: P3,P2,P1",
+        "Lysis duration:": "Lysis duration: 999 min",
+        "Purification method:": "Purification method: boiling",
+        "Elution volume:": "Elution volume: 1 uL",
+        "Plasmid concentration:": "Plasmid concentration: 999 ng/uL",
+        "A260/A280:": "A260/A280: 9.99",
+        "Total yield:": "Total yield: 999 ug",
+        "Interpretation:": "Interpretation: No plasmid was prepared.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_miniprep_trajectory(
+            final_answer=_replace_report_line(_good_miniprep_answer(), prefix, replacement),
+            transcript=_good_miniprep_transcript(),
+            ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_miniprep_accepts_equivalent_punctuation_and_spacing():
+    answer = _replace_report_line(
+        _good_miniprep_answer(),
+        "Lysis buffer sequence:",
+        "Lysis buffer sequence: P1 -> P2 -> P3",
+    )
+    answer = _replace_report_line(
+        answer,
+        "Purification method:",
+        "Purification method: silica-column",
+    )
+    scores = score_miniprep_trajectory(
+        final_answer=answer,
+        transcript=_good_miniprep_transcript(),
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_miniprep_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_miniprep_answer(),
+        "Interpretation:",
+        "Interpretation: success; the plasmid is not pure and the preparation did not succeed.",
+    )
+    scores = score_miniprep_trajectory(
+        final_answer=answer,
+        transcript=_good_miniprep_transcript(),
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
 
 
 def test_miniprep_wrong_buffer_triggers_troubleshooting():
@@ -1450,7 +1853,7 @@ def _good_express_answer() -> str:
         "Induction duration: 16 h\n"
         "Lysis buffer pH: 8.0\n"
         "Expected soluble yield: 36.8 mg/L\n"
-        "Interpretation: Expression succeeded at low-temperature overnight induction with high solubility."
+        "Interpretation: success"
     )
 
 
@@ -1463,6 +1866,54 @@ def test_good_express_trajectory_scores_high():
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_express_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Host strain:": "Host strain: DH5alpha",
+        "IPTG concentration:": "IPTG concentration: 99 mM",
+        "Induction OD600:": "Induction OD600: 9.9",
+        "Induction temperature:": "Induction temperature: 99 C",
+        "Induction duration:": "Induction duration: 99 h",
+        "Lysis buffer pH:": "Lysis buffer pH: 1.0",
+        "Expected soluble yield:": "Expected soluble yield: 999 mg/L",
+        "Interpretation:": "Interpretation: Expression failed.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_express_trajectory(
+            final_answer=_replace_report_line(_good_express_answer(), prefix, replacement),
+            transcript=_good_express_transcript(),
+            ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_express_accepts_equivalent_host_punctuation_and_spacing():
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "Host strain:",
+        "Host strain: BL21 (DE3)",
+    )
+    scores = score_express_trajectory(
+        final_answer=answer,
+        transcript=_good_express_transcript(),
+        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_express_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "Interpretation:",
+        "Interpretation: success; protein expression did not work.",
+    )
+    scores = score_express_trajectory(
+        final_answer=answer,
+        transcript=_good_express_transcript(),
+        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
 
 
 def test_express_wrong_host_triggers_troubleshooting():
@@ -1514,7 +1965,7 @@ def _good_purify_answer() -> str:
         "Purified concentration: 6.12 mg/mL\n"
         "SDS-PAGE result: single_clean_band_at_72_kDa\n"
         "Purity: 95.0%\n"
-        "Interpretation: Pure recombinant MBP-GFP fusion recovered at high purity."
+        "Interpretation: success"
     )
 
 
@@ -1529,6 +1980,60 @@ def test_good_purify_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
+def test_purify_rejects_each_inconsistent_or_nonsensical_report_field():
+    replacements = {
+        "Resin:": "Resin: glutathione agarose",
+        "Load imidazole:": "Load imidazole: 999 mM",
+        "Wash imidazole:": "Wash imidazole: 999 mM",
+        "Elute imidazole:": "Elute imidazole: 999 mM",
+        "Expected band size:": "Expected band size: 999 kDa",
+        "Purified concentration:": "Purified concentration: 999 mg/mL",
+        "SDS-PAGE result:": "SDS-PAGE result: no_target_band_detected",
+        "Purity:": "Purity: 1.0%",
+        "Interpretation:": "Interpretation: Purification failed; no target band was detected.",
+    }
+    for prefix, replacement in replacements.items():
+        scores = score_purify_trajectory(
+            final_answer=_replace_report_line(_good_purify_answer(), prefix, replacement),
+            transcript=_good_purify_transcript(),
+            ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+        )
+        assert scores["task_success"] == 0.0, prefix
+
+
+def test_purify_accepts_equivalent_resin_and_sds_page_punctuation():
+    answer = _replace_report_line(
+        _good_purify_answer(),
+        "Resin:",
+        "Resin: Ni NTA",
+    )
+    answer = _replace_report_line(
+        answer,
+        "SDS-PAGE result:",
+        "SDS-PAGE result: single clean band at 72 kDa",
+    )
+    scores = score_purify_trajectory(
+        final_answer=answer,
+        transcript=_good_purify_transcript(),
+        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+
+
+def test_purify_rejects_success_label_with_contradictory_interpretation():
+    answer = _replace_report_line(
+        _good_purify_answer(),
+        "Interpretation:",
+        "Interpretation: success; the protein is impure and purification did not work.",
+    )
+    scores = score_purify_trajectory(
+        final_answer=answer,
+        transcript=_good_purify_transcript(),
+        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 0.0
+
+
 def test_purify_wrong_resin_triggers_troubleshooting():
     transcript = _good_purify_transcript()
     transcript[0]["arguments"]["resin_normalized"] = "glutathione agarose"
@@ -1538,7 +2043,8 @@ def test_purify_wrong_resin_triggers_troubleshooting():
         transcript=transcript,
         ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
     )
-    assert scores["decision_scores"]["uses_ni_nta_resin"] == 0.0
+    assert "uses_ni_nta_resin" not in scores["decision_scores"]
+    assert scores["task_success"] == 0.0
     assert scores["troubleshooting"] < 1.0
 
 

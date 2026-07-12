@@ -23,9 +23,16 @@ class UploadFile:
     bytes: int
 
 
+PRESERVED_REMOTE_PATHS = {".gitattributes"}
+
+
 def build_upload_plan(export_dir: Path) -> list[UploadFile]:
     """Return manifest-backed files to upload, including release_manifest.json."""
-    manifest_path = export_dir / "release_manifest.json"
+    try:
+        export_dir = export_dir.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("export directory cannot be resolved safely") from exc
+    manifest_path = resolve_bundle_path(export_dir, "release_manifest.json")
     manifest = load_json(manifest_path)
 
     plan = [
@@ -62,12 +69,23 @@ def format_bytes(num_bytes: int) -> str:
     return "{} B".format(num_bytes)
 
 
+def stale_remote_paths(remote_paths: list[str], plan: list[UploadFile]) -> list[str]:
+    """Return remote files that are not part of the exact manifest-backed snapshot."""
+    planned = {item.path_in_repo for item in plan}
+    return sorted(
+        path
+        for path in remote_paths
+        if path not in planned and path not in PRESERVED_REMOTE_PATHS
+    )
+
+
 def print_plan(export_dir: Path, repo_id: str, revision: str | None, plan: list[UploadFile]) -> None:
     total_bytes = sum(item.bytes for item in plan)
     print("HF dataset upload plan")
     print("- export_dir: {}".format(export_dir))
     print("- repo_id: {}".format(repo_id))
     print("- revision: {}".format(revision or "default"))
+    print("- mode: exact manifest replacement (preserves .gitattributes)")
     print("- files: {} ({})".format(len(plan), format_bytes(total_bytes)))
     for item in plan:
         print("  - {} <- {} ({})".format(item.path_in_repo, item.local_path, format_bytes(item.bytes)))
@@ -81,9 +99,9 @@ def upload_plan(
     commit_message: str,
     create_repo: bool,
     private: bool,
-) -> str:
+) -> tuple[str, list[str]]:
     try:
-        from huggingface_hub import CommitOperationAdd, HfApi
+        from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
     except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
         raise RuntimeError(
             "huggingface_hub is required for --execute. Install it in the active "
@@ -100,13 +118,22 @@ def upload_plan(
             exist_ok=True,
         )
 
-    operations = [
-        CommitOperationAdd(
-            path_in_repo=item.path_in_repo,
-            path_or_fileobj=str(item.local_path),
-        )
-        for item in plan
-    ]
+    remote_paths = api.list_repo_files(
+        repo_id=repo_id,
+        repo_type="dataset",
+        revision=revision,
+    )
+    stale_paths = stale_remote_paths(remote_paths, plan)
+    operations = [CommitOperationDelete(path_in_repo=path) for path in stale_paths]
+    operations.extend(
+        [
+            CommitOperationAdd(
+                path_in_repo=item.path_in_repo,
+                path_or_fileobj=str(item.local_path),
+            )
+            for item in plan
+        ]
+    )
     commit_info = api.create_commit(
         repo_id=repo_id,
         repo_type="dataset",
@@ -114,7 +141,7 @@ def upload_plan(
         commit_message=commit_message,
         revision=revision,
     )
-    return str(getattr(commit_info, "commit_url", commit_info))
+    return str(getattr(commit_info, "commit_url", commit_info)), stale_paths
 
 
 def main() -> int:
@@ -150,7 +177,7 @@ def main() -> int:
         print("Dry-run only. Re-run with --execute to upload.")
         return 0
 
-    commit_url = upload_plan(
+    commit_url, deleted_paths = upload_plan(
         plan=plan,
         repo_id=args.repo_id,
         revision=args.revision,
@@ -158,6 +185,8 @@ def main() -> int:
         create_repo=args.create_repo,
         private=args.private,
     )
+    if deleted_paths:
+        print("Removed stale remote files: {}".format(", ".join(deleted_paths)))
     print("Upload complete: {}".format(commit_url))
     return 0
 

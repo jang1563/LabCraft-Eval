@@ -5,9 +5,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import sys
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.model_registry import ModelRegistry, RegistryError, load_registry  # noqa: E402
+
+SCHEMA_DIR = REPO_ROOT / "schemas"
 
 REQUIRED_MANIFEST_KEYS = {
     "schema_version",
@@ -36,6 +45,44 @@ REQUIRED_RESULT_KEYS = {
     "sample_id",
     "eval_log",
     "scores",
+}
+REQUIRED_RESULT_PROVENANCE_KEYS = {
+    "track",
+    "status",
+    "eval_log_path",
+    "created",
+    "tokens",
+    "evaluation_revision",
+    "model_generate_config",
+}
+REQUIRED_MODEL_PROVENANCE_KEYS = {
+    "requested_model",
+    "resolved_model",
+    "provider",
+    "effective_generation_config",
+    "inspect_version",
+}
+REQUIRED_EVAL_LOG_KEYS = {
+    "schema_version",
+    "source_commit",
+    "path",
+    "source_path",
+    "log_dir",
+    "filename",
+    "sha256",
+    "bytes",
+    "status",
+    "evaluation_revision",
+    "model_generate_config",
+    "sample_count",
+}
+RESERVED_ROOT_JSONL_PATHS = {
+    "tasks.jsonl",
+    "rubrics.jsonl",
+    "ground_truth.jsonl",
+    "citations.jsonl",
+    "result_rows.jsonl",
+    "eval_log_manifest.jsonl",
 }
 
 
@@ -69,15 +116,147 @@ def load_jsonl(path: Path) -> list[Any]:
 
 
 def resolve_bundle_path(export_dir: Path, path_value: str) -> Path:
+    try:
+        export_root = export_dir.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("export directory cannot be resolved safely") from exc
     path = Path(path_value)
     if path.is_absolute():
-        return path
-    return export_dir / path
+        raise ValueError("bundle path must be relative: {}".format(path_value))
+    if ".." in path.parts:
+        raise ValueError("bundle path must not contain '..': {}".format(path_value))
+    try:
+        resolved = (export_root / path).resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(
+            "bundle path cannot be resolved safely: {}".format(path_value)
+        ) from exc
+    try:
+        resolved.relative_to(export_root)
+    except ValueError as exc:
+        raise ValueError(
+            "bundle path escapes export directory via symlink: {}".format(path_value)
+        ) from exc
+    return resolved
+
+
+def is_hugging_face_local_bookkeeping(path_value: str) -> bool:
+    path = Path(path_value)
+    return path_value == ".gitattributes" or path.parts[:2] == (".cache", "huggingface")
 
 
 def require_keys(record: dict[str, Any], required: set[str], label: str) -> list[str]:
     missing = sorted(required - set(record))
     return ["{} missing required keys: {}".format(label, ", ".join(missing))] if missing else []
+
+
+def schema_at_least(value: object, major: int, minor: int) -> bool:
+    if not isinstance(value, str):
+        return False
+    parts = value.split(".")
+    if len(parts) < 2:
+        return False
+    try:
+        parsed = (int(parts[0]), int(parts[1]))
+    except ValueError:
+        return False
+    return parsed >= (major, minor)
+
+
+def canonical_resolved_model(provider: str, resolved_model: str) -> str:
+    prefix = "{}/".format(provider)
+    return resolved_model[len(prefix) :] if resolved_model.startswith(prefix) else resolved_model
+
+
+def validate_model_provenance_record(
+    record: dict[str, Any],
+    label: str,
+    registry: ModelRegistry | None = None,
+) -> list[str]:
+    errors = require_keys(record, REQUIRED_MODEL_PROVENANCE_KEYS, label)
+    requested = record.get("requested_model")
+    resolved = record.get("resolved_model")
+    provider = record.get("provider")
+    inspect_version = record.get("inspect_version")
+    effective_config = record.get("effective_generation_config")
+    native_config = record.get("model_generate_config")
+
+    for field, value in (
+        ("requested_model", requested),
+        ("resolved_model", resolved),
+        ("provider", provider),
+        ("inspect_version", inspect_version),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            errors.append("{} {} must be a non-empty string".format(label, field))
+
+    if isinstance(requested, str) and requested:
+        if "/" not in requested:
+            errors.append("{} requested_model must be provider-qualified".format(label))
+        elif isinstance(provider, str) and requested.split("/", 1)[0] != provider:
+            errors.append(
+                "{} provider differs from requested_model qualifier".format(label)
+            )
+    if (
+        isinstance(resolved, str)
+        and "/" in resolved
+        and isinstance(provider, str)
+        and resolved.split("/", 1)[0] != provider
+    ):
+        errors.append("{} provider differs from resolved_model qualifier".format(label))
+
+    if not isinstance(effective_config, dict) or not effective_config:
+        errors.append(
+            "{} effective_generation_config must be a non-empty object".format(label)
+        )
+    if effective_config != native_config:
+        errors.append(
+            "{} effective_generation_config differs from model_generate_config".format(
+                label
+            )
+        )
+    if (
+        registry is not None
+        and isinstance(requested, str)
+        and requested
+        and isinstance(resolved, str)
+        and resolved
+        and isinstance(provider, str)
+        and provider
+    ):
+        try:
+            model_spec = registry.resolve(requested)
+        except RegistryError:
+            errors.append("{} requested_model is not registered".format(label))
+        else:
+            if model_spec.provider != provider:
+                errors.append("{} provider differs from model registry".format(label))
+            if canonical_resolved_model(
+                provider, model_spec.expected_resolved_model
+            ) != canonical_resolved_model(provider, resolved):
+                errors.append(
+                    "{} resolved_model differs from model registry expectation".format(
+                        label
+                    )
+                )
+    return errors
+
+
+def validate_json_schema(payload: Any, schema_name: str, label: str) -> list[str]:
+    try:
+        from jsonschema import Draft202012Validator
+    except ModuleNotFoundError:
+        return ["jsonschema is required to validate schema 0.2.0+ exports"]
+    schema = load_json(SCHEMA_DIR / schema_name)
+    validator = Draft202012Validator(schema)
+    errors = []
+    for error in sorted(
+        validator.iter_errors(payload),
+        key=lambda item: tuple(str(part) for part in item.path),
+    ):
+        location = ".".join(str(part) for part in error.path) or "$"
+        errors.append("{} schema error at {}: {}".format(label, location, error.message))
+    return errors
 
 
 def validate_task_records(records: list[Any]) -> list[str]:
@@ -117,11 +296,18 @@ def validate_record_source_commits(
     return errors
 
 
-def validate_result_records(records: list[Any]) -> list[str]:
+def validate_result_records(
+    records: list[Any],
+    *,
+    require_evaluation_provenance: bool = False,
+    require_model_provenance: bool = False,
+    model_registry: ModelRegistry | None = None,
+) -> list[str]:
     errors = []
     if not records:
         return ["result_rows.jsonl has zero records"]
     sample_keys = set()
+    resolved_by_request: dict[str, set[str]] = {}
     for index, record in enumerate(records, start=1):
         if not isinstance(record, dict):
             errors.append("result_rows.jsonl record {} is not an object".format(index))
@@ -129,19 +315,125 @@ def validate_result_records(records: list[Any]) -> list[str]:
         errors.extend(
             require_keys(record, REQUIRED_RESULT_KEYS, "result_rows.jsonl record {}".format(index))
         )
+        if require_evaluation_provenance:
+            errors.extend(
+                require_keys(
+                    record,
+                    REQUIRED_RESULT_PROVENANCE_KEYS,
+                    "result_rows.jsonl record {}".format(index),
+                )
+            )
+            if record.get("status") != "success":
+                errors.append(
+                    "result_rows.jsonl record {} status must be success".format(index)
+                )
+            revision = record.get("evaluation_revision")
+            if not isinstance(revision, dict):
+                errors.append(
+                    "result_rows.jsonl record {} evaluation_revision must be an object".format(
+                        index
+                    )
+                )
+            else:
+                missing_revision = {"type", "origin", "commit", "dirty"} - set(revision)
+                if missing_revision:
+                    errors.append(
+                        "result_rows.jsonl record {} evaluation_revision missing: {}".format(
+                            index, ", ".join(sorted(missing_revision))
+                        )
+                    )
+                if revision.get("commit") in (None, "", "unknown"):
+                    errors.append(
+                        "result_rows.jsonl record {} evaluation revision commit is missing".format(
+                            index
+                        )
+                    )
+                if revision.get("dirty") is not False:
+                    errors.append(
+                        "result_rows.jsonl record {} comes from a dirty evaluation revision".format(
+                            index
+                        )
+                    )
+            if not isinstance(record.get("model_generate_config"), dict) or not record[
+                "model_generate_config"
+            ]:
+                errors.append(
+                    "result_rows.jsonl record {} model_generate_config must be a "
+                    "non-empty object".format(index)
+                )
+            tokens = record.get("tokens")
+            if not isinstance(tokens, dict):
+                errors.append(
+                    "result_rows.jsonl record {} tokens must be an object".format(index)
+                )
+            elif any(
+                isinstance(value, bool) or not isinstance(value, int) or value < 0
+                for value in tokens.values()
+            ):
+                errors.append(
+                    "result_rows.jsonl record {} tokens must be non-negative integers".format(
+                        index
+                    )
+                )
+        if require_model_provenance:
+            label = "result_rows.jsonl record {}".format(index)
+            errors.extend(
+                validate_model_provenance_record(record, label, model_registry)
+            )
+            if record.get("model") != record.get("requested_model"):
+                errors.append("{} model differs from requested_model".format(label))
+            requested = record.get("requested_model")
+            resolved = record.get("resolved_model")
+            provider = record.get("provider")
+            if all(isinstance(value, str) and value for value in (requested, resolved, provider)):
+                resolved_by_request.setdefault(requested, set()).add(
+                    canonical_resolved_model(provider, resolved)
+                )
         scores = record.get("scores")
         if not isinstance(scores, dict) or not scores:
             errors.append("result_rows.jsonl record {} has empty scores".format(index))
+        elif require_evaluation_provenance:
+            if "overall" not in scores:
+                errors.append(
+                    "result_rows.jsonl record {} scores missing overall".format(index)
+                )
+            for axis, value in scores.items():
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    or not 0.0 <= float(value) <= 1.0
+                ):
+                    errors.append(
+                        "result_rows.jsonl record {} score {} must be finite and within [0, 1]".format(
+                            index, axis
+                        )
+                    )
         key = (record.get("model"), record.get("task"), record.get("sample_id"))
         if key in sample_keys:
             errors.append("result_rows.jsonl duplicate model/task/sample_id: {}".format(key))
         sample_keys.add(key)
+    if require_model_provenance:
+        for requested, resolved_models in sorted(resolved_by_request.items()):
+            if len(resolved_models) > 1:
+                errors.append(
+                    "result_rows.jsonl requested model {} resolves to multiple snapshots: {}".format(
+                        requested, ", ".join(sorted(resolved_models))
+                    )
+                )
     return errors
 
 
 def validate_export(export_dir: Path) -> list[str]:
     errors: list[str] = []
-    manifest_path = export_dir / "release_manifest.json"
+    try:
+        export_dir = export_dir.resolve()
+    except (OSError, RuntimeError):
+        return ["Unsafe export directory: path cannot be resolved safely"]
+    try:
+        manifest_path = resolve_bundle_path(export_dir, "release_manifest.json")
+    except ValueError as exc:
+        return ["Unsafe release_manifest.json path: {}".format(exc)]
     if not manifest_path.exists():
         return ["Missing release_manifest.json in {}".format(export_dir)]
 
@@ -149,11 +441,25 @@ def validate_export(export_dir: Path) -> list[str]:
     if not isinstance(manifest, dict):
         return ["release_manifest.json must contain an object"]
     errors.extend(require_keys(manifest, REQUIRED_MANIFEST_KEYS, "release_manifest.json"))
+    strict_provenance = manifest.get("schema_version") != "0.1.0"
+    require_model_provenance = schema_at_least(
+        manifest.get("schema_version"), 0, 3
+    )
+    model_registry = None
+    if require_model_provenance:
+        try:
+            model_registry = load_registry()
+        except RegistryError as exc:
+            errors.append("Unable to validate model registry: {}".format(exc))
+    if strict_provenance and not isinstance(manifest.get("evaluation_provenance"), dict):
+        errors.append("release_manifest.json evaluation_provenance must be an object")
 
     if manifest.get("source_commit") in (None, "", "unknown"):
         errors.append("release_manifest.json source_commit must be populated")
     if manifest.get("source_repository") in (None, "", "unknown"):
         errors.append("release_manifest.json source_repository must be populated")
+    if strict_provenance and manifest.get("packaging_worktree_dirty") is not False:
+        errors.append("release_manifest.json packaging_worktree_dirty must be false")
 
     files = manifest.get("files")
     if not isinstance(files, list) or not files:
@@ -161,7 +467,7 @@ def validate_export(export_dir: Path) -> list[str]:
         return errors
 
     seen_paths = set()
-    jsonl_records_by_name: dict[str, list[Any]] = {}
+    jsonl_records_by_path: dict[str, list[Any]] = {}
     for index, file_record in enumerate(files, start=1):
         if not isinstance(file_record, dict):
             errors.append("manifest file entry {} is not an object".format(index))
@@ -172,15 +478,23 @@ def validate_export(export_dir: Path) -> list[str]:
             errors.append("manifest file entry {} path must be a non-empty string".format(index))
             continue
         entry_path = Path(path_value)
-        if entry_path.is_absolute():
-            errors.append("manifest file path must be relative: {}".format(path_value))
-        if ".." in entry_path.parts:
-            errors.append("manifest file path must not escape export dir: {}".format(path_value))
+        if (
+            entry_path.name in RESERVED_ROOT_JSONL_PATHS
+            and path_value != entry_path.name
+        ):
+            errors.append(
+                "reserved JSONL basename must use its canonical root path: {} "
+                "(expected {})".format(path_value, entry_path.name)
+            )
         if path_value in seen_paths:
             errors.append("duplicate manifest file path: {}".format(path_value))
         seen_paths.add(path_value)
 
-        file_path = resolve_bundle_path(export_dir, path_value)
+        try:
+            file_path = resolve_bundle_path(export_dir, path_value)
+        except ValueError as exc:
+            errors.append("unsafe manifest file path {}: {}".format(path_value, exc))
+            continue
         if not file_path.exists():
             errors.append("manifest file does not exist: {}".format(path_value))
             continue
@@ -198,7 +512,7 @@ def validate_export(export_dir: Path) -> list[str]:
 
         if file_path.suffix == ".jsonl":
             records = load_jsonl(file_path)
-            jsonl_records_by_name[file_path.name] = records
+            jsonl_records_by_path[path_value] = records
             errors.extend(
                 validate_record_source_commits(
                     file_path.name,
@@ -219,13 +533,243 @@ def validate_export(export_dir: Path) -> list[str]:
             if "license:" not in text:
                 errors.append("README.md metadata must include license")
 
-    if "tasks.jsonl" in jsonl_records_by_name:
-        errors.extend(validate_task_records(jsonl_records_by_name["tasks.jsonl"]))
+    actual_paths = {
+        path.relative_to(export_dir).as_posix()
+        for path in export_dir.rglob("*")
+        if path.is_symlink() or path.is_file()
+    }
+    expected_paths = set(seen_paths) | {"release_manifest.json"}
+    for unexpected in sorted(
+        path
+        for path in actual_paths - expected_paths
+        if not is_hugging_face_local_bookkeeping(path)
+    ):
+        errors.append("unmanifested file in export bundle: {}".format(unexpected))
+
+    if "tasks.jsonl" in jsonl_records_by_path:
+        errors.extend(validate_task_records(jsonl_records_by_path["tasks.jsonl"]))
     else:
         errors.append("tasks.jsonl is missing from manifest")
 
-    if "result_rows.jsonl" in jsonl_records_by_name:
-        errors.extend(validate_result_records(jsonl_records_by_name["result_rows.jsonl"]))
+    if "result_rows.jsonl" in jsonl_records_by_path:
+        errors.extend(
+            validate_result_records(
+                jsonl_records_by_path["result_rows.jsonl"],
+                require_evaluation_provenance=strict_provenance,
+                require_model_provenance=require_model_provenance,
+                model_registry=model_registry,
+            )
+        )
+
+    if strict_provenance and "eval_log_manifest.jsonl" not in jsonl_records_by_path:
+        errors.append("eval_log_manifest.jsonl is required for schema 0.2.0+ exports")
+
+    if strict_provenance and "eval_log_manifest.jsonl" in jsonl_records_by_path:
+        eval_records = jsonl_records_by_path["eval_log_manifest.jsonl"]
+        eval_by_path = {}
+        revision_commits = set()
+        eval_resolved_by_request: dict[str, set[str]] = {}
+        for index, record in enumerate(eval_records, start=1):
+            if not isinstance(record, dict):
+                errors.append(
+                    "eval_log_manifest.jsonl record {} is not an object".format(index)
+                )
+                continue
+            errors.extend(
+                require_keys(
+                    record,
+                    REQUIRED_EVAL_LOG_KEYS,
+                    "eval_log_manifest.jsonl record {}".format(index),
+                )
+            )
+            if not isinstance(record, dict):
+                continue
+            if record.get("status") != "success":
+                errors.append(
+                    "eval_log_manifest.jsonl record {} status must be success".format(index)
+                )
+            revision = record.get("evaluation_revision")
+            if not isinstance(revision, dict) or revision.get("dirty") is not False:
+                errors.append(
+                    "eval_log_manifest.jsonl record {} must have a clean evaluation revision".format(
+                        index
+                    )
+                )
+            elif revision.get("commit") in (None, "", "unknown"):
+                errors.append(
+                    "eval_log_manifest.jsonl record {} evaluation commit is missing".format(
+                        index
+                    )
+                )
+            else:
+                revision_commits.add(revision["commit"])
+            if not isinstance(record.get("model_generate_config"), dict) or not record[
+                "model_generate_config"
+            ]:
+                errors.append(
+                    "eval_log_manifest.jsonl record {} model_generate_config must be a "
+                    "non-empty object".format(index)
+                )
+            if require_model_provenance:
+                label = "eval_log_manifest.jsonl record {}".format(index)
+                errors.extend(
+                    validate_model_provenance_record(record, label, model_registry)
+                )
+                requested = record.get("requested_model")
+                resolved = record.get("resolved_model")
+                provider = record.get("provider")
+                if all(
+                    isinstance(value, str) and value
+                    for value in (requested, resolved, provider)
+                ):
+                    eval_resolved_by_request.setdefault(requested, set()).add(
+                        canonical_resolved_model(provider, resolved)
+                    )
+            sample_count = record.get("sample_count")
+            if not isinstance(sample_count, int) or isinstance(sample_count, bool) or sample_count < 1:
+                errors.append(
+                    "eval_log_manifest.jsonl record {} sample_count must be positive".format(
+                        index
+                    )
+                )
+            if isinstance(record.get("path"), str):
+                eval_by_path[record["path"]] = record
+                if record["path"] not in seen_paths:
+                    errors.append(
+                        "eval_log_manifest.jsonl record {} raw eval path is absent from "
+                        "release manifest".format(index)
+                    )
+                file_record = next(
+                    (
+                        item
+                        for item in files
+                        if isinstance(item, dict) and item.get("path") == record["path"]
+                    ),
+                    None,
+                )
+                if isinstance(file_record, dict):
+                    if file_record.get("sha256") != record.get("sha256"):
+                        errors.append(
+                            "eval_log_manifest.jsonl record {} sha256 differs from "
+                            "release manifest".format(index)
+                        )
+                    if file_record.get("bytes") != record.get("bytes"):
+                        errors.append(
+                            "eval_log_manifest.jsonl record {} bytes differ from release "
+                            "manifest".format(index)
+                        )
+
+        if require_model_provenance:
+            for requested, resolved_models in sorted(
+                eval_resolved_by_request.items()
+            ):
+                if len(resolved_models) > 1:
+                    errors.append(
+                        "eval_log_manifest.jsonl requested model {} resolves to "
+                        "multiple snapshots: {}".format(
+                            requested, ", ".join(sorted(resolved_models))
+                        )
+                    )
+
+        provenance = manifest.get("evaluation_provenance")
+        if isinstance(provenance, dict):
+            if provenance.get("policy") != "clean-evaluation-revisions-required":
+                errors.append("release_manifest.json evaluation provenance policy is invalid")
+            if provenance.get("dirty_log_count") != 0:
+                errors.append("release_manifest.json dirty_log_count must be zero")
+            if provenance.get("log_count") != len(eval_records):
+                errors.append(
+                    "release_manifest.json evaluation log_count mismatch: manifest={} actual={}".format(
+                        provenance.get("log_count"), len(eval_records)
+                    )
+                )
+            if provenance.get("revision_commits") != sorted(revision_commits):
+                errors.append(
+                    "release_manifest.json evaluation revision_commits do not match log records"
+                )
+
+        for index, result in enumerate(
+            jsonl_records_by_path.get("result_rows.jsonl", []), start=1
+        ):
+            if not isinstance(result, dict):
+                continue
+            log_record = eval_by_path.get(result.get("eval_log_path"))
+            if log_record is None:
+                errors.append(
+                    "result_rows.jsonl record {} eval_log_path is absent from log manifest".format(
+                        index
+                    )
+                )
+            elif result.get("evaluation_revision") != log_record.get("evaluation_revision"):
+                errors.append(
+                    "result_rows.jsonl record {} evaluation revision differs from log manifest".format(
+                        index
+                    )
+                )
+            elif result.get("model_generate_config") != log_record.get(
+                "model_generate_config"
+            ):
+                errors.append(
+                    "result_rows.jsonl record {} generation config differs from log "
+                    "manifest".format(index)
+                )
+            elif require_model_provenance:
+                for field in (
+                    "requested_model",
+                    "resolved_model",
+                    "provider",
+                    "effective_generation_config",
+                    "inspect_version",
+                ):
+                    result_value = result.get(field)
+                    log_value = log_record.get(field)
+                    if field == "resolved_model" and all(
+                        isinstance(value, str) and value
+                        for value in (
+                            result_value,
+                            log_value,
+                            result.get("provider"),
+                        )
+                    ):
+                        provider = str(result.get("provider"))
+                        matches = canonical_resolved_model(
+                            provider, result_value
+                        ) == canonical_resolved_model(provider, log_value)
+                    else:
+                        matches = result_value == log_value
+                    if not matches:
+                        errors.append(
+                            "result_rows.jsonl record {} {} differs from log "
+                            "manifest".format(index, field)
+                        )
+
+        if "result_rows.jsonl" in jsonl_records_by_path and not eval_records:
+            errors.append(
+                "eval_log_manifest.jsonl must be non-empty when result_rows.jsonl is present"
+            )
+
+    if strict_provenance:
+        errors.extend(
+            validate_json_schema(
+                manifest,
+                "release_manifest.schema.json",
+                "release_manifest.json",
+            )
+        )
+        schema_tables = {
+            "tasks.jsonl": "hf_task_record.schema.json",
+            "result_rows.jsonl": "hf_result_record.schema.json",
+            "eval_log_manifest.jsonl": "hf_eval_log_manifest_record.schema.json",
+        }
+        for filename, schema_name in schema_tables.items():
+            for index, record in enumerate(jsonl_records_by_path.get(filename, []), start=1):
+                errors.extend(
+                    validate_json_schema(
+                        record,
+                        schema_name,
+                        "{} record {}".format(filename, index),
+                    )
+                )
 
     return errors
 

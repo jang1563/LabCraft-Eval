@@ -8,6 +8,9 @@
       "matcher": {
         "tool_name": "run_pcr",
         "argument": "normalized_polymerase_name",
+        "filters": {
+          "status": "clean_target_band"
+        },
         "occurrence": "any"
       },
       "acceptable_values": {
@@ -40,6 +43,9 @@
       "matcher": {
         "tool_name": "run_pcr",
         "argument": "normalized_additive",
+        "filters": {
+          "status": "clean_target_band"
+        },
         "occurrence": "any"
       },
       "acceptable_values": {
@@ -74,6 +80,9 @@
       "matcher": {
         "tool_name": "run_pcr",
         "argument": "extension_seconds",
+        "filters": {
+          "status": "clean_target_band"
+        },
         "occurrence": "any"
       },
       "acceptable_values": {
@@ -104,6 +113,9 @@
       "matcher": {
         "tool_name": "run_pcr",
         "argument": "cycle_count",
+        "filters": {
+          "status": "clean_target_band"
+        },
         "occurrence": "any"
       },
       "acceptable_values": {

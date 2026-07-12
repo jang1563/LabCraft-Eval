@@ -18,25 +18,25 @@ def build_golden_gate_01_prompt() -> str:
 Task: Assemble a four-fragment construct using Golden Gate one-pot Type IIS cloning, transform it into E. coli, plate on ampicillin selection, and report the outcome.
 
 Starting substrates (call list_golden_gate_substrates to inspect):
-- gg_backbone: linear Golden Gate destination vector, BsaI overhangs A and D
-- gg_insert_promoter: insert 1, BsaI overhangs A and B
-- gg_insert_cds: insert 2, BsaI overhangs B and C
-- gg_insert_terminator: insert 3, BsaI overhangs C and D
+- gg_backbone: linear Golden Gate destination vector
+- gg_insert_promoter: promoter insert
+- gg_insert_cds: coding-sequence insert
+- gg_insert_terminator: terminator insert
 
 Workflow guidance:
-1. Choose a Type IIS enzyme (BsaI is canonical; BsmBI is an acceptable alternative) and T4 DNA ligase.
-2. Cycle at 37 C (digest) / 16 C (ligate) for at least 25 cycles, followed by a final heat-kill at 60 C.
+1. Inspect the substrates and use reference evidence to choose a compatible Type IIS enzyme, ligase, buffer, and thermal program.
+2. Run enough digest/ligation cycles for a four-fragment assembly and include an appropriate final digest and heat-inactivation step.
 3. Transform the assembled construct into competent E. coli using transform_assembly.
-4. Prepare an LB + 100 ug/mL ampicillin selection plate and plate an appropriate volume.
+4. Prepare an appropriate ampicillin selection plate and plate a defensible volume.
 5. Count transformants.
 
 Final answer schema (use exactly these fields on separate lines):
-Type IIS enzyme: BsaI
-Ligase: T4 DNA ligase
-Digest temperature: 37 C
-Ligate temperature: 16 C
+Type IIS enzyme: <enzyme name>
+Ligase: <ligase name>
+Digest temperature: <float> C
+Ligate temperature: <float> C
 Cycle count: <int>
-Fragment count: 4
+Fragment count: <int>
 Transformants observed: <int>
 Interpretation: <sentence mentioning 'assembly' or 'assembled'>
 

@@ -1,14 +1,14 @@
 # LabCraft-Eval Architecture
 
-LabCraft-Eval is split into three layers: task definitions, deterministic
+LabCraft-Eval is split into three layers: task definitions, seeded
 simulation state, and post-hoc trajectory scoring. The split keeps public task
-prompts easy to inspect while making stochastic state, citations, and scoring
+prompts easy to inspect while making simulator state, citations, and scoring
 rules auditable from checked-in files.
 
 ```mermaid
 flowchart LR
   task_data["task_data/*\nrubric, ground truth, sources"] --> inspect_task["src/inspect_task.py\nInspect task factories"]
-  data["data/parameters/*\nstochastic parameter bundles"] --> environment["src/environment/*\nstate and lab operations"]
+  data["data/parameters/*\nparameter bundles"] --> environment["src/environment/*\nstate and lab operations"]
   inspect_task --> solver["src/solvers.py\ntool-enabled agent loop"]
   environment --> solver
   solver --> eval_logs["results/**/*.eval\nInspect trajectories"]
@@ -24,7 +24,7 @@ flowchart LR
 | Component | Role |
 | --- | --- |
 | `task_data/<task_id>/` | Public task contract: rubric, ground truth, and citation notes. |
-| `data/parameters/` | Citation-backed stochastic parameters used by simulator operations. |
+| `data/parameters/` | Simulator parameters and citation metadata, including deterministic thresholds and stochastic distributions. |
 | `src/environment/` | Stateful lab simulator: cultures, plates, reactions, measurements, and noise. |
 | `src/tools/` | Tool surfaces exposed to agents through Inspect. |
 | `src/inspect_task.py` | Inspect task registration and task-preset inventory. |

@@ -5,14 +5,17 @@ Minimal terminal workflow for collecting manual baseline runs on the two most in
 - `transform_01`
 - `growth_01`
 
-The goal is not to build a full multi-user annotation platform. It is to give a domain expert a reproducible way to run the seeded LabCraft tasks manually, save the exact tool transcript, and score the final answer with the same deterministic scorer used for agent runs.
+The goal is not to build a full multi-user annotation platform. It is to give a
+domain expert a controlled way to run the current seed-labelled LabCraft tasks
+manually, save the exact tool transcript, and score the final answer with the
+same deterministic scorer used for current agent runs.
 
 ## What it does
 
 The script [scripts/run_human_baseline.py](../scripts/run_human_baseline.py):
 
 - prints the exact task prompt
-- initializes the same seeded environment used in the evals
+- initializes the current simulator with the same explicit seed-index convention used by current agent evals
 - exposes the relevant lab tools and reference tools in a simple REPL
 - records every tool call in scorer-compatible transcript format
 - prompts for a final answer
@@ -57,7 +60,7 @@ You can override that with `--session-out /tmp/my_session.json`.
 
 If you rerun the same session command and the JSON is still `in_progress`, the CLI now restores the recorded tool-state transcript instead of silently wiping it. Use the `history` command to review prior tool calls and recover generated IDs such as `culture_...`, `plate_...`, or `growth_...`. If the target JSON is already `completed`, the CLI refuses to overwrite it unless you choose a different `--session-out` path.
 
-Before a session is finalized, the CLI shows a provisional deterministic score and task-specific formatting notes. That gives a human operator one last chance to fix missing labels, missing `"consistent"` wording on `transform_01`, or missing troubleshooting language on `growth_01` before the JSON is marked `completed`.
+Before a session is finalized, the CLI shows a provisional deterministic score and task-specific formatting notes. That gives a human operator one last chance to fix missing labels, a missing consistency statement on `transform_01`, or missing troubleshooting language on `growth_01` before the JSON is marked `completed`.
 
 ## REPL commands
 
@@ -79,17 +82,29 @@ Tool calls use the format:
 Example:
 
 ```text
-prepare_media {"medium": "LB agar", "antibiotic": "ampicillin", "antibiotic_concentration_ug_ml": 100, "plate_count": 4}
+prepare_media {"medium": "<choose medium>", "antibiotic": "<choose antibiotic>", "antibiotic_concentration_ug_ml": "<choose concentration>", "plate_count": "<choose count>"}
 ```
+
+The help text intentionally uses placeholders for evaluated protocol choices so
+the human baseline is not coached with the scorer's accepted values.
 
 ## Why `seed-index` matters
 
-The agent evals use deterministic seeded sample IDs such as:
+Current agent evals use seed-labelled sample IDs such as:
 
 - `transform_01_seeded_seed_00`
 - `growth_01_seeded_seed_04`
 
-This workflow uses the same seeded naming convention, so a human baseline on `--seed-index 4` is running the same stochastic instance that the agent saw for seed `04`.
+The current human and agent paths both pass `--seed-index 4` as the explicit
+simulator seed. That aligns their current simulator state where a task uses the
+RNG. It does not make every task stochastic: `growth_01` is deterministic across
+seed labels, while `transform_01` includes seeded transformation and colony-count
+draws.
+
+The frozen v0.1.1 model logs used an earlier sample-ID-derived seed convention
+and pre-remediation prompts. A new human run with the same visible `seed_04`
+label is therefore not the historical model's exact simulator instance and must
+not be presented as a matched replay of that frozen row.
 
 ## Output artifact
 
@@ -106,18 +121,23 @@ Each saved JSON session includes:
 - final answer
 - deterministic score breakdown
 
-That makes it possible to compare human and model performance on the same seeded instance without rerunning the environment.
+That makes it possible to compare human and model transcripts under the same
+current task, scorer, and explicit seed convention. Comparisons against frozen
+historical rows remain contextual rather than instance-matched.
 
 ## Recommended pilot seeds
 
 Start with the curated seed pack in [results/human_baseline_seed_plan.md](../results/human_baseline_seed_plan.md).
 
-That file narrows the first manual pass to the most informative seeded instances from the frozen snapshot:
+That file narrows the first manual pass to labels associated with informative
+frozen-snapshot disagreements:
 
 - `transform_01`: seeds `00`, `02`, `04`
 - `growth_01`: seeds `01`, `02`, `03`
 
-The goal is to spend the first few expert sessions on the seeds where frontier models disagreed most sharply, rather than on random instances that are less diagnostic.
+The labels prioritize cases whose historical model rows disagreed. Because the
+seed convention and prompt contract have changed, they are a triage heuristic
+for current expert sessions, not exact replays of those historical environments.
 
 To work through that pack without copying commands by hand:
 
@@ -144,7 +164,12 @@ results/human_baseline_pilot.md
 results/human_baseline_pilot.json
 ```
 
-If no completed expert sessions are checked in yet, the script still writes placeholder artifacts at those paths so the repo has stable targets for future baseline results. The generated markdown page now also shows pilot-seed coverage and the frozen snapshot's same-seed model score range, while the JSON sidecar gives downstream scripts a stable structured interface.
+If no completed expert sessions are checked in yet, the script still writes
+placeholder artifacts at those paths so the repo has stable targets for future
+baseline results. The generated markdown page shows pilot-label coverage and the
+frozen snapshot's same-label model score range for context; it does not imply a
+matched simulator instance. The JSON sidecar gives downstream scripts a stable
+structured interface.
 
 If a seed has runs from multiple `growth_01` prompt variants, the aggregate report now shows the prompt split explicitly instead of rolling them into an indistinguishable coverage count.
 

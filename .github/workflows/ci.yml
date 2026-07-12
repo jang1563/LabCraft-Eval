@@ -25,10 +25,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra analysis
+        run: uv sync --extra dev --extra analysis --extra providers
 
       - name: Lint
-        run: uv run ruff check .
+        run: |
+          uv run python scripts/model_matrix.py validate
+          uv run ruff check .
 
       - name: Focused provenance and task checks
         run: >
@@ -52,11 +54,18 @@ jobs:
           cd build/package_smoke
           uv run --isolated --with "$wheel_path" python package_smoke.py
 
+      - name: Build Docker environment
+        run: |
+          docker build -f environments/Dockerfile -t labcraft-eval-ci .
+          docker run --rm labcraft-eval-ci python -c \
+            "from src.inspect_task import safety_case_01; assert len(safety_case_01(seeds=1).dataset) == 30"
+
       - name: Hugging Face export smoke
         run: >
           uv run python scripts/export_hf_dataset.py
           --out-dir build/hf_export_smoke
           --release-name ci_smoke
+          --no-results
           --copy-plots
 
       - name: Validate Hugging Face export smoke

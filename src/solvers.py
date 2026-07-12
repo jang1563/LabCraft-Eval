@@ -13,6 +13,14 @@ except ImportError:  # pragma: no cover - only used when Inspect is unavailable 
         return func
 
 
+def _configure_lab_sample_state(state) -> None:
+    """Bind simulator state to the explicit benchmark seed when available."""
+    metadata = getattr(state, "metadata", {}) or {}
+    seed_index = metadata.get("seed_index")
+    seed = seed_index if isinstance(seed_index, int) and not isinstance(seed_index, bool) else None
+    set_active_sample(state.sample_id, seed=seed)
+
+
 def build_labcraft_solver():
     """Build the LabCraft solver chain using Inspect AI if available."""
     from inspect_ai.agent import react
@@ -171,7 +179,7 @@ def configure_transform_sample():
     """Initialize per-sample LabCraft state before the main solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -182,7 +190,7 @@ def configure_growth_sample():
     """Initialize per-sample LabCraft state before the growth solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -193,7 +201,7 @@ def configure_pcr_sample():
     """Initialize per-sample LabCraft state before the PCR solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -204,7 +212,7 @@ def configure_screen_sample():
     """Initialize per-sample LabCraft state before the screening solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -231,11 +239,11 @@ def build_clone_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise between tool calls. Digest vector and insert with the "
-                "EcoRI + BamHI pair in a compatible NEB buffer, heat-inactivate, "
-                "ligate with T4 DNA ligase at a standard molar ratio, transform the "
-                "ligation, plate on LB + ampicillin, then inspect the plate and run "
-                "colony PCR on enough white colonies to meet the confidence target.\n"
+                "\nBe concise between tool calls. Inspect the substrates and reference "
+                "entries, choose compatible digest and ligation conditions, execute the "
+                "transformation and selection workflow, then screen enough colonies to "
+                "meet the requested confidence target. Report only conditions actually "
+                "used and observations returned by the tools.\n"
             ),
         ),
         tools=[
@@ -260,7 +268,7 @@ def configure_clone_sample():
     """Initialize per-sample LabCraft state before the cloning solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -284,9 +292,10 @@ def build_golden_gate_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise between tool calls. Inspect the substrates, choose a Type IIS enzyme "
-                "(BsaI) plus T4 DNA ligase, run at least 25 cycles of 37 C / 16 C, transform the "
-                "assembled construct, plate on LB + ampicillin, and count transformants.\n"
+                "\nBe concise between tool calls. Inspect the substrates and reference "
+                "entries, choose compatible Type IIS assembly conditions, then transform, "
+                "select, and quantify the outcome. Use returned statuses and observations "
+                "to guide any correction before the final report.\n"
             ),
         ),
         tools=[
@@ -308,7 +317,7 @@ def configure_golden_gate_sample():
     """Initialize per-sample LabCraft state before the Golden Gate solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -332,10 +341,10 @@ def build_gibson_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise between tool calls. Inspect the Gibson substrates, set up "
-                "a Gibson assembly with an appropriate master mix (Gibson Assembly Master "
-                "Mix or NEBuilder HiFi) at 50 C for at least 15 min, transform the "
-                "construct, plate on LB + ampicillin, and count transformants.\n"
+                "\nBe concise between tool calls. Inspect the substrates, choose "
+                "scientifically compatible isothermal assembly conditions, then transform, "
+                "select, and quantify the outcome. Report the submitted conditions and "
+                "observed result without substituting assumed values.\n"
             ),
         ),
         tools=[
@@ -356,7 +365,7 @@ def configure_gibson_sample():
     """Initialize per-sample LabCraft state before the Gibson solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -373,9 +382,9 @@ def build_miniprep_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise. Run a single alkaline-lysis miniprep with the P1/P2/P3 "
-                "buffer sequence, no more than 5 min in P2, silica column purification, "
-                "and an elution volume of at least 30 uL. Report yield and A260/A280 purity.\n"
+                "\nBe concise. Choose a scientifically appropriate single-pass plasmid "
+                "miniprep workflow. Report the conditions actually submitted and the yield "
+                "and purity observations returned by the tool.\n"
             ),
         ),
         tools=[
@@ -391,7 +400,7 @@ def configure_miniprep_sample():
     """Initialize per-sample LabCraft state before the miniprep solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -408,10 +417,10 @@ def build_expression_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise. Run a single recombinant protein expression in a T7 "
-                "expression host (BL21(DE3) or a close derivative), induce with 0.1-1 "
-                "mM IPTG at mid-log OD600, pick a standard induction temperature, and "
-                "lyse in a buffer compatible with Ni-NTA (pH 7-8). Report yield.\n"
+                "\nBe concise. Choose scientifically appropriate conditions for the "
+                "specified recombinant expression system and downstream affinity workflow. "
+                "Report the submitted conditions and the soluble-yield observation returned "
+                "by the tool.\n"
             ),
         ),
         tools=[
@@ -427,7 +436,7 @@ def configure_expression_sample():
     """Initialize per-sample LabCraft state before the expression solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve
@@ -444,9 +453,10 @@ def build_purification_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise. Run a single Ni-NTA affinity purification with a "
-                "10-20 mM imidazole load, 40-60 mM wash, and >= 200 mM elution. "
-                "Report purified concentration, SDS-PAGE band, and purity percent.\n"
+                "\nBe concise. Choose scientifically appropriate affinity-purification "
+                "conditions for the specified His-tagged target. Report the submitted "
+                "conditions, concentration, SDS-PAGE observation, and purity returned by "
+                "the tool.\n"
             ),
         ),
         tools=[
@@ -462,7 +472,7 @@ def configure_purification_sample():
     """Initialize per-sample LabCraft state before the purification solver runs."""
 
     async def solve(state, generate):
-        set_active_sample(state.sample_id)
+        _configure_lab_sample_state(state)
         return state
 
     return solve

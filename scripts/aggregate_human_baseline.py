@@ -441,7 +441,7 @@ def format_markdown(
         "",
         "Manual baseline sessions aggregated from [{}](../{}).".format(session_dir_rel, session_dir_rel),
         "",
-        "These sessions are intentionally separate from the frozen model-only portfolio snapshot. They are meant to provide early human context on the same seeded task instances and use the same deterministic trajectory scorer.",
+        "These sessions are intentionally separate from the frozen model-only portfolio snapshot. They provide early human context under the current prompt, scorer, and explicit-seed convention. Frozen same-label model rows are contextual only: they used an earlier seed convention and are not matched simulator instances.",
         "",
     ]
 
@@ -662,7 +662,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--snapshot-results",
         default=str(DEFAULT_SNAPSHOT_RESULTS),
-        help="Path to the frozen snapshot markdown results table for same-seed model reference.",
+        help="Path to the frozen snapshot table used as a same-label historical reference.",
     )
     parser.add_argument(
         "--seed-plan",

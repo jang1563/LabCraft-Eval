@@ -8,6 +8,7 @@ huggingface_hub are imported lazily when the app is launched in a Space.
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
 import json
 from pathlib import Path
 import statistics
@@ -52,17 +53,126 @@ def resolve_url(path: str, revision: str = DEFAULT_REVISION) -> str:
     )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _download_atomic(url: str, target: Path) -> None:
+    temporary = target.with_name(target.name + ".download")
+    try:
+        urlretrieve(url, temporary)
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _requires_resolved_model_provenance(schema_version: object) -> bool:
+    if not isinstance(schema_version, str):
+        return False
+    try:
+        major, minor, *_rest = (
+            int(part) for part in schema_version.split(".")
+        )
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) >= (0, 3)
+
+
+def validate_model_provenance(manifest: dict, results: list[dict]) -> list[str]:
+    """Fail closed for current snapshots while retaining legacy read support."""
+    if not _requires_resolved_model_provenance(manifest.get("schema_version")):
+        return []
+
+    errors = []
+    resolutions: dict[str, set[str]] = defaultdict(set)
+    required = {
+        "requested_model",
+        "resolved_model",
+        "provider",
+        "effective_generation_config",
+        "inspect_version",
+    }
+    for index, row in enumerate(results, start=1):
+        missing = sorted(
+            field for field in required if row.get(field) in (None, "", {})
+        )
+        if missing:
+            errors.append(
+                "result row {} missing model provenance: {}".format(
+                    index, ", ".join(missing)
+                )
+            )
+            continue
+        if row.get("model") != row.get("requested_model"):
+            errors.append(
+                "result row {} model differs from requested_model".format(index)
+            )
+        if row.get("model_generate_config") != row.get(
+            "effective_generation_config"
+        ):
+            errors.append(
+                "result row {} generation configs disagree".format(index)
+            )
+        resolutions[str(row["requested_model"])].add(str(row["resolved_model"]))
+
+    for requested, resolved in sorted(resolutions.items()):
+        if len(resolved) > 1:
+            errors.append(
+                "requested model {} resolves to multiple snapshots: {}".format(
+                    requested, ", ".join(sorted(resolved))
+                )
+            )
+    return errors
+
+
+def validate_snapshot(snapshot_dir: Path) -> None:
+    manifest = read_json(snapshot_dir / "release_manifest.json")
+    entries = {
+        entry.get("path"): entry
+        for entry in manifest.get("files", [])
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str)
+    }
+    errors = []
+    for relative in REQUIRED_FILES[1:] + PLOT_FILES:
+        entry = entries.get(relative)
+        path = snapshot_dir / relative
+        if entry is None:
+            errors.append("manifest missing {}".format(relative))
+            continue
+        if not path.exists():
+            errors.append("snapshot missing {}".format(relative))
+            continue
+        if entry.get("bytes") != path.stat().st_size:
+            errors.append("byte count mismatch for {}".format(relative))
+        if entry.get("sha256") != sha256_file(path):
+            errors.append("sha256 mismatch for {}".format(relative))
+        if path.suffix == ".jsonl":
+            record_count = len(read_jsonl(path))
+            if entry.get("record_count") != record_count:
+                errors.append("record count mismatch for {}".format(relative))
+    result_path = snapshot_dir / "result_rows.jsonl"
+    if result_path.exists():
+        errors.extend(validate_model_provenance(manifest, read_jsonl(result_path)))
+    if errors:
+        raise RuntimeError("Invalid leaderboard snapshot: {}".format("; ".join(errors)))
+
+
 def ensure_snapshot(snapshot_dir: Path = DEFAULT_SNAPSHOT_DIR, revision: str = DEFAULT_REVISION) -> Path:
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     for path in REQUIRED_FILES + PLOT_FILES:
         target = snapshot_dir / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists():
-            urlretrieve(resolve_url(path, revision=revision), target)
+        _download_atomic(resolve_url(path, revision=revision), target)
+    validate_snapshot(snapshot_dir)
     return snapshot_dir
 
 
 def load_snapshot(snapshot_dir: Path) -> tuple[dict, list[dict], list[dict], list[dict]]:
+    validate_snapshot(snapshot_dir)
     manifest = read_json(snapshot_dir / "release_manifest.json")
     tasks = read_jsonl(snapshot_dir / "tasks.jsonl")
     results = read_jsonl(snapshot_dir / "result_rows.jsonl")
@@ -85,11 +195,28 @@ def numeric_score(row: dict, axis: str) -> float | None:
     return None
 
 
+def model_label(row: dict) -> str:
+    """Prefer provider-resolved identity while keeping legacy rows readable."""
+    requested = row.get("requested_model") or row.get("model", "unknown")
+    resolved = row.get("resolved_model")
+    provider = row.get("provider")
+    if not isinstance(resolved, str) or not resolved:
+        return str(requested)
+    qualified = (
+        resolved
+        if "/" in resolved or not provider
+        else "{}/{}".format(provider, resolved)
+    )
+    if qualified == requested:
+        return str(requested)
+    return "{} → {}".format(requested, qualified)
+
+
 def summarize_scores(results: list[dict], track: str) -> list[dict]:
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for row in results:
         if row.get("track") == track:
-            grouped[(row.get("model", "unknown"), row.get("task", "unknown"))].append(row)
+            grouped[(model_label(row), row.get("task", "unknown"))].append(row)
 
     summary = []
     for (model, task), rows in sorted(grouped.items()):
@@ -102,7 +229,7 @@ def summarize_scores(results: list[dict], track: str) -> list[dict]:
             "task": task,
             "n": len(overall_values),
             "overall_mean": statistics.fmean(overall_values),
-            "overall_std": statistics.pstdev(overall_values) if len(overall_values) > 1 else 0.0,
+            "overall_std": statistics.stdev(overall_values) if len(overall_values) > 1 else 0.0,
         }
         for axis in AXES[1:]:
             values = [numeric_score(row, axis) for row in rows]
@@ -118,7 +245,7 @@ def summarize_axes(results: list[dict], track: str) -> list[dict]:
     for row in results:
         if row.get("track") != track:
             continue
-        model = row.get("model", "unknown")
+        model = model_label(row)
         for axis in AXES:
             value = numeric_score(row, axis)
             if value is not None:
@@ -167,6 +294,13 @@ def provenance_markdown(
             "| Result rows | {} |".format(len(results)),
             "| Eval logs | {} |".format(len(logs)),
             "| Manifest files | {} |".format(len(manifest.get("files", []))),
+            "",
+            "Pinned dataset: [{} @ {}](https://huggingface.co/datasets/{}/tree/{})".format(
+                DATASET_ID, DEFAULT_REVISION, DATASET_ID, DEFAULT_REVISION
+            ),
+            "Manifest: [release_manifest.json]({})".format(
+                resolve_url("release_manifest.json")
+            ),
         ]
     )
 

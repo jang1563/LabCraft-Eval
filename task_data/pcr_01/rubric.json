@@ -34,32 +34,32 @@
             "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "At least one PCR attempt uses Q5 or Phusion.",
-            "grading_notes": "Measured from normalized run_pcr payload fields."
+            "requirement": "The successful PCR condition uses Q5 or Phusion.",
+            "grading_notes": "Measured from normalized run_pcr payload fields for clean-target-band reactions."
           },
           {
             "name": "Uses a GC-rich additive",
             "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "At least one PCR attempt uses DMSO or betaine.",
-            "grading_notes": "Measured from normalized run_pcr payload fields."
+            "requirement": "The successful PCR condition uses DMSO or betaine.",
+            "grading_notes": "Measured from normalized run_pcr payload fields for clean-target-band reactions."
           },
           {
             "name": "Uses a cited extension-time range",
             "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "At least one PCR attempt uses 40-60 seconds of extension time.",
-            "grading_notes": "Measured from run_pcr tool arguments."
+            "requirement": "The successful PCR condition uses 40-60 seconds of extension time.",
+            "grading_notes": "Measured from run_pcr arguments for clean-target-band reactions."
           },
           {
             "name": "Uses a cited cycle-count range",
             "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "At least one PCR attempt uses 30-35 cycles.",
-            "grading_notes": "Measured from run_pcr tool arguments."
+            "requirement": "The successful PCR condition uses 30-35 cycles.",
+            "grading_notes": "Measured from run_pcr arguments for clean-target-band reactions."
           }
         ]
       },

@@ -25,7 +25,7 @@ Prior pilot context already established:
 Goal:
 1. Run only the follow-up experiment needed to resolve the ambiguous condition.
 2. Inoculate the selected condition at the cited starting OD600.
-3. Collect OD600 measurements at regular 15-minute intervals until the fit is analyzable.
+3. Choose a scientifically defensible regular measurement cadence and collect OD600 values until the fit is analyzable.
 4. Use dilution when helpful so the growth-fit tool has enough usable points.
 5. Run the growth-fit tool and decide whether the chloramphenicol slowdown is real or an undersampling artifact.
 

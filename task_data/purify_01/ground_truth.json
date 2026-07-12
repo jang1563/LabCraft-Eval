@@ -2,33 +2,6 @@
   "task_id": "purify_01",
   "decision_points": [
     {
-      "id": "uses_ni_nta_resin",
-      "description": "Resin is a Ni-NTA / immobilised-Ni affinity medium.",
-      "minimum_tier_required": "Silver",
-      "matcher": {
-        "tool_name": "run_nta_purification",
-        "argument": "resin_normalized",
-        "occurrence": "all"
-      },
-      "acceptable_values": {
-        "type": "one_of",
-        "values": ["ni-nta", "ni-nta agarose", "ni-nta superflow", "hispur ni-nta", "histrap hp"]
-      },
-      "scoring_rule": "binary",
-      "citations": [
-        {
-          "authors": "Bornhorst JA, Falke JJ",
-          "title": "Purification of proteins using polyhistidine affinity tags",
-          "journal": "Methods in Enzymology",
-          "year": 2000,
-          "doi": "10.1016/S0076-6879(00)26058-8",
-          "canonical_url": "https://doi.org/10.1016/S0076-6879(00)26058-8",
-          "tier": "Silver",
-          "tier_justification": "Canonical Methods in Enzymology chapter establishing Ni-NTA as the standard His-tag affinity resin."
-        }
-      ]
-    },
-    {
       "id": "load_imidazole_in_range",
       "description": "Load buffer imidazole is 10-20 mM to suppress non-specific binding.",
       "minimum_tier_required": "Bronze",

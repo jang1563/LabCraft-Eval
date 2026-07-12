@@ -51,7 +51,6 @@ credentials.json
 reports/
 research/
 archive/
-docs/company_briefs/private/
 
 # Ad-hoc Inspect eval logs (results/logs/ IS tracked for reproducibility)
 /logs/
