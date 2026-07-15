@@ -362,12 +362,60 @@ This accepts `gibson_01` as the second completed P1 task: 8/20 cells and 2/5
 tasks are contract-validated. These remain one-seed compatibility and
 scorer-contract results, not comparative model-ranking evidence.
 
+## Miniprep P1 sentinel verification
+
+Revision `ff47e8aa96a5564fb58700b3eb9db7d54badec43` was transferred as a
+complete bundle to a new detached checkout. The clean Cayuga preflight passed
+836 tests, Ruff, shell syntax, registry validation, wheel build, isolated
+installation, and package smoke under Python 3.13.7, Inspect 0.3.245, OpenAI
+2.45.0, and Anthropic 0.116.0.
+
+The serial four-cell array used RUN_ID
+`2026_07_15_p1_miniprep_seed0_ff47e8a`, seed 0, and the registered
+`current_balanced` profile (`max_tokens=16384`, `reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 5 | 2 | 1 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `openai/gpt-5.6-luna` | 5 | 2 | 1 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-sonnet-5` | 5 | 2 | 1 | 0.000 | 1.000 | 1.000 | 1.000 | 0.600 |
+| `anthropic/claude-haiku-4-5-20251001` | 7 | 3 | 2 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+
+All four cells exited `0:0` and passed the built-in and independently repeated
+strict validators. Independent postflight found exactly four schema-1.2.0
+manifests and four native logs, the exact clean commit and runtime source, seed
+0, Inspect 0.3.245, requested/resolved model identity, the registered profile,
+and no error or exhausted limit. The model-registry SHA-256 remained
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`,
+and all four evaluation stderr files were empty.
+
+Semantic audit confirmed one causal, report-matched preparation each for Sol
+and Luna. Sol used 5 mL for 3 minutes and produced 10 ug at 200 ng/uL; Luna
+used 1.5 mL for 3 minutes and produced 3 ug at 60 ng/uL. Both used the seeded
+culture, P1/P2/N3, the specified QIAprep 2.0 spin column, and 50 uL elution,
+and both source-culture remaining volumes matched the simulator invariant.
+
+Sonnet also produced a valid single preparation (3 mL, 5 minutes, 6 ug at
+120 ng/uL), but its native final response contained two identical copies of
+the complete 11-line report. The unique-report parser correctly assigned task
+success zero rather than silently deduplicating repeated fields. Haiku first
+used the wrong P1/P2/P3 sequence, observed an explicit failed preparation with
+no culture consumption, corrected to P1/P2/N3, and succeeded on a second call.
+Because the prompt requires exactly one `perform_miniprep` call, the scorer
+correctly rejected the retry path instead of hybridizing its failed and
+successful results. These are substantive model-level contract failures, not
+scorer or infrastructure defects.
+
+This accepts `miniprep_01` as the third completed P1 task: 12/20 cells and 3/5
+tasks are contract-validated. These remain one-seed compatibility and
+scorer-contract results, not comparative model-ranking evidence.
+
 ## Scale decision
 
 All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
-now 8/20 accepted cells after the remediated `golden_gate_01` and `gibson_01`
-gates. Their initial bundles remain pre-remediation diagnostics. Human-baseline
-and multi-seed work remain intentionally skipped. The next bounded gate is
-`miniprep_01` on the same four-model, seed-zero protocol. Frozen historical
-results and every cancelled, diagnostic, or pre-remediation bundle remain
-excluded from promoted aggregates.
+now 12/20 accepted cells after the remediated `golden_gate_01`, `gibson_01`,
+and hardened `miniprep_01` gates. Earlier pre-remediation bundles remain
+diagnostic-only. Human-baseline and multi-seed work remain intentionally
+skipped. The next bounded gate is `express_01` on the same four-model,
+seed-zero protocol. Frozen historical results and every cancelled, diagnostic,
+or pre-remediation bundle remain excluded from promoted aggregates.
