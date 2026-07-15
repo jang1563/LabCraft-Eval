@@ -59,6 +59,8 @@ def test_wheel_contains_registry_and_registers_model_info_outside_repo(tmp_path)
     assert "config/model_matrix.toml" in names
     assert "src/model_registry.py" in names
     assert "src/scorer_contracts.py" in names
+    assert "src/p2b_contracts.py" in names
+    assert "src/task_scorers/pcr_causal_reasoning_01.py" in names
     assert "task_data/scorer_validity/scorer_contract_manifest.json" in names
     assert "task_data/scorer_validity/review_manifest.json" in names
     assert (
@@ -72,6 +74,14 @@ def test_wheel_contains_registry_and_registers_model_info_outside_repo(tmp_path)
         "purify_01",
     ):
         assert f"task_data/scorer_validity/{task_id}/trajectory_fixtures.json" in names
+    for filename in (
+        "ground_truth.json",
+        "rubric.json",
+        "SOURCES.md",
+        "development_contract.json",
+        "development_fixtures.json",
+    ):
+        assert f"task_data/pcr_causal_reasoning_01/{filename}" in names
 
     site = tmp_path / "site"
     with zipfile.ZipFile(wheel_path) as archive:
@@ -85,9 +95,11 @@ from pathlib import Path
 import src
 from inspect_ai.model import get_model_info
 from src.model_registry import DEFAULT_REGISTRY_PATH
+from src.p2b_contracts import promotion_blockers, validate_p2b_contract
 
 import src.inspect_task  # noqa: F401 -- wheel entry-point import is under test
 info = get_model_info("openai/gpt-5.6-sol")
+p2b_errors = validate_p2b_contract()
 print(json.dumps({
     "src_file": str(Path(src.__file__).resolve()),
     "registry_path": str(DEFAULT_REGISTRY_PATH.resolve()),
@@ -96,6 +108,8 @@ print(json.dumps({
     "output_tokens": info.output_tokens,
     "knowledge_cutoff_date": info.knowledge_cutoff_date.isoformat(),
     "cost": info.cost,
+    "p2b_errors": p2b_errors,
+    "p2b_blockers": promotion_blockers(),
 }))
 '''
     env = os.environ.copy()
@@ -116,3 +130,10 @@ print(json.dumps({
     assert payload["output_tokens"] == 128_000
     assert payload["knowledge_cutoff_date"] == "2026-02-16"
     assert payload["cost"] is None
+    assert payload["p2b_errors"] == []
+    assert set(payload["p2b_blockers"]) == {
+        "expert_review_skipped",
+        "evaluation_policy_not_ready",
+        "external_evaluation_not_authorized",
+        "scientific_validity_unassessed",
+    }

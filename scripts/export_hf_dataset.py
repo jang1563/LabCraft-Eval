@@ -68,6 +68,7 @@ DISCOVERY_TASKS = {
 SAFETY_CASE_TASKS = {
     "safety_case_01",
 }
+DEVELOPMENT_TASK_IDS = {"pcr_causal_reasoning_01"}
 
 TASK_METADATA = {
     "transform_01": {
@@ -344,6 +345,34 @@ def classify_task(task_id: str) -> str:
     return "other"
 
 
+def task_dir_is_exportable(task_dir: Path) -> bool:
+    """Fail closed for development tasks that have not cleared promotion policy."""
+    contract_path = task_dir / "development_contract.json"
+    development_marked = task_dir.name in DEVELOPMENT_TASK_IDS
+    for metadata_name in ("ground_truth.json", "rubric.json"):
+        metadata_path = task_dir / metadata_name
+        if metadata_path.is_file():
+            development_marked = development_marked or (
+                read_json(metadata_path).get("development_only") is True
+            )
+    if not contract_path.is_file():
+        return not development_marked
+    contract = read_json(contract_path)
+    return (
+        contract.get("task_id") == task_dir.name
+        and contract.get("promotion_eligible") is True
+        and contract.get("evaluation_policy_ready") is True
+        and contract.get("public_export_eligible") is True
+    )
+
+
+def task_id_is_exportable(task_id: str) -> bool:
+    task_dir = REPO_ROOT / "task_data" / task_id
+    if task_id in DEVELOPMENT_TASK_IDS and not task_dir.is_dir():
+        return False
+    return not task_dir.is_dir() or task_dir_is_exportable(task_dir)
+
+
 def discover_task_dirs() -> list[Path]:
     task_root = REPO_ROOT / "task_data"
     return sorted(
@@ -352,6 +381,7 @@ def discover_task_dirs() -> list[Path]:
         if path.is_dir()
         and (path / "rubric.json").is_file()
         and (path / "ground_truth.json").is_file()
+        and task_dir_is_exportable(path)
     )
 
 
@@ -447,7 +477,7 @@ def iter_citations(payload: Any, json_path: str = "$"):
 
 def citation_records(commit: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    json_paths = list((REPO_ROOT / "task_data").glob("*/ground_truth.json"))
+    json_paths = [task_dir / "ground_truth.json" for task_dir in discover_task_dirs()]
     json_paths.extend(sorted((REPO_ROOT / "data" / "parameters").glob("*.json")))
 
     for path in sorted(json_paths):
@@ -993,6 +1023,12 @@ def result_records(
     records = []
     for row in deduped:
         eval_path = Path(str(row.get("eval_log_path", "")))
+        task_id = str(row.get("task", "unknown"))
+        if not task_id_is_exportable(task_id):
+            raise ValueError(
+                "Refusing to export development-only task results before promotion: "
+                + task_id
+            )
         revision = _evaluation_revision(row, eval_path)
         exported_log_path = (
             export_path(exported_eval_log_destination(export_root, eval_path), export_root)
@@ -1018,8 +1054,8 @@ def result_records(
                 "requested_model": row["requested_model"],
                 "resolved_model": row["resolved_model"],
                 "provider": row["provider"],
-                "task": row.get("task", "unknown"),
-                "track": classify_task(str(row.get("task", ""))),
+                "task": task_id,
+                "track": classify_task(task_id),
                 "status": row.get("status", "unknown"),
                 "sample_id": str(row.get("sample_id", "")),
                 "eval_log": row.get("eval_log", ""),

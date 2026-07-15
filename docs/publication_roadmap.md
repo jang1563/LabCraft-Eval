@@ -43,7 +43,7 @@ The public experience should satisfy two tests:
 | --- | --- | --- | --- |
 | **P0: Public truth repair** | **Locally complete; public sync pending** | Make every public entry point accurately distinguish the v0.1.2 metadata release, historical provisional scores, and current compatibility evidence. | Quickstart is manifest-first and safe for metadata-only snapshots; historical leaderboard evidence is visibly labelled; README, safety scope, report, citation metadata, and continuation docs agree. |
 | **P1: v0.2 contract gate** | **Completed — 20/20 accepted** | Validate the five newer flagship wet-lab tasks with the registered four-model core matrix and seed 0. | Every one of the 20 cells passes the strict validator with clean revision, exact requested/resolved model identity, registered generation profile, expected runtime source, current manifest schema, and no exhausted limits. Results remain compatibility/scorer-contract evidence, not a ranking. |
-| **P2: Scientific depth and scorer validity** | **In progress — local conformance gate built; expert review pending** | Add tasks that discriminate execution, diagnosis, recovery, and counterfactual reasoning; reduce scorer brittleness. | At least one reasoning, one recovery, and one counterfactual task family; task-level scorer modules with explicit versions; expert-labelled valid/invalid trajectory fixtures; alternative-valid-path and wrong-path ablations; a declared held-out or rotating evaluation policy. |
+| **P2: Scientific depth and scorer validity** | **In progress — first P2b task in local development; expert review skipped, promotion closed** | Add tasks that discriminate execution, diagnosis, recovery, and counterfactual reasoning; reduce scorer brittleness. | At least one reasoning, one recovery, and one counterfactual task family; task-level scorer modules with explicit versions; expert-labelled valid/invalid trajectory fixtures; alternative-valid-path and wrong-path ablations; a declared held-out or rotating evaluation policy. The local expert-review waiver does not satisfy this promotion criterion. |
 | **P3: Current scored release and publication package** | **Deferred** | Promote a clean, independently auditable current-contract result bundle and package the benchmark for paper-level review. | Public raw `.eval` logs, manifest-backed result rows, exact code/model/generation provenance, reproducible aggregation, uncertainty appropriate to the repeat design, the promoted release added to the existing leaderboard selector, and a technical report that cites only promoted evidence. Human-baseline and multi-seed work must be explicitly reopened before comparative or paper-grade ranking claims. |
 
 ## Exact P1 Gate
@@ -67,9 +67,12 @@ The P1 gate is complete. Preserve diagnostic and cancelled bundles, but exclude
 them from promoted aggregates. Human-baseline and multi-seed work remain
 intentionally skipped until those evidence tracks are explicitly reopened.
 
-## Exact P2a Gate
+## Exact P2a Gate and Local P2b Waiver
 
-Before adding new task families:
+The original promotion sequence remains fail-closed. The project owner has
+authorized a local-development sequencing waiver so P2b implementation can
+proceed without expert review; this does not change any approval or promotion
+state.
 
 1. [x] define an explicit scorer contract/version manifest for the five P1
    tasks and bind it into task and future score metadata;
@@ -79,15 +82,25 @@ Before adding new task families:
    regression gate, including wheel-installed execution;
 4. [ ] obtain expert review of every materialized trajectory and freeze all 35
    approved effective-definition hashes that bind the materialized trajectory
-   and scorer contract; current status is 0/35 approved;
-5. [ ] only then begin the reasoning, recovery, and counterfactual task
-   families.
+   and scorer contract; intentionally skipped for this local sequence, current
+   status remains 0/35 approved;
+5. [x] begin P2b under a development-only waiver, with separate contracts and
+   no promotion: `pcr_causal_reasoning_01` is the first two-case family.
 
 The local gate repaired request-only and orphan-output false accepts in the
 Golden Gate and Gibson scorers and made both eight-line reports exact. Those
 behavior changes do not rewrite the accepted P1 evidence: each P1 sentinel
 remains bound to its recorded evaluation commit, and current HEAD has not been
 rerun against external models under the P2a local-only authorization.
+
+The P2b task uses two opaque prior PCR records with the same coarse gel failure
+but different causal settings. A valid trajectory must identify the case-specific
+cause, make one causal edit, verify one linked recovery gel, and predict a
+noncausal one-variable counterfactual without executing it. Checked-in fixtures
+are public AI-assisted developer tests, not held-out evidence. A future scored
+evaluation requires a separately versioned rotating scenario bank committed
+before model output; until that exists, `evaluation_policy_ready=false` and
+export remains blocked.
 
 ## Promotion Rules
 

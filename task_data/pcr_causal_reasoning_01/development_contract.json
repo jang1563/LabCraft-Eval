@@ -1,0 +1,125 @@
+{
+  "contract_schema_version": "1.0.0",
+  "contract_set": "p2b_causal_reasoning_dev",
+  "contract_set_version": "0.1.0",
+  "task_id": "pcr_causal_reasoning_01",
+  "scorer_name": "pcr_causal_reasoning_01",
+  "scorer_version": "0.1.0",
+  "scorer_callable": "src.task_scorers.pcr_causal_reasoning_01:score_pcr_causal_reasoning_trajectory",
+  "inspect_builder": "src.task_scorers.pcr_causal_reasoning_01:build_pcr_causal_reasoning_trajectory_scorer",
+  "validation_tier": "development_unreviewed",
+  "expert_review_status": "skipped",
+  "fixture_label_source": "ai_assisted_test_oracle",
+  "scientific_validity_status": "unassessed",
+  "promotion_eligible": false,
+  "evaluation_policy_ready": false,
+  "external_evaluation_authorized": false,
+  "public_export_eligible": false,
+  "local_scope_authorized_at": "2026-07-15",
+  "local_scope": {
+    "allowed": [
+      "task_implementation",
+      "task_level_scorer",
+      "deterministic_fixture_regression",
+      "source_and_wheel_smoke",
+      "local_commit"
+    ],
+    "excluded": [
+      "external_model_execution",
+      "hpc_execution",
+      "human_baseline",
+      "multi_seed_evaluation",
+      "push",
+      "public_sync"
+    ]
+  },
+  "cases": [
+    "case_a",
+    "case_b"
+  ],
+  "case_count": 2,
+  "component_weights": {
+    "task_success": 0.4,
+    "decision_quality": 0.3,
+    "troubleshooting": 0.2,
+    "efficiency": 0.1
+  },
+  "decision_point_ids": [
+    "case_specific_diagnosis",
+    "causal_parameter_identification",
+    "one_variable_causal_correction",
+    "accepted_corrective_setting"
+  ],
+  "report_fields": [
+    "Case",
+    "Observed phenotype",
+    "Primary diagnosis",
+    "Causal parameter",
+    "Corrective setting",
+    "Counterfactual setting",
+    "Counterfactual prediction",
+    "Verification"
+  ],
+  "evidence_policy": {
+    "request_and_output_required": true,
+    "output_authoritative": true,
+    "request_output_consistency_required": true,
+    "causal_order_required": true,
+    "linked_reaction_id_required": true,
+    "case_identity_bound_from_sample_metadata": true,
+    "exact_unique_report_required": true,
+    "prior_rerun_shortcut_forbidden": true,
+    "counterfactual_execution_forbidden": true
+  },
+  "required_fixture_families": [
+    "canonical_valid_case_a",
+    "alternative_valid_case_a",
+    "canonical_valid_case_b",
+    "alternative_valid_case_b",
+    "forged_request_only",
+    "orphan_output_only",
+    "partial_missing_gel",
+    "contradictory_request_output",
+    "duplicate_call_id",
+    "contradictory_linked_outputs",
+    "malformed_output",
+    "wrong_diagnosis",
+    "multi_parameter_correction",
+    "wrong_counterfactual",
+    "retry_extra_request",
+    "prior_rerun_shortcut",
+    "executed_counterfactual",
+    "report_conflict",
+    "phenotype_shortcut"
+  ],
+  "fixture_count": 19,
+  "artifact_bindings": {
+    "task_source_path": "src/tasks/pcr_causal_reasoning_01.py",
+    "task_source_sha256": "7cfc31333f099fe4de2eee65d78b212ac04465ec40399d8061c829ea13825943",
+    "scorer_source_path": "src/task_scorers/pcr_causal_reasoning_01.py",
+    "scorer_source_sha256": "9f1d8a0b8b0a5b89d7c07cae7c50a87f91a30a2b2ffd89d79d3b836d573fa346",
+    "simulator_source_path": "src/environment/operations.py",
+    "simulator_source_sha256": "89339f6e9392e3460ae747e6a41db852ee9fc6823e7d0a7744916ff9daf2b4b5",
+    "pcr_parameters_path": "data/parameters/pcr.json",
+    "pcr_parameters_sha256": "7dd573ee622bc4c69088445bf2a2c76c0a9fa6ea11381d43681c1f7eba0c027b",
+    "ground_truth_path": "task_data/pcr_causal_reasoning_01/ground_truth.json",
+    "ground_truth_sha256": "83f5f22f2fc096f072218aa3fafff53d2e2c8a59d4bb7c4af26c4b58ee052ba4",
+    "rubric_path": "task_data/pcr_causal_reasoning_01/rubric.json",
+    "rubric_sha256": "2bcba69fbdc1fda497b8a993102e879899cfcc894e3b98f9968a1b31c6692faf",
+    "fixture_path": "task_data/pcr_causal_reasoning_01/development_fixtures.json",
+    "fixture_sha256": "5444245446b0bb846fbe57071bd9d373b2a7aa9e5bd6330c566b4fa224f68d38"
+  },
+  "evaluation_policy": {
+    "checked_in_fixture_role": "Public developer regression tests only; not held-out evaluation data and never eligible for promoted model-result aggregates.",
+    "future_bank_requirement": "A future scored evaluation requires a separately versioned scenario bank with at least eight substantive factor-balanced scenarios whose canonical SHA-256 and selection-policy version are committed before any model output is observed.",
+    "future_selection_rule": "Selection must be deterministic from release_id, task_id, case_id, seed, and a precommitted salt revealed after completion; it must be independent of model, provider, and output.",
+    "retirement_rule": "A scenario used in a score-bearing evaluation is retired from the future bank.",
+    "current_blocker": "No rotating scenario bank or precommitment exists, so evaluation_policy_ready remains false."
+  },
+  "promotion_blockers": [
+    "expert_review_skipped",
+    "evaluation_policy_not_ready",
+    "external_evaluation_not_authorized",
+    "scientific_validity_unassessed"
+  ]
+}

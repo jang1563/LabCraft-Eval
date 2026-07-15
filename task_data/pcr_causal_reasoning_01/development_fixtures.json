@@ -1,0 +1,995 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "pcr_causal_reasoning_01",
+  "scorer_version": "0.1.0",
+  "validation_tier": "development_unreviewed",
+  "expert_review_status": "skipped",
+  "fixture_label_source": "ai_assisted_test_oracle",
+  "promotion_eligible": false,
+  "base_trajectories": {
+    "case_a_valid": {
+      "case_id": "case_a",
+      "final_answer": "Case: case_a\nObserved phenotype: multiple_bands_or_smear\nPrimary diagnosis: low_fidelity_polymerase\nCausal parameter: polymerase_name\nCorrective setting: polymerase_name=Q5\nCounterfactual setting: cycle_count=30\nCounterfactual prediction: multiple_bands_or_smear\nVerification: single_clean_target_band",
+      "transcript": [
+        {
+          "type": "tool_call",
+          "tool_name": "run_pcr",
+          "call_id": "pcr-call-1",
+          "arguments": {
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32
+          },
+          "content": {
+            "status": "clean_target_band",
+            "reaction_id": "pcr_001",
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "normalized_polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "normalized_additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32,
+            "target_size_bp": 2000,
+            "visible_bands_bp": [
+              2000
+            ],
+            "smear_present": false,
+            "notes": []
+          }
+        },
+        {
+          "type": "tool_call",
+          "tool_name": "run_gel",
+          "call_id": "gel-call-1",
+          "arguments": {
+            "reaction_id": "pcr_001",
+            "agarose_percent": 1.0,
+            "ladder_name": "1 kb DNA Ladder"
+          },
+          "content": {
+            "status": "single_clean_target_band",
+            "gel_id": "gel_001",
+            "reaction_id": "pcr_001",
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "normalized_polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "normalized_additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32,
+            "target_size_bp": 2000,
+            "visible_bands_bp": [
+              2000
+            ],
+            "smear_present": false,
+            "agarose_percent": 1.0,
+            "ladder_name": "1 kb DNA Ladder",
+            "notes": [
+              "A single strong band is visible near 2 kb."
+            ]
+          }
+        }
+      ]
+    },
+    "case_b_valid": {
+      "case_id": "case_b",
+      "final_answer": "Case: case_b\nObserved phenotype: multiple_bands_or_smear\nPrimary diagnosis: overcycled_pcr\nCausal parameter: cycle_count\nCorrective setting: cycle_count=32\nCounterfactual setting: polymerase_name=Phusion\nCounterfactual prediction: multiple_bands_or_smear\nVerification: single_clean_target_band",
+      "transcript": [
+        {
+          "type": "tool_call",
+          "tool_name": "run_pcr",
+          "call_id": "pcr-call-1",
+          "arguments": {
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32
+          },
+          "content": {
+            "status": "clean_target_band",
+            "reaction_id": "pcr_001",
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "normalized_polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "normalized_additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32,
+            "target_size_bp": 2000,
+            "visible_bands_bp": [
+              2000
+            ],
+            "smear_present": false,
+            "notes": []
+          }
+        },
+        {
+          "type": "tool_call",
+          "tool_name": "run_gel",
+          "call_id": "gel-call-1",
+          "arguments": {
+            "reaction_id": "pcr_001",
+            "agarose_percent": 1.0,
+            "ladder_name": "1 kb DNA Ladder"
+          },
+          "content": {
+            "status": "single_clean_target_band",
+            "gel_id": "gel_001",
+            "reaction_id": "pcr_001",
+            "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "normalized_polymerase_name": "Q5 High-Fidelity DNA polymerase",
+            "additive": "DMSO",
+            "normalized_additive": "DMSO",
+            "extension_seconds": 50,
+            "cycle_count": 32,
+            "target_size_bp": 2000,
+            "visible_bands_bp": [
+              2000
+            ],
+            "smear_present": false,
+            "agarose_percent": 1.0,
+            "ladder_name": "1 kb DNA Ladder",
+            "notes": [
+              "A single strong band is visible near 2 kb."
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "event_fragments": {
+    "case_a_prior_rerun": [
+      {
+        "type": "tool_call",
+        "tool_name": "run_pcr",
+        "call_id": "pcr-prior-rerun",
+        "arguments": {
+          "polymerase_name": "Taq DNA polymerase",
+          "additive": "DMSO",
+          "extension_seconds": 50,
+          "cycle_count": 32
+        },
+        "content": {
+          "status": "nonspecific_amplification",
+          "reaction_id": "pcr_001",
+          "polymerase_name": "Taq DNA polymerase",
+          "normalized_polymerase_name": "Taq DNA polymerase",
+          "additive": "DMSO",
+          "normalized_additive": "DMSO",
+          "extension_seconds": 50,
+          "cycle_count": 32,
+          "target_size_bp": 2000,
+          "visible_bands_bp": [
+            850,
+            2000
+          ],
+          "smear_present": true,
+          "notes": [
+            "The selected polymerase was not one of the supported high-fidelity choices for this GC-rich assay."
+          ]
+        }
+      },
+      {
+        "type": "tool_call",
+        "tool_name": "run_gel",
+        "call_id": "gel-prior-rerun",
+        "arguments": {
+          "reaction_id": "pcr_001",
+          "agarose_percent": 1.0,
+          "ladder_name": "1 kb DNA Ladder"
+        },
+        "content": {
+          "status": "multiple_bands_or_smear",
+          "gel_id": "gel_001",
+          "reaction_id": "pcr_001",
+          "polymerase_name": "Taq DNA polymerase",
+          "normalized_polymerase_name": "Taq DNA polymerase",
+          "additive": "DMSO",
+          "normalized_additive": "DMSO",
+          "extension_seconds": 50,
+          "cycle_count": 32,
+          "target_size_bp": 2000,
+          "visible_bands_bp": [
+            850,
+            2000
+          ],
+          "smear_present": true,
+          "agarose_percent": 1.0,
+          "ladder_name": "1 kb DNA Ladder",
+          "notes": [
+            "The selected polymerase was not one of the supported high-fidelity choices for this GC-rich assay.",
+            "Multiple bands and/or smear are visible."
+          ]
+        }
+      }
+    ],
+    "case_a_counterfactual_run": [
+      {
+        "type": "tool_call",
+        "tool_name": "run_pcr",
+        "call_id": "pcr-counterfactual",
+        "arguments": {
+          "polymerase_name": "Taq DNA polymerase",
+          "additive": "DMSO",
+          "extension_seconds": 50,
+          "cycle_count": 30
+        },
+        "content": {
+          "status": "nonspecific_amplification",
+          "reaction_id": "pcr_002",
+          "polymerase_name": "Taq DNA polymerase",
+          "normalized_polymerase_name": "Taq DNA polymerase",
+          "additive": "DMSO",
+          "normalized_additive": "DMSO",
+          "extension_seconds": 50,
+          "cycle_count": 30,
+          "target_size_bp": 2000,
+          "visible_bands_bp": [
+            850,
+            2000
+          ],
+          "smear_present": true,
+          "notes": [
+            "The selected polymerase was not one of the supported high-fidelity choices for this GC-rich assay."
+          ]
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "pcr_causal_reasoning_01.canonical_valid_case_a",
+      "case_family": "canonical_valid_case_a",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Q5 is an accepted one-variable correction for case_a and the linked gel is clean."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.alternative_valid_case_a",
+      "case_family": "alternative_valid_case_a",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/arguments/polymerase_name",
+          "value": "Phusion High-Fidelity DNA polymerase"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/polymerase_name",
+          "value": "Phusion High-Fidelity DNA polymerase"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/normalized_polymerase_name",
+          "value": "Phusion High-Fidelity DNA polymerase"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/polymerase_name",
+          "value": "Phusion High-Fidelity DNA polymerase"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/normalized_polymerase_name",
+          "value": "Phusion High-Fidelity DNA polymerase"
+        },
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "polymerase_name=Q5",
+          "value": "polymerase_name=Phusion"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Phusion is accepted as an alternative one-variable correction for case_a."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.canonical_valid_case_b",
+      "case_family": "canonical_valid_case_b",
+      "base_trajectory": "case_b_valid",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Reducing case_b to 32 cycles is a one-variable correction with a linked clean gel."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.alternative_valid_case_b",
+      "case_family": "alternative_valid_case_b",
+      "base_trajectory": "case_b_valid",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/arguments/cycle_count",
+          "value": 35
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/cycle_count",
+          "value": 35
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/cycle_count",
+          "value": 35
+        },
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "cycle_count=32",
+          "value": "cycle_count=35"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Thirty-five cycles is an accepted alternative correction for case_b."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.forged_request_only",
+      "case_family": "forged_request_only",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/transcript/0/content"
+        },
+        {
+          "op": "remove",
+          "path": "/transcript/1/content"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Requests without simulator outputs cannot establish execution or reasoning evidence."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.orphan_output_only",
+      "case_family": "orphan_output_only",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "to_output_only",
+          "path": "/transcript/0"
+        },
+        {
+          "op": "to_output_only",
+          "path": "/transcript/1"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Orphan outputs without their linked requests fail the causal evidence gate."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.partial_missing_gel",
+      "case_family": "partial_missing_gel",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/transcript/1"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "A PCR output without its requested verification gel is incomplete."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.contradictory_request_output",
+      "case_family": "contradictory_request_output",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/arguments/polymerase_name",
+          "value": "Taq DNA polymerase"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "A request that contradicts its alleged simulator output is not a valid linked tool event."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.duplicate_call_id",
+      "case_family": "duplicate_call_id",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "type": "tool_call",
+            "tool_name": "run_pcr",
+            "call_id": "pcr-call-1",
+            "arguments": {
+              "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+              "additive": "DMSO",
+              "extension_seconds": 50,
+              "cycle_count": 32
+            },
+            "content": {
+              "status": "clean_target_band",
+              "reaction_id": "pcr_002",
+              "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+              "normalized_polymerase_name": "Q5 High-Fidelity DNA polymerase",
+              "additive": "DMSO",
+              "normalized_additive": "DMSO",
+              "extension_seconds": 50,
+              "cycle_count": 32,
+              "target_size_bp": 2000,
+              "visible_bands_bp": [
+                2000
+              ],
+              "smear_present": false,
+              "notes": []
+            }
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Repeated executions cannot share a call ID and collapse into one budgeted event."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.contradictory_linked_outputs",
+      "case_family": "contradictory_linked_outputs",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/visible_bands_bp",
+          "value": [
+            850,
+            2000
+          ]
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/smear_present",
+          "value": true
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "PCR and gel outputs must agree on status, bands, and smear for one linked reaction."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.malformed_output",
+      "case_family": "malformed_output",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/visible_bands_bp",
+          "value": null
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Malformed band evidence must return a zero vector instead of raising an exception."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.wrong_diagnosis",
+      "case_family": "wrong_diagnosis",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "Primary diagnosis: low_fidelity_polymerase",
+          "value": "Primary diagnosis: overcycled_pcr"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.925,
+        "task_success": 1.0,
+        "decision_quality": 0.75,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "The execution recovers, but the reported case-specific diagnosis is wrong."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.multi_parameter_correction",
+      "case_family": "multi_parameter_correction",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/arguments/additive",
+          "value": "Betaine"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/additive",
+          "value": "Betaine"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/content/normalized_additive",
+          "value": "Betaine"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/additive",
+          "value": "Betaine"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/normalized_additive",
+          "value": "Betaine"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.925,
+        "task_success": 1.0,
+        "decision_quality": 0.75,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Changing the polymerase and additive recovers execution but does not isolate one cause."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.wrong_counterfactual",
+      "case_family": "wrong_counterfactual",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "Counterfactual prediction: multiple_bands_or_smear",
+          "value": "Counterfactual prediction: single_clean_target_band"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.8,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 0.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "The counterfactual retains Taq, so predicting a clean gel contradicts the isolated simulator."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.retry_extra_request",
+      "case_family": "retry_extra_request",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "type": "tool_call",
+            "tool_name": "run_pcr",
+            "call_id": "unresolved-retry",
+            "arguments": {
+              "polymerase_name": "Taq DNA polymerase",
+              "additive": "DMSO",
+              "extension_seconds": 50,
+              "cycle_count": 32
+            }
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.9,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "The valid recovery remains linked, but an extra experimental request violates the exact budget."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.prior_rerun_shortcut",
+      "case_family": "prior_rerun_shortcut",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "prepend_fragment",
+          "path": "/transcript",
+          "fragment": "case_a_prior_rerun"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/2/content/reaction_id",
+          "value": "pcr_002"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/3/arguments/reaction_id",
+          "value": "pcr_002"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/3/content/reaction_id",
+          "value": "pcr_002"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/3/content/gel_id",
+          "value": "gel_002"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.4,
+        "task_success": 1.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Rerunning the supplied failure leaks the simulator note, so reasoning and efficiency credit are blocked."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.executed_counterfactual",
+      "case_family": "executed_counterfactual",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_fragment",
+          "path": "/transcript",
+          "fragment": "case_a_counterfactual_run"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.7,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 1.0,
+          "causal_parameter_identification": 1.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "The requested counterfactual is prediction-only; executing it blocks troubleshooting and efficiency credit."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.report_conflict",
+      "case_family": "report_conflict",
+      "base_trajectory": "case_a_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nVerification: multiple_bands_or_smear"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.1,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 0.0,
+          "accepted_corrective_setting": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "A duplicate conflicting report field violates the exact unique eight-line schema."
+      }
+    },
+    {
+      "fixture_id": "pcr_causal_reasoning_01.phenotype_shortcut",
+      "case_family": "phenotype_shortcut",
+      "base_trajectory": "case_b_valid",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "Primary diagnosis: overcycled_pcr",
+          "value": "Primary diagnosis: low_fidelity_polymerase"
+        },
+        {
+          "op": "replace_text",
+          "path": "/final_answer",
+          "old": "Causal parameter: cycle_count",
+          "value": "Causal parameter: polymerase_name"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.85,
+        "task_success": 1.0,
+        "decision_quality": 0.5,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "case_specific_diagnosis": 0.0,
+          "causal_parameter_identification": 0.0,
+          "one_variable_causal_correction": 1.0,
+          "accepted_corrective_setting": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_test_oracle",
+        "label_status": "development_unreviewed",
+        "reviewer": null,
+        "reviewed_at": null,
+        "rationale": "Copying the case_a explanation for the shared phenotype fails the bound case_b diagnosis."
+      }
+    }
+  ]
+}

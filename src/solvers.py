@@ -149,6 +149,33 @@ def build_pcr_solver():
     )
 
 
+def build_pcr_causal_reasoning_solver():
+    """Build the development-only PCR causal-reasoning solver chain."""
+    from inspect_ai.agent import AgentPrompt, react
+
+    from .tools.lab_tools import run_gel_tool, run_pcr_tool
+    from .tools.reference import lookup_enzyme_tool, lookup_reagent_tool
+
+    return react(
+        prompt=AgentPrompt(
+            instructions=LABCRAFT_SYSTEM_PROMPT,
+            assistant_prompt=(
+                "\nTreat the supplied prior record as read-only evidence. Diagnose one "
+                "causal setting, change exactly that setting in one corrective PCR, and "
+                "verify the returned reaction with one linked gel. The requested "
+                "counterfactual is a prediction only and must not be executed. Keep text "
+                "between tool calls minimal, then return only the exact report schema.\n"
+            ),
+        ),
+        tools=[
+            lookup_reagent_tool(),
+            lookup_enzyme_tool(),
+            run_pcr_tool(),
+            run_gel_tool(),
+        ],
+    )
+
+
 def build_screen_solver():
     """Build the Screen-01 solver chain with only colony-screening tools."""
     from inspect_ai.agent import AgentPrompt, react

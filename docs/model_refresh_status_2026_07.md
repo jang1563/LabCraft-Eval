@@ -543,8 +543,10 @@ complete at 20/20 accepted cells after the remediated `golden_gate_01` and
 `gibson_01` plus the hardened `miniprep_01`, `express_01`, and `purify_01`
 gates. Earlier pre-remediation bundles remain diagnostic-only. Human-baseline
 and multi-seed work remain intentionally skipped. The P2a local contract and
-deterministic regression foundation is implemented; the next bounded gate is
-expert review and hash-freezing of all 35 draft fixtures before new reasoning,
-recovery, or counterfactual task families. Frozen historical results and every
-cancelled, diagnostic, or pre-remediation bundle remain excluded from promoted
-aggregates.
+deterministic regression foundation is implemented. The original next bounded
+gate was expert review and hash-freezing of all 35 draft fixtures; on 2026-07-15
+the project owner instead authorized one local-development-only P2b sequence
+with expert review skipped. That waiver does not approve the P1 fixtures or
+open P2b promotion, external evaluation, HPC, human baseline, multi-seed work,
+push, or public synchronization. Frozen historical results and every cancelled,
+diagnostic, or pre-remediation bundle remain excluded from promoted aggregates.

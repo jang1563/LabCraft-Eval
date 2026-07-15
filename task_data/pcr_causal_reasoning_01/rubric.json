@@ -1,0 +1,99 @@
+{
+  "task_id": "pcr_causal_reasoning_01",
+  "task_title": "Causal diagnosis and one-variable recovery of a GC-rich PCR failure",
+  "source": "LabCraft P2b development task",
+  "num_errors_introduced": 1,
+  "total_leaf_nodes": 7,
+  "development_only": true,
+  "rubric": {
+    "name": "Task Evaluation",
+    "weight": 1.0,
+    "is_leaf": false,
+    "children": [
+      {
+        "name": "Task Success",
+        "weight": 0.4,
+        "is_leaf": false,
+        "children": [
+          {
+            "name": "Produces and reports one linked clean recovery",
+            "weight": 1.0,
+            "is_leaf": true,
+            "category": "task_success",
+            "requirement": "The exact eight-line report binds to the assigned case, one complete corrective PCR output, and its linked single-clean-target-band gel output.",
+            "grading_notes": "Request-only, output-only, incomplete, unlinked, stale, or report-inconsistent evidence fails closed."
+          }
+        ]
+      },
+      {
+        "name": "Decision Quality",
+        "weight": 0.3,
+        "is_leaf": false,
+        "children": [
+          {
+            "name": "Case-specific diagnosis",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "The report selects the diagnosis assigned to the case rather than using one answer for the shared phenotype.",
+            "grading_notes": "The expected case comes from sample metadata, never from the model's Case field."
+          },
+          {
+            "name": "Causal parameter identification",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "The report names the parameter that caused the assigned prior failure.",
+            "grading_notes": "Scored against the case-specific ground truth."
+          },
+          {
+            "name": "One-variable causal correction",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "The authoritative PCR output differs from the prior configuration only at the causal parameter.",
+            "grading_notes": "Request arguments cannot fill missing output fields."
+          },
+          {
+            "name": "Accepted corrective setting",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "The changed causal value is an accepted high-fidelity polymerase or cycle count for its case.",
+            "grading_notes": "Alternative-valid Q5/Phusion and 30-35-cycle paths receive equal credit."
+          }
+        ]
+      },
+      {
+        "name": "Troubleshooting",
+        "weight": 0.2,
+        "is_leaf": false,
+        "children": [
+          {
+            "name": "Counterfactual retains the fault and predicts the isolated outcome",
+            "weight": 1.0,
+            "is_leaf": true,
+            "category": "troubleshooting",
+            "requirement": "The non-executed counterfactual changes one valid non-causal setting, retains the causal fault, and matches the isolated simulator gel status.",
+            "grading_notes": "Executing the counterfactual or rerunning the prior failed condition blocks this credit."
+          }
+        ]
+      },
+      {
+        "name": "Efficiency",
+        "weight": 0.1,
+        "is_leaf": false,
+        "children": [
+          {
+            "name": "Uses exactly one corrective PCR and one linked gel",
+            "weight": 1.0,
+            "is_leaf": true,
+            "category": "efficiency",
+            "requirement": "The trajectory contains exactly one run_pcr call and one run_gel call; optional reference lookups do not count.",
+            "grading_notes": "Any retry, prior-condition rerun, or executed counterfactual receives zero efficiency credit."
+          }
+        ]
+      }
+    ]
+  }
+}

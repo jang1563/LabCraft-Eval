@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained and all five newer wet-lab tasks contract-validated, P1 complete at 20/20 cells |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, `followup_01`, and development-only `pcr_causal_reasoning_01` | Active; snapshot sentinels retained, all five newer wet-lab tasks contract-validated, P1 complete at 20/20 cells, first P2b task isolated from promotion |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -25,8 +25,9 @@ wet-lab competence and not broad biology capability.
 - GitHub release `v0.1.2` is the current public integrity release.
 - The v0.1.2 Hugging Face dataset is metadata-only: no promoted result rows or
   raw `.eval` logs are attributed to this release.
-- The codebase implements 14 runnable simulator/decision tasks plus the
-  separate Safety Case Track.
+- The public portfolio implements 14 runnable simulator/decision tasks plus the
+  separate Safety Case Track. A two-case `pcr_causal_reasoning_01` task is also
+  implemented under the non-exported `p2b_dev` preset.
 - All five frozen snapshot tasks completed a strict seed-0 sentinel across the
   registered `current_balanced` four-model matrix. Retained cells passed clean
   revision, requested/resolved model, generation-profile, runtime-source,
@@ -87,6 +88,12 @@ wet-lab competence and not broad biology capability.
   accepts in the Golden Gate and Gibson scorers. The technical regression gate
   passes, but all fixture labels remain AI-assisted drafts with 0/35 expert
   approvals, so the promotion gate remains closed.
+- The first P2b development task, `pcr_causal_reasoning_01`, pairs two opaque
+  GC-rich PCR failures with the same coarse gel phenotype but different causal
+  settings. It requires one-variable diagnosis, one corrective PCR, a linked
+  gel, and a non-executed counterfactual. Its scorer and fixtures are versioned
+  separately from P1, and its contract is explicitly development-unreviewed,
+  expert-review-skipped, non-promotable, and not ready for external evaluation.
 - Historical v0.1.1, newer-task, Discovery, HPC, and live Safety Case summaries
   remain historical or provisional unless explicitly promoted under the rules
   below.
@@ -96,8 +103,13 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 
 ## Current Constraints
 
+- Expert review is intentionally skipped for the authorized local P2b work.
+  This is a sequencing waiver only: the P1 review state remains 0/35 approved,
+  and neither P1 nor P2b gains promotion status.
 - Human-baseline collection is intentionally skipped for the current gate.
 - Multi-seed collection is intentionally skipped for the current gate.
+- External model/HPC execution, push, and public synchronization are outside
+  the current authorization.
 - Therefore, current work may establish task/model compatibility and scorer
   correctness, but not comparative reliability, confidence intervals, or a
   publication-grade ranking.
@@ -106,16 +118,21 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 
 ## Exact Next Gate
 
-Complete the **P2a expert-review gate** before adding task breadth:
+Complete the **local P2b development gate** without treating the expert-review
+waiver as approval:
 
-1. inspect each of the 35 materialized trajectory definitions, rationales,
-   validity labels, component vectors, and decision-level labels;
-2. revise any disputed fixture or scorer behavior before recording approval;
-3. freeze the exact approved effective-definition hashes in the review
-   manifest; each hash binds the materialized trajectory and scorer/source,
-   ground-truth, rubric, weight, report, decision, and evidence contracts;
-4. require the expert-review gate as well as the passing deterministic
-   regression before starting reasoning, recovery, or counterfactual tasks.
+1. keep the P1 35-fixture regression passing and its promotion gate closed;
+2. require the P2b two-case scorer to accept canonical and alternative-valid
+   one-variable recoveries and reject request-only, orphan, partial, forged,
+   shortcut, contradictory, and retry paths as declared;
+3. require exact task/scorer/ground-truth/rubric/fixture hashes and deterministic
+   full score vectors from both the source tree and installed wheel;
+4. keep `promotion_eligible=false`, `evaluation_policy_ready=false`, and
+   `external_evaluation_authorized=false` until those gates are explicitly
+   reopened;
+5. only then choose the next distinct recovery or counterfactual family. The
+   current two-case PCR family is the first depth unit, not completion of all P2
+   scientific-validity exit criteria.
 
 Keep the completed P1 bundles append-only and outside comparative ranking
 claims. The Golden Gate and Gibson scorer behavior changed locally during P2a,
@@ -155,8 +172,9 @@ compatibility/scorer-contract evidence.
 - **P1 — complete:** 20/20 strict cells accepted and all five newer wet-lab
   tasks contract-validated; one-seed evidence remains compatibility/scorer
   evidence rather than a ranking.
-- **P2 — in progress:** scorer v1 manifests and a 35-case deterministic local
-  regression are implemented; expert review/freeze is pending 35/35 before new
-  reasoning, recovery, or counterfactual task depth.
+- **P2 — in progress, development-only:** P1 scorer v1 manifests and a 35-case
+  regression remain technically green with expert review intentionally skipped;
+  the first two-case causal reasoning/recovery/counterfactual task is locally
+  isolated and non-promotable.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and
   publication package after evidence gates pass.

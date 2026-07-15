@@ -162,6 +162,31 @@ def test_run_portfolio_eval_passes_seed_parameters_and_succeeds(tmp_path):
     assert json.loads(profile_path.read_text()) == {"max_tokens": 4096, "temperature": 0.0}
 
 
+def test_run_portfolio_eval_blocks_p2b_external_execution_by_contract(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    env = _runner_env(
+        tmp_path,
+        fake_inspect,
+        TASK_PRESET="p2b_dev",
+        MODELS="openai/gpt-4o-mini",
+        SEEDS="1",
+    )
+    env.pop("TASKS", None)
+
+    proc = subprocess.run(
+        ["bash", str(RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "P2b external model execution is not authorized" in proc.stderr
+    assert "validate_p2b_contracts.py" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+
+
 def test_run_portfolio_eval_defaults_to_current_matrix_and_per_model_profiles(tmp_path):
     fake_inspect = _write_fake_inspect(tmp_path)
     env = _runner_env(
@@ -589,6 +614,39 @@ def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
     revision_index = validator_args.index("--expected-revision-commit") + 1
     assert validator_args[revision_index] == manifest["commit_sha"]
     assert "--require-clean-revision" in validator_args
+
+
+def test_hpc_runner_blocks_p2b_before_api_call(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    bundle_dir = tmp_path / "hpc_bundle"
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOME": str(tmp_path / "home"),
+            "INSPECT_BIN": str(fake_inspect),
+            "FAKE_INSPECT_LOG": str(tmp_path / "inspect_calls.log"),
+            "PYTHON_BIN": sys.executable,
+            "TASKS": "pcr_causal_reasoning_01",
+            "MODELS": "openai/gpt-4o-mini",
+            "SEEDS_TOTAL": "1",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "BUNDLE_DIR": str(bundle_dir),
+            "LOG_DIR": str(bundle_dir / "logs"),
+        }
+    )
+
+    proc = subprocess.run(
+        ["bash", str(HPC_RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "P2b HPC execution is not authorized" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+    assert not (bundle_dir / "manifests").exists()
 
 
 def test_hpc_runner_rejects_dirty_worktree_before_api_call(tmp_path):

@@ -126,8 +126,13 @@ def test_task_inventory_constants_are_consistent():
         "target_validate_01",
     )
     assert inspect_task.ALL_TASKS == inspect_task.CURRENT_TASKS + inspect_task.DISCOVERY_TASKS
+    assert inspect_task.P2B_DEVELOPMENT_TASKS == ("pcr_causal_reasoning_01",)
+    assert inspect_task.TASK_PRESETS["p2b_dev"] == inspect_task.P2B_DEVELOPMENT_TASKS
+    assert not set(inspect_task.P2B_DEVELOPMENT_TASKS) & set(inspect_task.ALL_TASKS)
     assert inspect_task.TASK_PRESETS["all"] == inspect_task.ALL_TASKS
-    assert set(inspect_task.ALL_TASKS).issubset(set(inspect_task.__all__))
+    assert set(inspect_task.ALL_TASKS + inspect_task.P2B_DEVELOPMENT_TASKS).issubset(
+        set(inspect_task.__all__)
+    )
 
 
 def test_growth_task_separates_turn_and_message_limits():
@@ -149,6 +154,17 @@ def test_available_task_ids_returns_named_preset():
 def test_available_task_ids_rejects_unknown_preset():
     with pytest.raises(ValueError, match="Unknown task preset"):
         inspect_task.available_task_ids("unknown")
+
+
+def test_p2b_development_task_instantiates_two_bound_cases_outside_all_preset():
+    task = inspect_task.pcr_causal_reasoning_01(seeds=1)
+    samples = list(task.dataset)
+
+    assert len(samples) == 2
+    assert [sample.metadata["case_id"] for sample in samples] == ["case_a", "case_b"]
+    assert all(sample.metadata["promotion_eligible"] is False for sample in samples)
+    assert all(sample.metadata["p2b_contract_sha256"] for sample in samples)
+    assert task.message_limit == 30
 
 
 def test_target_prioritize_prompt_clarifies_immediate_no_go_vs_followup():

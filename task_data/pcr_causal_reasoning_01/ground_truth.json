@@ -1,0 +1,264 @@
+{
+  "task_id": "pcr_causal_reasoning_01",
+  "task_version": "0.1.0",
+  "development_only": true,
+  "cases": {
+    "case_a": {
+      "prior_configuration": {
+        "polymerase_name": "Taq DNA polymerase",
+        "additive": "DMSO",
+        "extension_seconds": 50,
+        "cycle_count": 32
+      },
+      "prior_observation": {
+        "status": "multiple_bands_or_smear",
+        "smear_present": true
+      },
+      "primary_diagnosis": "low_fidelity_polymerase",
+      "causal_parameter": "polymerase_name",
+      "acceptable_corrective_values": [
+        "Q5 High-Fidelity DNA polymerase",
+        "Phusion High-Fidelity DNA polymerase"
+      ],
+      "acceptable_counterfactual_values": {
+        "additive": [
+          "Betaine"
+        ],
+        "extension_seconds": [
+          40,
+          60
+        ],
+        "cycle_count": [
+          30,
+          31,
+          33,
+          34,
+          35
+        ]
+      },
+      "counterfactual_gel_status": "multiple_bands_or_smear"
+    },
+    "case_b": {
+      "prior_configuration": {
+        "polymerase_name": "Q5 High-Fidelity DNA polymerase",
+        "additive": "DMSO",
+        "extension_seconds": 50,
+        "cycle_count": 45
+      },
+      "prior_observation": {
+        "status": "multiple_bands_or_smear",
+        "smear_present": true
+      },
+      "primary_diagnosis": "overcycled_pcr",
+      "causal_parameter": "cycle_count",
+      "acceptable_corrective_values": [
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "acceptable_counterfactual_values": {
+        "polymerase_name": [
+          "Phusion High-Fidelity DNA polymerase"
+        ],
+        "additive": [
+          "Betaine"
+        ],
+        "extension_seconds": [
+          40,
+          60
+        ]
+      },
+      "counterfactual_gel_status": "multiple_bands_or_smear"
+    }
+  },
+  "decision_points": [
+    {
+      "id": "case_specific_diagnosis",
+      "description": "Distinguish the polymerase and cycle-count failure cases from the prior settings rather than the shared coarse gel phenotype alone.",
+      "minimum_tier_required": "Silver",
+      "matcher": {
+        "source": "exact_report_and_bound_case"
+      },
+      "acceptable_values": {
+        "type": "per_case",
+        "values": {
+          "case_a": "low_fidelity_polymerase",
+          "case_b": "overcycled_pcr"
+        }
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "title": "PCR fidelity of pfu DNA polymerase and other thermostable DNA polymerases",
+          "doi": "10.1093/nar/24.18.3546",
+          "canonical_url": "https://doi.org/10.1093/nar/24.18.3546",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed comparison supporting the fidelity distinction between proofreading polymerases and Taq."
+        },
+        {
+          "title": "Phusion PCR Protocol",
+          "canonical_url": "https://www.thermofisher.com/us/en/home/references/protocols/nucleic-acid-amplification-and-expression-profiling/pcr-protocol/phusion-pcr-protocol.html",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor protocol defining a bounded cycle-count range used by the simulator contract."
+        }
+      ]
+    },
+    {
+      "id": "causal_parameter_identification",
+      "description": "Name the single case-specific parameter responsible for the failure.",
+      "minimum_tier_required": "Bronze",
+      "matcher": {
+        "source": "exact_report_and_bound_case"
+      },
+      "acceptable_values": {
+        "type": "per_case",
+        "values": {
+          "case_a": "polymerase_name",
+          "case_b": "cycle_count"
+        }
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "title": "Q5 High-Fidelity DNA Polymerase",
+          "canonical_url": "https://www.neb.com/en-us/products/m0491-q5-high-fidelity-dna-polymerase",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor page supporting the simulator's accepted high-fidelity polymerase class."
+        },
+        {
+          "title": "Protocol for Q5 High-Fidelity 2X Master Mix",
+          "canonical_url": "https://www.neb.com/en-us/protocols/2012/12/07/protocol-for-q5-high-fidelity-2x-master-mix-m0492",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor protocol supporting the accepted genomic-PCR cycle-count range."
+        }
+      ]
+    },
+    {
+      "id": "one_variable_causal_correction",
+      "description": "Change the diagnosed causal parameter and preserve all three non-causal prior settings.",
+      "minimum_tier_required": "Bronze",
+      "matcher": {
+        "source": "output_authoritative_run_pcr"
+      },
+      "acceptable_values": {
+        "type": "case_specific_one_variable_edit"
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "title": "PCR Using Q5 High-Fidelity DNA Polymerase",
+          "canonical_url": "https://www.neb.com/en-us/protocols/2013/12/13/pcr-using-q5-high-fidelity-dna-polymerase-m0491",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative protocol supporting the accepted extension setting while the causal variable is isolated."
+        },
+        {
+          "title": "Phusion PCR Protocol",
+          "canonical_url": "https://www.thermofisher.com/us/en/home/references/protocols/nucleic-acid-amplification-and-expression-profiling/pcr-protocol/phusion-pcr-protocol.html",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative protocol supporting the accepted cycle and extension settings held fixed by the benchmark intervention."
+        }
+      ]
+    },
+    {
+      "id": "accepted_corrective_setting",
+      "description": "Use a source-backed high-fidelity polymerase or in-range cycle count for the case-specific correction.",
+      "minimum_tier_required": "Bronze",
+      "matcher": {
+        "source": "output_authoritative_run_pcr"
+      },
+      "acceptable_values": {
+        "type": "per_case",
+        "values": {
+          "case_a": [
+            "Q5 High-Fidelity DNA polymerase",
+            "Phusion High-Fidelity DNA polymerase"
+          ],
+          "case_b": [
+            30,
+            31,
+            32,
+            33,
+            34,
+            35
+          ]
+        }
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "title": "Q5 High-Fidelity DNA Polymerase",
+          "canonical_url": "https://www.neb.com/en-us/products/m0491-q5-high-fidelity-dna-polymerase",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor page supporting Q5 as an accepted difficult-PCR polymerase."
+        },
+        {
+          "title": "Phusion High-Fidelity DNA Polymerase",
+          "canonical_url": "https://www.thermofisher.com/order/catalog/product/F530S",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor page supporting Phusion as an accepted high-fidelity polymerase."
+        },
+        {
+          "title": "Protocol for Q5 High-Fidelity 2X Master Mix",
+          "canonical_url": "https://www.neb.com/en-us/protocols/2012/12/07/protocol-for-q5-high-fidelity-2x-master-mix-m0492",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor protocol supporting the accepted cycle-count range."
+        }
+      ]
+    }
+  ],
+  "failure_diagnosis_map": {
+    "low_fidelity_polymerase": {
+      "canonical_diagnosis": "The prior reaction used Taq rather than one of the supported high-fidelity enzymes for the difficult GC-rich target.",
+      "acceptable_variants": [
+        "The polymerase choice was the causal fault."
+      ],
+      "judge_strategy": "exact_structured_token",
+      "minimum_tier_required": "Silver",
+      "citations": [
+        {
+          "title": "PCR fidelity of pfu DNA polymerase and other thermostable DNA polymerases",
+          "doi": "10.1093/nar/24.18.3546",
+          "canonical_url": "https://doi.org/10.1093/nar/24.18.3546",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed comparison supporting the fidelity advantage of proofreading enzymes over Taq."
+        }
+      ]
+    },
+    "overcycled_pcr": {
+      "canonical_diagnosis": "The prior reaction exceeded the accepted cycle-count range, causing nonspecific amplification and smear in the simulator.",
+      "acceptable_variants": [
+        "The cycle count was the causal fault."
+      ],
+      "judge_strategy": "exact_structured_token",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "title": "Phusion PCR Protocol",
+          "canonical_url": "https://www.thermofisher.com/us/en/home/references/protocols/nucleic-acid-amplification-and-expression-profiling/pcr-protocol/phusion-pcr-protocol.html",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative vendor protocol using a bounded PCR cycle-count range."
+        }
+      ]
+    }
+  },
+  "report_fields": [
+    "Case",
+    "Observed phenotype",
+    "Primary diagnosis",
+    "Causal parameter",
+    "Corrective setting",
+    "Counterfactual setting",
+    "Counterfactual prediction",
+    "Verification"
+  ],
+  "efficiency_reference": {
+    "experimental_tool_calls": 2,
+    "run_pcr_calls": 1,
+    "run_gel_calls": 1,
+    "counterfactual_calls": 0,
+    "reference_calls_ignored": true
+  }
+}

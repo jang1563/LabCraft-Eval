@@ -43,6 +43,10 @@ from src.tasks.purify_01 import (
     build_purify_01_prompt,
     build_purify_01_sample,
 )
+from src.tasks.pcr_causal_reasoning_01 import (
+    build_pcr_causal_reasoning_01_prompt,
+    build_pcr_causal_reasoning_01_samples,
+)
 from src.tools.lab_tools import (
     gibson_assembly_call,
     gibson_assembly_tool,
@@ -209,6 +213,41 @@ def test_growth_prompts_do_not_supply_scored_parameter_bounds():
     assert "0.05" not in build_growth_01_prompt().casefold()
     assert "10-minute" not in build_growth_01_prompt().casefold()
     assert "20-minute" not in build_growth_01_prompt().casefold()
+
+
+def test_pcr_causal_reasoning_prompts_blind_diagnosis_notes_symmetrically():
+    prompts = {
+        case_id: build_pcr_causal_reasoning_01_prompt(case_id)
+        for case_id in ("case_a", "case_b")
+    }
+
+    for case_id, prompt in prompts.items():
+        lowered = prompt.casefold()
+        assert "simulator diagnosis notes" in lowered
+        assert "detailed band" in lowered
+        assert "[850" not in prompt
+        assert "[1400" not in prompt
+        assert "low_fidelity_polymerase" in prompt
+        assert "overcycled_pcr" in prompt
+        assert "polymerase_name" in prompt
+        assert "cycle_count" in prompt
+        assert "Case: {}".format(case_id) in prompt
+
+    assert "Taq DNA polymerase" in prompts["case_a"]
+    assert "Cycles: 45" in prompts["case_b"]
+
+
+def test_pcr_causal_reasoning_samples_bind_case_and_closed_promotion_state():
+    samples = build_pcr_causal_reasoning_01_samples()
+
+    assert [sample["metadata"]["case_id"] for sample in samples] == ["case_a", "case_b"]
+    assert all(sample["metadata"]["expert_review_status"] == "skipped" for sample in samples)
+    assert all(sample["metadata"]["promotion_eligible"] is False for sample in samples)
+    assert all(sample["metadata"]["evaluation_policy_ready"] is False for sample in samples)
+    assert all(
+        sample["metadata"]["external_evaluation_authorized"] is False
+        for sample in samples
+    )
 
 
 def test_discovery_tool_docs_do_not_supply_exact_scored_identifiers():

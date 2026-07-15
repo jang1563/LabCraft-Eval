@@ -17,6 +17,7 @@ SNAPSHOT_TASKS="transform_01 growth_01 pcr_01 screen_01 clone_01"
 CURRENT_TASKS="${SNAPSHOT_TASKS} golden_gate_01 gibson_01 miniprep_01 express_01 purify_01 followup_01"
 DISCOVERY_TASKS="perturb_followup_01 target_prioritize_01 target_validate_01"
 SAFETY_CASE_TASKS="safety_case_01"
+P2B_DEVELOPMENT_TASKS="pcr_causal_reasoning_01"
 ALL_TASKS="${CURRENT_TASKS} ${DISCOVERY_TASKS}"
 
 : "${RUN_ID:=$(date -u +%Y%m%dT%H%M%SZ)}"
@@ -107,6 +108,7 @@ if [ -z "$TASKS" ]; then
     discovery) TASKS="$DISCOVERY_TASKS" ;;
     safety_case) TASKS="$SAFETY_CASE_TASKS" ;;
     all) TASKS="$ALL_TASKS" ;;
+    p2b_dev) TASKS="$P2B_DEVELOPMENT_TASKS" ;;
     *)
       echo "Unknown TASK_PRESET: $TASK_PRESET" >&2
       exit 1
@@ -115,6 +117,22 @@ if [ -z "$TASKS" ]; then
 else
   TASK_SOURCE="explicit"
 fi
+
+for requested_task in $TASKS; do
+  if [ "$requested_task" = "pcr_causal_reasoning_01" ]; then
+    P2B_EXTERNAL_AUTHORIZED=$(
+      python_exec -c \
+        'from src.p2b_contracts import load_p2b_contract; print(str(load_p2b_contract()["external_evaluation_authorized"]).lower())'
+    ) || {
+      echo "Could not read the P2b external-evaluation authorization gate." >&2
+      exit 2
+    }
+    if [ "$P2B_EXTERNAL_AUTHORIZED" != "true" ]; then
+      echo "P2b HPC execution is not authorized: $requested_task" >&2
+      exit 2
+    fi
+  fi
+done
 
 TASK_ARRAY=()
 MODEL_ARRAY=()

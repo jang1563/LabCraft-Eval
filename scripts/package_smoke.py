@@ -43,6 +43,10 @@ def main() -> int:
     if safety_task_ids != ("safety_case_01",):
         raise RuntimeError("Unexpected safety-case task ids: {}".format(safety_task_ids))
 
+    p2b_task_ids = module.available_task_ids("p2b_dev")
+    if p2b_task_ids != ("pcr_causal_reasoning_01",):
+        raise RuntimeError("Unexpected P2b development task ids: {}".format(p2b_task_ids))
+
     # Instantiating the task exercises packaged scenario data and the packaged
     # scope-exclusion keyword resource used by its scorer.
     safety_task = module.safety_case_01(seeds=1)
@@ -51,12 +55,21 @@ def main() -> int:
             "Unexpected safety_case_01 sample count: {}".format(len(safety_task.dataset))
         )
 
+    p2b_task = module.pcr_causal_reasoning_01(seeds=1)
+    if len(p2b_task.dataset) != 2:
+        raise RuntimeError(
+            "Unexpected pcr_causal_reasoning_01 sample count: {}".format(
+                len(p2b_task.dataset)
+            )
+        )
+
     sample = module.build_transform_01_sample()
     for key in ("ground_truth_path", "rubric_path"):
         path = Path(sample["metadata"][key])
         if not path.exists():
             raise RuntimeError("Packaged task metadata path does not exist: {}".format(path))
 
+    from src.p2b_contracts import promotion_blockers, validate_p2b_contract
     from src.scorer_contracts import review_progress, run_scorer_regression
 
     scorer_errors = run_scorer_regression()
@@ -80,9 +93,23 @@ def main() -> int:
             "Inconsistent packaged scorer review state: {}".format(scorer_review)
         )
 
+    p2b_errors = validate_p2b_contract()
+    if p2b_errors:
+        raise RuntimeError(
+            "Packaged P2b scorer regression failed:\n{}".format("\n".join(p2b_errors))
+        )
+    expected_p2b_blockers = {
+        "expert_review_skipped",
+        "evaluation_policy_not_ready",
+        "external_evaluation_not_authorized",
+        "scientific_validity_unassessed",
+    }
+    if set(promotion_blockers()) != expected_p2b_blockers:
+        raise RuntimeError("Packaged P2b promotion blockers are missing or stale.")
+
     print(
         "labcraft {} package smoke passed with {} snapshot tasks, safety_case_01, "
-        "and {} scorer contract fixtures.".format(
+        "{} P1 scorer fixtures, and a non-promotable P2b contract.".format(
             distribution.version,
             len(task_ids),
             scorer_review["required"],

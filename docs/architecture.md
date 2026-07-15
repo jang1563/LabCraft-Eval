@@ -13,6 +13,9 @@ flowchart LR
   environment --> solver
   solver --> eval_logs["results/**/*.eval\nInspect trajectories"]
   task_data --> scorer["src/trajectory_scorer.py\nfour-axis scoring"]
+  p2b_task["task_data/pcr_causal_reasoning_01\ndev contract + fixtures"] --> p2b_scorer["src/task_scorers/*\nversioned task scorer"]
+  p2b_contracts["src/p2b_contracts.py\nnon-promotable regression gate"] --> p2b_scorer
+  p2b_scorer --> inspect_task
   contracts["task_data/scorer_validity/*\nversions, hashes, fixtures, review state"] --> inspect_task
   contracts --> scorer_contracts["src/scorer_contracts.py\nvalidation and regression"]
   scorer_contracts --> scorer
@@ -32,8 +35,11 @@ flowchart LR
 | `src/tools/` | Tool surfaces exposed to agents through Inspect. |
 | `src/inspect_task.py` | Inspect task registration and task-preset inventory. |
 | `src/trajectory_scorer.py` | Deterministic scoring from tool-call trajectory and final answer. |
+| `src/task_scorers/` | P2b task-level scorers with explicit versions and strict task-specific evidence contracts. |
 | `task_data/scorer_validity/` | P1 scorer versions, artifact hashes, development-conformance fixtures, schemas, and expert-review state. |
 | `src/scorer_contracts.py` | Stdlib-only contract validation, deterministic fixture materialization/regression, metadata binding, and fail-closed review status. |
+| `task_data/pcr_causal_reasoning_01/development_*.json` | Public P2b developer fixtures and a separate skipped-review, non-promotable contract. |
+| `src/p2b_contracts.py` | P2b artifact-hash checks, deterministic fixture regression, and explicit promotion blockers. |
 | `results/` | Frozen and current result bundles, logs, plots, and analyses. |
 | `scripts/export_hf_dataset.py` | Machine-readable Hugging Face export with checksums and manifest. |
 
@@ -51,13 +57,21 @@ flowchart LR
    trajectories and compares every component and decision score to its explicit
    draft vector. Technical regression may pass while expert promotion remains
    closed.
-7. Aggregation and plotting scripts produce Markdown result pages and figures.
-8. The Hugging Face exporter writes JSONL records, plot files, and a manifest
+7. The isolated P2b gate checks its two-case task-level scorer and adversarial
+   developer fixtures twice for deterministic full-vector agreement. It cannot
+   become promotable while expert review, evaluation policy, or external
+   authorization remains skipped or absent.
+8. Aggregation and plotting scripts produce Markdown result pages and figures.
+9. The Hugging Face exporter writes JSONL records, plot files, and a manifest
    with byte counts and SHA-256 checksums.
 
 The P2a contract artifacts are packaged in the wheel but are not silently added
 to the current Hugging Face schema 0.3 export. A future public scorer-audit
 bundle requires an explicit exporter and schema change.
+
+The P2b task is also packaged for local wheel validation but omitted from public
+task discovery and result export while its development contract has either
+`promotion_eligible=false` or `evaluation_policy_ready=false`.
 
 ## Track Boundaries
 

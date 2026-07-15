@@ -81,6 +81,69 @@ def test_task_discovery_excludes_non_task_contract_data():
 
     assert len(task_ids) == 14
     assert "scorer_validity" not in task_ids
+    assert "pcr_causal_reasoning_01" not in task_ids
+
+
+def test_development_only_p2b_task_fails_closed_for_export():
+    task_dir = export_hf_dataset.REPO_ROOT / "task_data" / "pcr_causal_reasoning_01"
+
+    assert task_dir.is_dir()
+    assert export_hf_dataset.task_dir_is_exportable(task_dir) is False
+    assert export_hf_dataset.task_id_is_exportable("pcr_causal_reasoning_01") is False
+
+
+def test_development_marker_blocks_export_when_contract_is_missing(tmp_path):
+    task_dir = tmp_path / "future_development_task"
+    task_dir.mkdir()
+    (task_dir / "ground_truth.json").write_text(
+        json.dumps({"task_id": task_dir.name, "development_only": True})
+    )
+
+    assert export_hf_dataset.task_dir_is_exportable(task_dir) is False
+
+
+def test_known_development_task_fails_closed_when_artifacts_are_missing(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(export_hf_dataset, "REPO_ROOT", tmp_path)
+
+    assert export_hf_dataset.task_id_is_exportable("pcr_causal_reasoning_01") is False
+
+
+@pytest.mark.parametrize(
+    "closed_gate",
+    ["promotion_eligible", "evaluation_policy_ready", "public_export_eligible"],
+)
+def test_development_contract_requires_every_export_gate(tmp_path, closed_gate):
+    task_dir = tmp_path / "future_development_task"
+    task_dir.mkdir()
+    contract = {
+        "task_id": task_dir.name,
+        "promotion_eligible": True,
+        "evaluation_policy_ready": True,
+        "public_export_eligible": True,
+    }
+    contract[closed_gate] = False
+    (task_dir / "development_contract.json").write_text(json.dumps(contract))
+
+    assert export_hf_dataset.task_dir_is_exportable(task_dir) is False
+
+
+def test_fully_open_development_contract_is_exportable(tmp_path):
+    task_dir = tmp_path / "promoted_development_task"
+    task_dir.mkdir()
+    (task_dir / "development_contract.json").write_text(
+        json.dumps(
+            {
+                "task_id": task_dir.name,
+                "promotion_eligible": True,
+                "evaluation_policy_ready": True,
+                "public_export_eligible": True,
+            }
+        )
+    )
+
+    assert export_hf_dataset.task_dir_is_exportable(task_dir) is True
 
 
 def test_dataset_card_text_includes_hf_metadata_and_manifest_pointers():

@@ -29,6 +29,7 @@ from src.solvers import (
     build_growth_solver,
     build_labcraft_solver,
     build_miniprep_solver,
+    build_pcr_causal_reasoning_solver,
     build_pcr_solver,
     build_purification_solver,
     build_screen_solver,
@@ -53,6 +54,7 @@ from src.tasks.golden_gate_01 import build_golden_gate_01_sample
 from src.tasks.growth_01 import build_growth_01_sample
 from src.tasks.miniprep_01 import build_miniprep_01_sample
 from src.tasks.pcr_01 import build_pcr_01_sample
+from src.tasks.pcr_causal_reasoning_01 import build_pcr_causal_reasoning_01_samples
 from src.tasks.perturb_followup_01 import build_perturb_followup_01_sample
 from src.tasks.purify_01 import build_purify_01_sample
 from src.tasks.screen_01 import build_screen_01_sample
@@ -77,6 +79,9 @@ from src.trajectory_scorer import (
     build_target_validate_trajectory_scorer,
     build_transform_trajectory_scorer,
 )
+from src.task_scorers.pcr_causal_reasoning_01 import (
+    build_pcr_causal_reasoning_trajectory_scorer,
+)
 
 # Inspect 0.3.245 instantiates the provider before loading this task module, but
 # consults ModelInfo dynamically at first generation/compaction. Register the
@@ -94,12 +99,14 @@ CURRENT_TASKS = SNAPSHOT_TASKS + (
 )
 DISCOVERY_TASKS = ("perturb_followup_01", "target_prioritize_01", "target_validate_01")
 SAFETY_CASE_TASKS = ("safety_case_01",)
+P2B_DEVELOPMENT_TASKS = ("pcr_causal_reasoning_01",)
 ALL_TASKS = CURRENT_TASKS + DISCOVERY_TASKS
 TASK_PRESETS = {
     "snapshot": SNAPSHOT_TASKS,
     "current": CURRENT_TASKS,
     "discovery": DISCOVERY_TASKS,
     "safety_case": SAFETY_CASE_TASKS,
+    "p2b_dev": P2B_DEVELOPMENT_TASKS,
     "all": ALL_TASKS,
 }
 
@@ -155,6 +162,15 @@ def _samples(base_sample: dict, seeds: int, seed_start: int = 0):
             metadata=s["metadata"],
         )
         for s in _expand_seeds(base_sample, seeds, seed_start=seed_start)
+    ]
+
+
+def _sample_group(base_samples: list[dict], seeds: int, seed_start: int = 0):
+    """Expand a multi-case task without adding it to public portfolio presets."""
+    return [
+        sample
+        for base_sample in base_samples
+        for sample in _samples(base_sample, seeds, seed_start=seed_start)
     ]
 
 
@@ -269,6 +285,27 @@ def pcr_01(seeds: int = 1, seed_start: int = 0):
         scorer=build_pcr_trajectory_scorer(),
         cleanup=_cleanup_transform_sample,
         message_limit=60,
+    )
+
+
+@task
+def pcr_causal_reasoning_01(seeds: int = 1, seed_start: int = 0):
+    """Instantiate the two-case, development-only P2b PCR reasoning task."""
+    if Task is None or MemoryDataset is None or Sample is None:
+        raise ImportError("inspect_ai is required to instantiate LabCraft tasks.")
+    return Task(
+        dataset=MemoryDataset(
+            samples=_sample_group(
+                build_pcr_causal_reasoning_01_samples(),
+                seeds,
+                seed_start=seed_start,
+            )
+        ),
+        setup=configure_pcr_sample(),
+        solver=build_pcr_causal_reasoning_solver(),
+        scorer=build_pcr_causal_reasoning_trajectory_scorer(),
+        cleanup=_cleanup_transform_sample,
+        message_limit=30,
     )
 
 
@@ -442,6 +479,7 @@ __all__ = [
     "CURRENT_TASKS",
     "DISCOVERY_TASKS",
     "SAFETY_CASE_TASKS",
+    "P2B_DEVELOPMENT_TASKS",
     "ALL_TASKS",
     "TASK_PRESETS",
     "available_task_ids",
@@ -450,6 +488,7 @@ __all__ = [
     "followup_01",
     "perturb_followup_01",
     "pcr_01",
+    "pcr_causal_reasoning_01",
     "screen_01",
     "clone_01",
     "golden_gate_01",

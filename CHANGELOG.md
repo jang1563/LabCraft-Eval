@@ -6,6 +6,11 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
+- Add the first isolated P2b development task, `pcr_causal_reasoning_01`: two
+  same-phenotype PCR failure cases, a versioned task-level causal scorer,
+  one-variable recovery and counterfactual checks, deterministic adversarial
+  fixtures, and fail-closed public export. Expert review, external evaluation,
+  human baseline, multi-seed runs, and promotion remain explicitly unopened.
 - Add a versioned, hash-bound P1 scorer contract with 35 deterministic
   development-conformance fixtures across five wet-lab tasks, package and wheel
   validation, and a separate fail-closed expert-review gate; harden Golden Gate
