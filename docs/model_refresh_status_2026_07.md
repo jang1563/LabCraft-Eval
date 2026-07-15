@@ -410,12 +410,60 @@ This accepts `miniprep_01` as the third completed P1 task: 12/20 cells and 3/5
 tasks are contract-validated. These remain one-seed compatibility and
 scorer-contract results, not comparative model-ranking evidence.
 
+## Expression P1 sentinel verification
+
+Revision `be470123917ba0d8a9cc6ecb0b5b113e5a5db464` was transferred as a
+complete bundle to a new detached checkout. The clean Cayuga preflight passed
+900 tests, Ruff, shell syntax, registry validation, wheel build, isolated
+installation, and package smoke under Python 3.13.7, Inspect 0.3.245, OpenAI
+2.45.0, and Anthropic 0.116.0.
+
+The serial four-cell array used RUN_ID
+`2026_07_15_p1_express_seed0_be47012`, seed 0, and the registered
+`current_balanced` profile (`max_tokens=16384`, `reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `openai/gpt-5.6-luna` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-sonnet-5` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | 7 | 3 | 2 | 0.000 | 1.000 | 1.000 | 1.000 | 0.600 |
+
+All four cells exited `0:0` and passed the built-in and independently repeated
+strict validators. Independent postflight found exactly four schema-1.2.0
+manifests and four native logs, the exact clean commit and runtime source, seed
+0, Inspect 0.3.245, requested/resolved model identity, the registered profile,
+and no error or exhausted limit. The model-registry SHA-256 remained
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`,
+and all four evaluation stderr files were empty.
+
+Semantic audit confirmed that every model first retrieved the exact seeded
+workflow and then made one `run_protein_expression` call. Every simulator
+output used `expression_construct_his6_mbp_gfp_001`, canonical `BL21(DE3)`,
+0.5 mM IPTG, a supported low-temperature extended schedule, native Ni-NTA pH,
+one construct use, and one accepted prepared lysate at 36.8 mg/L (18.4 mg from
+the fixed 500 mL culture). Sol used OD600 0.6, 18 C for 16 h, and pH 8.0; Luna
+used the same conditions at pH 7.5; Sonnet used pH 7.8; and Haiku used OD600
+0.5, 20 C for 16 h, and pH 7.5.
+
+Sol, Luna, and Sonnet copied their causal outputs into exact unique 11-line
+reports and received full credit. Haiku also completed the correct single
+experiment, but wrapped the report in markdown and extra prose and appended
+trailing text. The strict report parser correctly assigned task success zero
+without erasing its valid decision, troubleshooting, and exactly-once evidence.
+This is a substantive model-level formatting failure, not a scorer or
+infrastructure defect.
+
+This accepts `express_01` as the fourth completed P1 task: 16/20 cells and 4/5
+tasks are contract-validated. These remain one-seed compatibility and
+scorer-contract results, not comparative model-ranking evidence.
+
 ## Scale decision
 
 All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
-now 12/20 accepted cells after the remediated `golden_gate_01`, `gibson_01`,
-and hardened `miniprep_01` gates. Earlier pre-remediation bundles remain
-diagnostic-only. Human-baseline and multi-seed work remain intentionally
-skipped. The next bounded gate is `express_01` on the same four-model,
-seed-zero protocol. Frozen historical results and every cancelled, diagnostic,
-or pre-remediation bundle remain excluded from promoted aggregates.
+now 16/20 accepted cells after the remediated `golden_gate_01`, `gibson_01`,
+and the hardened `miniprep_01` and `express_01` gates. Earlier pre-remediation
+bundles remain diagnostic-only. Human-baseline and multi-seed work remain
+intentionally skipped. The next bounded gate is `purify_01` on the same
+four-model, seed-zero protocol. Frozen historical results and every cancelled,
+diagnostic, or pre-remediation bundle remain excluded from promoted aggregates.

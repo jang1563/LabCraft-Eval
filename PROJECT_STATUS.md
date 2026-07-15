@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01`, `gibson_01`, and `miniprep_01` contract-validated, P1 at 12/20 cells |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01`, `gibson_01`, `miniprep_01`, and `express_01` contract-validated, P1 at 16/20 cells |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -60,6 +60,14 @@ wet-lab competence and not broad biology capability.
   P1/P2/N3 in a second call; the fail-closed scorer correctly rejected the
   prompt's exactly-once violation rather than hybridizing the retry. P1 is now
   12/20 accepted cells and 3/5 tasks.
+- The hardened `express_01` array at clean revision
+  `be470123917ba0d8a9cc6ecb0b5b113e5a5db464` passed all four strict cells and
+  independent semantic/postflight audit. Every model retrieved the exact seeded
+  workflow and produced one accepted causal expression/lysate result. Sol, Luna,
+  and Sonnet returned exact matching 11-line reports. Haiku's experiment was
+  valid, but its markdown, extra prose, and trailing text were correctly denied
+  task-success credit by the strict report parser. P1 is now 16/20 accepted cells
+  and 4/5 tasks.
 - The retained five-task snapshot sentinels validate compatibility and scorer
   contracts. They are not a public score-bearing release and do not support
   comparative model ranking.
@@ -88,8 +96,8 @@ flagship wet-lab tasks:
 1. `golden_gate_01` — complete at `f7d5ba5`
 2. `gibson_01` — complete at `fb6b6dd`
 3. `miniprep_01` — complete at `ff47e8a`
-4. `express_01` — next
-5. `purify_01`
+4. `express_01` — complete at `be47012`
+5. `purify_01` — next
 
 Use the existing immutable-checkout HPC path and strict cell validator. Run one
 task at a time, inspect any failure before scaling, preserve source logs, and
@@ -124,8 +132,9 @@ compatibility/scorer-contract evidence.
 
 - **P0 — locally complete; public sync pending:** public truth repair and
   consistent release/evidence labels are committed locally but not pushed.
-- **P1 — in progress:** 12/20 cells accepted; `golden_gate_01`, `gibson_01`,
-  and `miniprep_01` are contract-validated and `express_01` is next.
+- **P1 — in progress:** 16/20 cells accepted; `golden_gate_01`, `gibson_01`,
+  `miniprep_01`, and `express_01` are contract-validated and `purify_01` is
+  next.
 - **P2 — planned:** reasoning, recovery, and counterfactual task depth plus
   modular/versioned scorer validation.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and
