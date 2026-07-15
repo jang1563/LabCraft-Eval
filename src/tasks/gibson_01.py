@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.scorer_contracts import scorer_contract_metadata
+
 from .base import TaskPaths
 
 GIBSON_01_ROOT = Path(__file__).resolve().parents[2] / "task_data" / "gibson_01"
@@ -50,6 +52,7 @@ def build_gibson_01_sample() -> dict:
         "input": build_gibson_01_prompt(),
         "target": str(GIBSON_01_GROUND_TRUTH),
         "metadata": {
+            **scorer_contract_metadata("gibson_01"),
             "task_id": "gibson_01",
             "ground_truth_path": str(GIBSON_01_GROUND_TRUTH),
             "rubric_path": str(GIBSON_01_RUBRIC),

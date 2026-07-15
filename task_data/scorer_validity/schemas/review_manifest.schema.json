@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jang1563/LabCraft-Eval/task_data/scorer_validity/schemas/review_manifest.schema.json",
+  "title": "LabCraft-Eval scorer fixture expert-review manifest",
+  "type": "object",
+  "required": [
+    "review_schema_version",
+    "contract_set",
+    "status",
+    "promotion_eligible",
+    "required_fixture_count",
+    "reviewer",
+    "reviewed_at",
+    "approvals",
+    "review_instructions"
+  ],
+  "properties": {
+    "review_schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "contract_set": {"const": "p1_wet_lab"},
+    "status": {"enum": ["pending_expert_review", "expert_approved"]},
+    "promotion_eligible": {"type": "boolean"},
+    "required_fixture_count": {"const": 35},
+    "reviewer": {"type": ["string", "null"], "minLength": 1},
+    "reviewed_at": {"type": ["string", "null"], "format": "date-time"},
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "fixture_id",
+          "fixture_definition_sha256",
+          "decision",
+          "reviewer",
+          "reviewed_at"
+        ],
+        "properties": {
+          "fixture_id": {"type": "string"},
+          "fixture_definition_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "decision": {"enum": ["approved", "rejected"]},
+          "reviewer": {"type": "string", "minLength": 1},
+          "reviewed_at": {"type": "string", "minLength": 1, "format": "date-time"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "review_instructions": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

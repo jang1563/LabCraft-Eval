@@ -58,6 +58,20 @@ def test_wheel_contains_registry_and_registers_model_info_outside_repo(tmp_path)
         names = set(archive.namelist())
     assert "config/model_matrix.toml" in names
     assert "src/model_registry.py" in names
+    assert "src/scorer_contracts.py" in names
+    assert "task_data/scorer_validity/scorer_contract_manifest.json" in names
+    assert "task_data/scorer_validity/review_manifest.json" in names
+    assert (
+        "task_data/scorer_validity/schemas/trajectory_fixture_corpus.schema.json" in names
+    )
+    for task_id in (
+        "golden_gate_01",
+        "gibson_01",
+        "miniprep_01",
+        "express_01",
+        "purify_01",
+    ):
+        assert f"task_data/scorer_validity/{task_id}/trajectory_fixtures.json" in names
 
     site = tmp_path / "site"
     with zipfile.ZipFile(wheel_path) as archive:

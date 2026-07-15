@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.environment.miniprep_contract import MINIPREP_SOURCE_CULTURE_ID
+from src.scorer_contracts import scorer_contract_metadata
 
 from .base import TaskPaths
 
@@ -53,6 +54,7 @@ def build_miniprep_01_sample() -> dict:
         "input": build_miniprep_01_prompt(),
         "target": str(MINIPREP_01_GROUND_TRUTH),
         "metadata": {
+            **scorer_contract_metadata("miniprep_01"),
             "task_id": "miniprep_01",
             "ground_truth_path": str(MINIPREP_01_GROUND_TRUTH),
             "rubric_path": str(MINIPREP_01_RUBRIC),

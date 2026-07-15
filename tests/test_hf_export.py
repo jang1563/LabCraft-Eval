@@ -76,6 +76,13 @@ def test_classify_task_tracks_known_surfaces():
     assert export_hf_dataset.classify_task("unknown_task") == "other"
 
 
+def test_task_discovery_excludes_non_task_contract_data():
+    task_ids = {path.name for path in export_hf_dataset.discover_task_dirs()}
+
+    assert len(task_ids) == 14
+    assert "scorer_validity" not in task_ids
+
+
 def test_dataset_card_text_includes_hf_metadata_and_manifest_pointers():
     text = export_hf_dataset.dataset_card_text(
         release_name="unit_test",

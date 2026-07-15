@@ -80,6 +80,13 @@ wet-lab competence and not broad biology capability.
 - The retained five-task snapshot sentinels validate compatibility and scorer
   contracts. They are not a public score-bearing release and do not support
   comparative model ranking.
+- The local P2a foundation now pins scorer contract v1 for all five P1 tasks
+  and runs 35 synthetic development-conformance trajectories across canonical,
+  alternative-valid, forged, partial, orphan, contradictory, and retry cases.
+  This work closed request-only, orphan-output, and non-unique-report false
+  accepts in the Golden Gate and Gibson scorers. The technical regression gate
+  passes, but all fixture labels remain AI-assisted drafts with 0/35 expert
+  approvals, so the promotion gate remains closed.
 - Historical v0.1.1, newer-task, Discovery, HPC, and live Safety Case summaries
   remain historical or provisional unless explicitly promoted under the rules
   below.
@@ -99,18 +106,22 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 
 ## Exact Next Gate
 
-Begin the bounded **P2a scorer-validity foundation** before adding task breadth:
+Complete the **P2a expert-review gate** before adding task breadth:
 
-1. define an explicit task-level scorer contract and version manifest for the
-   five P1 wet-lab tasks;
-2. add expert-labelled valid/invalid trajectory fixtures for alternative-valid,
-   forged, partial, orphan, contradictory, and retry paths;
-3. freeze a deterministic scorer-regression gate before starting the reasoning,
-   recovery, and counterfactual task families.
+1. inspect each of the 35 materialized trajectory definitions, rationales,
+   validity labels, component vectors, and decision-level labels;
+2. revise any disputed fixture or scorer behavior before recording approval;
+3. freeze the exact approved effective-definition hashes in the review
+   manifest; each hash binds the materialized trajectory and scorer/source,
+   ground-truth, rubric, weight, report, decision, and evidence contracts;
+4. require the expert-review gate as well as the passing deterministic
+   regression before starting reasoning, recovery, or counterfactual tasks.
 
 Keep the completed P1 bundles append-only and outside comparative ranking
-claims. Reuse the immutable-checkout path for any live compatibility sentinel,
-and exclude diagnostic retries from promoted aggregates.
+claims. The Golden Gate and Gibson scorer behavior changed locally during P2a,
+so the accepted P1 sentinels remain evidence for their recorded commits rather
+than live validation of current HEAD. No external rerun is authorized in this
+gate. Exclude diagnostic retries from promoted aggregates.
 
 ## Promotion Criteria
 
@@ -144,7 +155,8 @@ compatibility/scorer-contract evidence.
 - **P1 — complete:** 20/20 strict cells accepted and all five newer wet-lab
   tasks contract-validated; one-seed evidence remains compatibility/scorer
   evidence rather than a ranking.
-- **P2 — next:** establish modular/versioned scorer validity, then add
-  reasoning, recovery, and counterfactual task depth.
+- **P2 — in progress:** scorer v1 manifests and a 35-case deterministic local
+  regression are implemented; expert review/freeze is pending 35/35 before new
+  reasoning, recovery, or counterfactual task depth.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and
   publication package after evidence gates pass.

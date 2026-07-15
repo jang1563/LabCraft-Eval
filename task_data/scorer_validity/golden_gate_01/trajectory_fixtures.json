@@ -1,0 +1,533 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "golden_gate_01",
+  "scorer_version": "1.0.0",
+  "ground_truth_sha256": "112f2ab4b6aaf92648c35236bb71c570da6fd9d7b1714a07f387a620290a0f3a",
+  "corpus_role": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "base_trajectory": {
+    "final_answer": "Type IIS enzyme: BsaI\nLigase: T4 DNA ligase\nDigest temperature: 37 C\nLigate temperature: 16 C\nCycle count: 30\nFragment count: 4\nTransformants observed: 120\nInterpretation: success",
+    "transcript": [
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gg_assembly_001",
+            "function": "golden_gate_assembly",
+            "arguments": {
+              "fragment_ids": [
+                "gg_backbone",
+                "gg_insert_promoter",
+                "gg_insert_cds",
+                "gg_insert_terminator"
+              ],
+              "enzyme_name": "BsaI",
+              "ligase_name": "T4 DNA ligase",
+              "buffer": "T4 DNA ligase buffer",
+              "cycle_count": 30,
+              "digest_temperature_c": 37.0,
+              "ligate_temperature_c": 16.0,
+              "final_digest_minutes": 5,
+              "final_digest_temperature_c": 60.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gg_assembly_001",
+        "function": "golden_gate_assembly",
+        "content": {
+          "status": "assembled",
+          "assembly_id": "assembly_001",
+          "fragment_ids": [
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator"
+          ],
+          "fragment_count": 4,
+          "enzyme_name": "BsaI",
+          "enzyme_normalized": "bsai",
+          "ligase_name": "T4 DNA ligase",
+          "ligase_normalized": "t4 dna ligase",
+          "buffer": "T4 DNA ligase buffer",
+          "cycle_count": 30,
+          "digest_temperature_c": 37.0,
+          "ligate_temperature_c": 16.0,
+          "final_digest_minutes": 5,
+          "final_digest_temperature_c": 60.0,
+          "output_fragment_id": "fragment_010",
+          "effective_assembly_efficiency": 0.85,
+          "expected_transformant_yield": 600.0,
+          "notes": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gg_transform_001",
+            "function": "transform_assembly",
+            "arguments": {
+              "assembly_id": "assembly_001",
+              "heat_shock_seconds": 30,
+              "recovery_minutes": 60,
+              "outgrowth_media": "SOC",
+              "shaking": true,
+              "ice_incubation_minutes": 30
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gg_transform_001",
+        "function": "transform_assembly",
+        "content": {
+          "status": "transformed",
+          "culture_id": "culture_001",
+          "assembly_id": "assembly_001",
+          "assembly_status": "assembled",
+          "effective_assembly_efficiency": 0.85,
+          "expected_transformants": 600.0,
+          "heat_shock_seconds": 30,
+          "recovery_minutes": 60,
+          "outgrowth_media": "SOC",
+          "notes": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gg_prepare_001",
+            "function": "prepare_media",
+            "arguments": {
+              "medium": "LB agar",
+              "antibiotic": "ampicillin",
+              "antibiotic_concentration_ug_ml": 100.0,
+              "plate_count": 1
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gg_prepare_001",
+        "function": "prepare_media",
+        "content": {
+          "status": "prepared",
+          "media_id": "media_001",
+          "medium": "LB agar",
+          "antibiotic": "ampicillin",
+          "antibiotic_concentration_ug_ml": 100.0,
+          "plate_count": 1,
+          "plates": [
+            {
+              "plate_id": "plate_001",
+              "medium": "LB agar",
+              "antibiotic": "ampicillin",
+              "antibiotic_concentration_ug_ml": 100.0
+            }
+          ]
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gg_plate_001",
+            "function": "plate",
+            "arguments": {
+              "culture_id": "culture_001",
+              "plate_id": "plate_001",
+              "dilution_factor": 1.0,
+              "volume_ul": 100.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gg_plate_001",
+        "function": "plate",
+        "content": {
+          "status": "plated",
+          "plating_id": "plating_001",
+          "plate_id": "plate_001",
+          "culture_id": "culture_001",
+          "dilution_factor": 1.0,
+          "volume_ul": 100.0,
+          "countable_range_colonies": {
+            "min": 25,
+            "max": 250
+          },
+          "warnings": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gg_count_001",
+            "function": "count_colonies",
+            "arguments": {
+              "plating_id": "plating_001"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gg_count_001",
+        "function": "count_colonies",
+        "content": {
+          "status": "plated",
+          "plating_id": "plating_001",
+          "observed_colonies": 120,
+          "dilution_factor": 1.0,
+          "volume_ul": 100.0,
+          "countable_range_colonies": {
+            "min": 25,
+            "max": 250
+          },
+          "warnings": []
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "golden_gate_01.canonical_valid.paired_causal_path",
+      "task_id": "golden_gate_01",
+      "case_family": "canonical_valid",
+      "case_variant": "paired_causal_path",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 1.0,
+          "uses_t4_dna_ligase": 1.0,
+          "digest_temperature_37": 1.0,
+          "ligate_temperature_16": 1.0,
+          "cycle_count_30": 1.0,
+          "ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A complete linked assembly, transformation, selection, plating, and count path with an exact eight-line report.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.alternative_valid.bsai_hfv2_family_alias",
+      "task_id": "golden_gate_01",
+      "case_family": "alternative_valid",
+      "case_variant": "bsai_hfv2_family_alias",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/enzyme_name",
+          "value": "BsaI-HFv2"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/enzyme_name",
+          "value": "BsaI-HFv2"
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Type IIS enzyme: BsaI-HFv2\nLigase: T4 DNA ligase\nDigest temperature: 37 C\nLigate temperature: 16 C\nCycle count: 30\nFragment count: 4\nTransformants observed: 120\nInterpretation: success"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 1.0,
+          "uses_t4_dna_ligase": 1.0,
+          "digest_temperature_37": 1.0,
+          "ligate_temperature_16": 1.0,
+          "cycle_count_30": 1.0,
+          "ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "BsaI-HFv2 is an explicitly supported BsaI-family execution and report label.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.forged.request_only_complete_chain",
+      "task_id": "golden_gate_01",
+      "case_family": "forged",
+      "case_variant": "request_only_complete_chain",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "assistant"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 0.0,
+          "uses_t4_dna_ligase": 0.0,
+          "digest_temperature_37": 0.0,
+          "ligate_temperature_16": 0.0,
+          "cycle_count_30": 0.0,
+          "ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Requests without linked tool outputs cannot establish execution or decision evidence.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.partial.incomplete_assembly_output",
+      "task_id": "golden_gate_01",
+      "case_family": "partial",
+      "case_variant": "incomplete_assembly_output",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "slice",
+          "path": "/transcript",
+          "start": 0,
+          "stop": 2
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content",
+          "value": {
+            "status": "assembled",
+            "assembly_id": "assembly_001"
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 0.0,
+          "uses_t4_dna_ligase": 0.0,
+          "digest_temperature_37": 0.0,
+          "ligate_temperature_16": 0.0,
+          "cycle_count_30": 0.0,
+          "ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A partial assembly output cannot fall back to request arguments or create a causal completed path.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.orphan.tool_outputs_without_requests",
+      "task_id": "golden_gate_01",
+      "case_family": "orphan",
+      "case_variant": "tool_outputs_without_requests",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "tool"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 0.0,
+          "uses_t4_dna_ligase": 0.0,
+          "digest_temperature_37": 0.0,
+          "ligate_temperature_16": 0.0,
+          "cycle_count_30": 0.0,
+          "ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Complete-looking tool outputs without linked assistant requests are orphan evidence.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.contradictory.duplicate_interpretation",
+      "task_id": "golden_gate_01",
+      "case_family": "contradictory",
+      "case_variant": "duplicate_interpretation",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nInterpretation: failure"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 1.0,
+          "uses_t4_dna_ligase": 1.0,
+          "digest_temperature_37": 1.0,
+          "ligate_temperature_16": 1.0,
+          "cycle_count_30": 1.0,
+          "ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A contradictory duplicate report field invalidates task success while preserving the valid execution axes.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "golden_gate_01.retry.untransformed_second_assembly_hybrid_report",
+      "task_id": "golden_gate_01",
+      "case_family": "retry",
+      "case_variant": "untransformed_second_assembly_hybrid_report",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_gg_assembly_002",
+                "function": "golden_gate_assembly",
+                "arguments": {
+                  "fragment_ids": [
+                    "gg_backbone",
+                    "gg_insert_promoter",
+                    "gg_insert_cds",
+                    "gg_insert_terminator"
+                  ],
+                  "enzyme_name": "BsaI-HFv2",
+                  "ligase_name": "T4 DNA ligase",
+                  "buffer": "T4 DNA ligase buffer",
+                  "cycle_count": 30,
+                  "digest_temperature_c": 37.0,
+                  "ligate_temperature_c": 16.0,
+                  "final_digest_minutes": 5,
+                  "final_digest_temperature_c": 60.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "tool",
+            "tool_call_id": "call_gg_assembly_002",
+            "function": "golden_gate_assembly",
+            "content": {
+              "status": "assembled",
+              "assembly_id": "assembly_002",
+              "fragment_ids": [
+                "gg_backbone",
+                "gg_insert_promoter",
+                "gg_insert_cds",
+                "gg_insert_terminator"
+              ],
+              "fragment_count": 4,
+              "enzyme_name": "BsaI-HFv2",
+              "enzyme_normalized": "bsai",
+              "ligase_name": "T4 DNA ligase",
+              "ligase_normalized": "t4 dna ligase",
+              "buffer": "T4 DNA ligase buffer",
+              "cycle_count": 30,
+              "digest_temperature_c": 37.0,
+              "ligate_temperature_c": 16.0,
+              "final_digest_minutes": 5,
+              "final_digest_temperature_c": 60.0,
+              "output_fragment_id": "fragment_011",
+              "effective_assembly_efficiency": 0.85,
+              "expected_transformant_yield": 600.0,
+              "notes": []
+            }
+          }
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Type IIS enzyme: BsaI-HFv2\nLigase: T4 DNA ligase\nDigest temperature: 37 C\nLigate temperature: 16 C\nCycle count: 30\nFragment count: 4\nTransformants observed: 120\nInterpretation: success"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_type_iis_enzyme": 1.0,
+          "uses_t4_dna_ligase": 1.0,
+          "digest_temperature_37": 1.0,
+          "ligate_temperature_16": 1.0,
+          "cycle_count_30": 1.0,
+          "ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "The report may not hybridize an untransformed second assembly with the first completed causal path.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}

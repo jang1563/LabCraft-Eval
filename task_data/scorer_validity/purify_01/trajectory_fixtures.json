@@ -1,0 +1,392 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "purify_01",
+  "scorer_version": "1.0.0",
+  "ground_truth_sha256": "0589e69989a614ccccb45314b3e912db9d2a2ff1506bcb1c504377228100f875",
+  "corpus_role": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "base_trajectory": {
+    "final_answer": "Lysate ID: purification_lysate_his6_mbp_gfp_001\nPurification ID: purification_001\nResin: QIAGEN Ni-NTA Superflow\nColumn bed volume: 4.0 mL\nLoad imidazole: 20 mM\nWash imidazole: 20 mM\nElute imidazole: 250 mM\nFlow rate: 1.0 mL/min\nExpected band size: 72 kDa\nRecovered target mass: 15.64 mg\nEluate volume: 10.0 mL\nPurified concentration: 1.56 mg/mL\nSDS-PAGE result: predominant_target_band_at_72_kDa\nPurity: 95.0%\nInterpretation: success\nDiagnosis: none",
+    "transcript": [
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_purification_001",
+            "function": "run_nta_purification",
+            "arguments": {
+              "lysate_id": "purification_lysate_his6_mbp_gfp_001",
+              "load_imidazole_mm": 20.0,
+              "wash_imidazole_mm": 20.0,
+              "elute_imidazole_mm": 250.0,
+              "flow_rate_ml_per_min": 1.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_purification_001",
+        "function": "run_nta_purification",
+        "content": {
+          "status": "purified_eluate_prepared",
+          "purification_accepted": true,
+          "failure_reasons": [],
+          "purification_id": "purification_001",
+          "lysate_id": "purification_lysate_his6_mbp_gfp_001",
+          "source_expression_id": "expression_seeded_for_purify_001",
+          "construct_id": "expression_construct_his6_mbp_gfp_001",
+          "lysate_usage_count": 1,
+          "input_lysate_consumed": true,
+          "lysate_remaining_target_mass_mg": 0.0,
+          "resin_name": "Ni-NTA Superflow",
+          "resin_normalized": "nintasuperflow",
+          "load_imidazole_mm": 20.0,
+          "wash_imidazole_mm": 20.0,
+          "elute_imidazole_mm": 250.0,
+          "flow_rate_ml_per_min": 1.0,
+          "column_bed_volume_ml": 4.0,
+          "target_protein_name": "His6-MBP-GFP fusion",
+          "expected_band_kda": 72.0,
+          "affinity_tag": "His6",
+          "is_benign": true,
+          "lysate_is_clarified": true,
+          "lysate_is_native": true,
+          "lysis_buffer_ph": 8.0,
+          "lysis_buffer_phosphate_mm": 50.0,
+          "lysis_buffer_sodium_chloride_mm": 300.0,
+          "lysis_buffer_is_chelator_free": true,
+          "input_target_mass_mg": 18.4,
+          "recovery_fraction": 0.85,
+          "recovered_target_mass_mg": 15.64,
+          "eluate_volume_column_volumes": 2.5,
+          "eluate_volume_ml": 10.0,
+          "purified_concentration_mg_per_ml": 1.56,
+          "purity_percent": 95.0,
+          "sds_page_result": "predominant_target_band_at_72_kDa",
+          "eluate_prepared": true,
+          "notes": []
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "purify_01.canonical_valid.paired_single_result",
+      "task_id": "purify_01",
+      "case_family": "canonical_valid",
+      "case_variant": "paired_single_result",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 1.0,
+          "wash_imidazole_matches_fixed_workflow": 1.0,
+          "elution_imidazole_matches_fixed_workflow": 1.0,
+          "flow_rate_in_supported_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "One complete paired purification result and an exact sixteen-line report.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.alternative_valid.lower_load_and_flow_boundaries",
+      "task_id": "purify_01",
+      "case_family": "alternative_valid",
+      "case_variant": "lower_load_and_flow_boundaries",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/load_imidazole_mm",
+          "value": 10.0
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/flow_rate_ml_per_min",
+          "value": 0.5
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/load_imidazole_mm",
+          "value": 10.0
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/flow_rate_ml_per_min",
+          "value": 0.5
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Lysate ID: purification_lysate_his6_mbp_gfp_001\nPurification ID: purification_001\nResin: QIAGEN Ni-NTA Superflow\nColumn bed volume: 4.0 mL\nLoad imidazole: 10 mM\nWash imidazole: 20 mM\nElute imidazole: 250 mM\nFlow rate: 0.5 mL/min\nExpected band size: 72 kDa\nRecovered target mass: 15.64 mg\nEluate volume: 10.0 mL\nPurified concentration: 1.56 mg/mL\nSDS-PAGE result: predominant_target_band_at_72_kDa\nPurity: 95.0%\nInterpretation: success\nDiagnosis: none"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 1.0,
+          "wash_imidazole_matches_fixed_workflow": 1.0,
+          "elution_imidazole_matches_fixed_workflow": 1.0,
+          "flow_rate_in_supported_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "The lower supported load-imidazole and flow-rate boundaries are valid alternatives.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.forged.request_only_result_claim",
+      "task_id": "purify_01",
+      "case_family": "forged",
+      "case_variant": "request_only_result_claim",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "assistant"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 0.0,
+          "wash_imidazole_matches_fixed_workflow": 0.0,
+          "elution_imidazole_matches_fixed_workflow": 0.0,
+          "flow_rate_in_supported_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A request without a linked purification output cannot establish an eluate.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.partial.missing_output_field",
+      "task_id": "purify_01",
+      "case_family": "partial",
+      "case_variant": "missing_output_field",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/transcript/1/content/recovered_target_mass_mg"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 0.0,
+          "wash_imidazole_matches_fixed_workflow": 0.0,
+          "elution_imidazole_matches_fixed_workflow": 0.0,
+          "flow_rate_in_supported_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A partial purification output cannot borrow result fields from its request.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.orphan.output_without_request",
+      "task_id": "purify_01",
+      "case_family": "orphan",
+      "case_variant": "output_without_request",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "tool"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 0.0,
+          "wash_imidazole_matches_fixed_workflow": 0.0,
+          "elution_imidazole_matches_fixed_workflow": 0.0,
+          "flow_rate_in_supported_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "An orphan purification output has no causal request.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.contradictory.duplicate_interpretation",
+      "task_id": "purify_01",
+      "case_family": "contradictory",
+      "case_variant": "duplicate_interpretation",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nInterpretation: failure"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 1.0,
+          "wash_imidazole_matches_fixed_workflow": 1.0,
+          "elution_imidazole_matches_fixed_workflow": 1.0,
+          "flow_rate_in_supported_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A contradictory duplicate field invalidates the strict report only.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "purify_01.retry.second_complete_experimental_call",
+      "task_id": "purify_01",
+      "case_family": "retry",
+      "case_variant": "second_complete_experimental_call",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_purification_002",
+                "function": "run_nta_purification",
+                "arguments": {
+                  "lysate_id": "purification_lysate_his6_mbp_gfp_001",
+                  "load_imidazole_mm": 20.0,
+                  "wash_imidazole_mm": 20.0,
+                  "elute_imidazole_mm": 250.0,
+                  "flow_rate_ml_per_min": 1.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "tool",
+            "tool_call_id": "call_purification_002",
+            "function": "run_nta_purification",
+            "content": {
+              "status": "purified_eluate_prepared",
+              "purification_accepted": true,
+              "failure_reasons": [],
+              "purification_id": "purification_001",
+              "lysate_id": "purification_lysate_his6_mbp_gfp_001",
+              "source_expression_id": "expression_seeded_for_purify_001",
+              "construct_id": "expression_construct_his6_mbp_gfp_001",
+              "lysate_usage_count": 1,
+              "input_lysate_consumed": true,
+              "lysate_remaining_target_mass_mg": 0.0,
+              "resin_name": "Ni-NTA Superflow",
+              "resin_normalized": "nintasuperflow",
+              "load_imidazole_mm": 20.0,
+              "wash_imidazole_mm": 20.0,
+              "elute_imidazole_mm": 250.0,
+              "flow_rate_ml_per_min": 1.0,
+              "column_bed_volume_ml": 4.0,
+              "target_protein_name": "His6-MBP-GFP fusion",
+              "expected_band_kda": 72.0,
+              "affinity_tag": "His6",
+              "is_benign": true,
+              "lysate_is_clarified": true,
+              "lysate_is_native": true,
+              "lysis_buffer_ph": 8.0,
+              "lysis_buffer_phosphate_mm": 50.0,
+              "lysis_buffer_sodium_chloride_mm": 300.0,
+              "lysis_buffer_is_chelator_free": true,
+              "input_target_mass_mg": 18.4,
+              "recovery_fraction": 0.85,
+              "recovered_target_mass_mg": 15.64,
+              "eluate_volume_column_volumes": 2.5,
+              "eluate_volume_ml": 10.0,
+              "purified_concentration_mg_per_ml": 1.56,
+              "purity_percent": 95.0,
+              "sds_page_result": "predominant_target_band_at_72_kDa",
+              "eluate_prepared": true,
+              "notes": []
+            }
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "load_imidazole_in_supported_range": 0.0,
+          "wash_imidazole_matches_fixed_workflow": 0.0,
+          "elution_imidazole_matches_fixed_workflow": 0.0,
+          "flow_rate_in_supported_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Two complete purification attempts violate exactly-once lysate consumption.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}

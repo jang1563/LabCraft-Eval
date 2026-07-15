@@ -1,0 +1,373 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "express_01",
+  "scorer_version": "1.0.0",
+  "ground_truth_sha256": "4a46ee8c463bb97a4d456bff339f71ea7c14e5d0fd0f556a605ecba5c6fd3114",
+  "corpus_role": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "base_trajectory": {
+    "final_answer": "Construct ID: expression_construct_his6_mbp_gfp_001\nExpression ID: expression_001\nHost strain: BL21(DE3)\nIPTG concentration: 1.0 mM\nInduction OD600: 0.6\nInduction temperature: 18 C\nInduction duration: 16 h\nLysis buffer pH: 8.0\nObserved soluble yield: 36.8 mg/L\nInterpretation: success\nDiagnosis: none",
+    "transcript": [
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_expression_001",
+            "function": "run_protein_expression",
+            "arguments": {
+              "construct_id": "expression_construct_his6_mbp_gfp_001",
+              "host_strain": "BL21(DE3)",
+              "iptg_concentration_mm": 1.0,
+              "induction_od600": 0.6,
+              "induction_temperature_c": 18.0,
+              "induction_hours": 16.0,
+              "lysis_buffer_ph": 8.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_expression_001",
+        "function": "run_protein_expression",
+        "content": {
+          "status": "lysate_prepared",
+          "expression_accepted": true,
+          "failure_reasons": [],
+          "expression_id": "expression_001",
+          "construct_id": "expression_construct_his6_mbp_gfp_001",
+          "construct_usage_count": 1,
+          "plasmid_name": "pET-T7lac-His6-MBP-GFP benchmark construct",
+          "promoter": "T7lac",
+          "affinity_tag": "His6",
+          "is_benign": true,
+          "host_strain": "BL21(DE3)",
+          "host_strain_normalized": "bl21de3",
+          "host_strain_canonical": "BL21(DE3)",
+          "protein_name": "His6-MBP-GFP fusion",
+          "expected_molecular_weight_kda": 72.0,
+          "iptg_concentration_mm": 1.0,
+          "induction_od600": 0.6,
+          "induction_temperature_c": 18.0,
+          "induction_hours": 16.0,
+          "induction_schedule_profile": "low_temperature_extended",
+          "lysis_buffer_ph": 8.0,
+          "culture_volume_ml": 500.0,
+          "soluble_yield_mg_per_l": 36.8,
+          "insoluble_fraction": 0.08,
+          "total_soluble_mg": 18.4,
+          "lysate_prepared": true,
+          "notes": []
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "express_01.canonical_valid.paired_single_result",
+      "task_id": "express_01",
+      "case_family": "canonical_valid",
+      "case_variant": "paired_single_result",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 1.0,
+          "iptg_in_supported_pet_range": 1.0,
+          "induction_od600_mid_log": 1.0,
+          "uses_supported_induction_schedule": 1.0,
+          "lysis_ph_native_ni_nta_compatible": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "One complete paired expression result and an exact eleven-line report.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.alternative_valid.twenty_celsius_extended_schedule",
+      "task_id": "express_01",
+      "case_family": "alternative_valid",
+      "case_variant": "twenty_celsius_extended_schedule",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/induction_temperature_c",
+          "value": 20.0
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/induction_temperature_c",
+          "value": 20.0
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Construct ID: expression_construct_his6_mbp_gfp_001\nExpression ID: expression_001\nHost strain: BL21(DE3)\nIPTG concentration: 1.0 mM\nInduction OD600: 0.6\nInduction temperature: 20 C\nInduction duration: 16 h\nLysis buffer pH: 8.0\nObserved soluble yield: 36.8 mg/L\nInterpretation: success\nDiagnosis: none"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 1.0,
+          "iptg_in_supported_pet_range": 1.0,
+          "induction_od600_mid_log": 1.0,
+          "uses_supported_induction_schedule": 1.0,
+          "lysis_ph_native_ni_nta_compatible": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "The source-supported 20 C, 16-hour coupled schedule is a valid alternative.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.forged.request_only_result_claim",
+      "task_id": "express_01",
+      "case_family": "forged",
+      "case_variant": "request_only_result_claim",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "assistant"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 0.0,
+          "iptg_in_supported_pet_range": 0.0,
+          "induction_od600_mid_log": 0.0,
+          "uses_supported_induction_schedule": 0.0,
+          "lysis_ph_native_ni_nta_compatible": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A request without a linked expression output cannot establish execution.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.partial.missing_output_field",
+      "task_id": "express_01",
+      "case_family": "partial",
+      "case_variant": "missing_output_field",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/transcript/1/content/soluble_yield_mg_per_l"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 0.0,
+          "iptg_in_supported_pet_range": 0.0,
+          "induction_od600_mid_log": 0.0,
+          "uses_supported_induction_schedule": 0.0,
+          "lysis_ph_native_ni_nta_compatible": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A partial expression output cannot borrow a result field from the request.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.orphan.output_without_request",
+      "task_id": "express_01",
+      "case_family": "orphan",
+      "case_variant": "output_without_request",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "tool"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 0.0,
+          "iptg_in_supported_pet_range": 0.0,
+          "induction_od600_mid_log": 0.0,
+          "uses_supported_induction_schedule": 0.0,
+          "lysis_ph_native_ni_nta_compatible": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "An orphan expression output has no causal request.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.contradictory.duplicate_interpretation",
+      "task_id": "express_01",
+      "case_family": "contradictory",
+      "case_variant": "duplicate_interpretation",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nInterpretation: failure"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 1.0,
+          "iptg_in_supported_pet_range": 1.0,
+          "induction_od600_mid_log": 1.0,
+          "uses_supported_induction_schedule": 1.0,
+          "lysis_ph_native_ni_nta_compatible": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A contradictory duplicate report field invalidates task success only.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "express_01.retry.second_complete_experimental_call",
+      "task_id": "express_01",
+      "case_family": "retry",
+      "case_variant": "second_complete_experimental_call",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_expression_002",
+                "function": "run_protein_expression",
+                "arguments": {
+                  "construct_id": "expression_construct_his6_mbp_gfp_001",
+                  "host_strain": "BL21(DE3)",
+                  "iptg_concentration_mm": 1.0,
+                  "induction_od600": 0.6,
+                  "induction_temperature_c": 18.0,
+                  "induction_hours": 16.0,
+                  "lysis_buffer_ph": 8.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "tool",
+            "tool_call_id": "call_expression_002",
+            "function": "run_protein_expression",
+            "content": {
+              "status": "lysate_prepared",
+              "expression_accepted": true,
+              "failure_reasons": [],
+              "expression_id": "expression_001",
+              "construct_id": "expression_construct_his6_mbp_gfp_001",
+              "construct_usage_count": 1,
+              "plasmid_name": "pET-T7lac-His6-MBP-GFP benchmark construct",
+              "promoter": "T7lac",
+              "affinity_tag": "His6",
+              "is_benign": true,
+              "host_strain": "BL21(DE3)",
+              "host_strain_normalized": "bl21de3",
+              "host_strain_canonical": "BL21(DE3)",
+              "protein_name": "His6-MBP-GFP fusion",
+              "expected_molecular_weight_kda": 72.0,
+              "iptg_concentration_mm": 1.0,
+              "induction_od600": 0.6,
+              "induction_temperature_c": 18.0,
+              "induction_hours": 16.0,
+              "induction_schedule_profile": "low_temperature_extended",
+              "lysis_buffer_ph": 8.0,
+              "culture_volume_ml": 500.0,
+              "soluble_yield_mg_per_l": 36.8,
+              "insoluble_fraction": 0.08,
+              "total_soluble_mg": 18.4,
+              "lysate_prepared": true,
+              "notes": []
+            }
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "uses_t7_expression_host": 0.0,
+          "iptg_in_supported_pet_range": 0.0,
+          "induction_od600_mid_log": 0.0,
+          "uses_supported_induction_schedule": 0.0,
+          "lysis_ph_native_ni_nta_compatible": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Two complete expression attempts violate exactly-once source consumption.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}

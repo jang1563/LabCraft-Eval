@@ -240,7 +240,82 @@ sibling level. This JSON-tree rule must not be confused with the v0.1.x runtime
 implementation, whose simulator-task top-level weights are hard-coded as task
 success 0.4, decision quality 0.3, troubleshooting 0.2, and efficiency 0.1.
 
-## 4. Hugging Face Export Schema 0.3.0
+## 4. P1 Scorer Contract and Fixture Schemas
+
+The five P1 wet-lab scorers are bound by:
+
+- `task_data/scorer_validity/scorer_contract_manifest.json`
+- `task_data/scorer_validity/<task_id>/trajectory_fixtures.json`
+- `task_data/scorer_validity/review_manifest.json`
+- executable schemas under `task_data/scorer_validity/schemas/`
+
+The manifest uses three distinct version fields: `contract_schema_version` for
+the manifest shape, `contract_set_version` for the five-task set, and one
+`scorer_version` per task. Each task entry pins the scorer and Inspect-builder
+callables, the scorer source file, SHA-256 digests for scorer source, ground
+truth, rubric, and fixture corpus, exact report fields, decision-point IDs, and
+its request/output, authority, causal, attempt, and retry policies.
+
+Each task corpus contains one canonical base trajectory and seven explicit
+fixture definitions. A fixture records:
+
+```json
+{
+  "fixture_id": "purify_01.partial.missing_output_field",
+  "task_id": "purify_01",
+  "case_family": "partial",
+  "case_variant": "missing_output_field",
+  "expected_validity": "invalid",
+  "mutations": [
+    {
+      "op": "remove",
+      "path": "/transcript/1/content/recovered_target_mass_mg"
+    }
+  ],
+  "expected_scores": {
+    "overall": 0.0,
+    "task_success": 0.0,
+    "decision_quality": 0.0,
+    "troubleshooting": 0.0,
+    "efficiency": 0.0,
+    "decision_scores": {
+      "load_imidazole_in_supported_range": 0.0,
+      "wash_imidazole_matches_fixed_workflow": 0.0,
+      "elution_imidazole_matches_fixed_workflow": 0.0,
+      "flow_rate_in_supported_range": 0.0
+    }
+  },
+  "annotation": {
+    "origin": "ai_assisted_draft",
+    "label_status": "pending_expert_review",
+    "rationale": "A partial output cannot borrow result fields from its request.",
+    "reviewer": null,
+    "reviewed_at": null
+  }
+}
+```
+
+The required case-family sequence is canonical-valid, alternative-valid,
+forged, partial, orphan, contradictory, and retry. The validator requires exact
+full score vectors, decision keys matching ground truth, weighted-overall
+consistency, finite values in `[0, 1]`, unique fixture IDs and review hashes,
+artifact hash agreement, relative packaged paths, and public-surface hygiene.
+Fixtures are synthetic development conformance evidence, not held-out model
+evaluation data.
+
+Technical and scientific approval are separate. The default validator must pass
+the deterministic 35-case regression. `--require-expert-approved` remains
+fail-closed until every effective fixture definition is reviewed and its
+canonical SHA-256 is recorded in `review_manifest.json`. That review hash binds
+the compact fixture, fully materialized trajectory, scorer version and source,
+ground-truth and rubric hashes, component weights, report and decision fields,
+and evidence policy. A base trajectory or contract change therefore invalidates
+the affected approval. Approved annotation and approval records must carry the
+same reviewer identity and RFC 3339 timestamp; final promotion requires that
+provenance to match the top-level review manifest across all 35 fixtures.
+Partial approval cannot promote the corpus.
+
+## 5. Hugging Face Export Schema 0.3.0
 
 The machine-readable contracts are:
 

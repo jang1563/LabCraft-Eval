@@ -507,15 +507,44 @@ This accepts `purify_01` as the fifth completed P1 task: all 20/20 cells and 5/5
 tasks are contract-validated. These remain one-seed compatibility and
 scorer-contract results, not comparative model-ranking evidence.
 
+## P2a local scorer-validity foundation
+
+After P1 completion, local audit found that the Golden Gate and Gibson scorers
+could accept request-only forged trajectories and orphan tool outputs; Golden
+Gate also accepted a contradictory duplicate interpretation field. P2a now
+requires linked request/output evidence, treats simulator output as
+authoritative, and applies exact unique eight-line reports to both tasks.
+
+The package now contains an explicit scorer-contract v1 manifest for all five
+P1 wet-lab tasks. It pins scorer and builder callables, scorer source,
+ground-truth/rubric and fixture hashes, report fields, decision IDs, component
+weights, evidence policy, and retry semantics. Task samples and future Inspect
+score metadata record the contract set, schema version, scorer version,
+manifest hash, and task-entry hash.
+
+The deterministic development-conformance corpus contains 35 synthetic cases:
+seven per task across canonical-valid, alternative-valid, forged, partial,
+orphan, contradictory, and retry families. Full component and decision-level
+vectors pass locally and from the installed wheel. The annotations remain
+AI-assisted drafts: the review manifest has 0/35 approvals and the explicit
+expert-review promotion check fails closed until every materialized fixture and
+its scorer/source and scientific contract are reviewed and hash-frozen as one
+effective definition.
+
+No external model or HPC run, human baseline, multi-seed evaluation, public
+sync, or push is part of this local gate. Because Golden Gate and Gibson scorer
+behavior changed after their accepted arrays, those arrays remain valid
+commit-bound P1 evidence but are not a live validation of current HEAD.
+
 ## Scale decision
 
 All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
 complete at 20/20 accepted cells after the remediated `golden_gate_01` and
 `gibson_01` plus the hardened `miniprep_01`, `express_01`, and `purify_01`
 gates. Earlier pre-remediation bundles remain diagnostic-only. Human-baseline
-and multi-seed work remain intentionally skipped. The next bounded gate is the
-P2a scorer-validity foundation: explicit scorer versions, expert-labelled
-valid/invalid trajectory fixtures, and a deterministic regression gate before
-new reasoning, recovery, and counterfactual task families. Frozen historical
-results and every cancelled, diagnostic, or pre-remediation bundle remain
-excluded from promoted aggregates.
+and multi-seed work remain intentionally skipped. The P2a local contract and
+deterministic regression foundation is implemented; the next bounded gate is
+expert review and hash-freezing of all 35 draft fixtures before new reasoning,
+recovery, or counterfactual task families. Frozen historical results and every
+cancelled, diagnostic, or pre-remediation bundle remain excluded from promoted
+aggregates.

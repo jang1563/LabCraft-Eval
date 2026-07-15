@@ -67,6 +67,21 @@ The checked-in JSON rubric trees document the intended hierarchy, but the live
 v0.1.x scorer uses the hard-coded logic and fixed weights in
 `src/trajectory_scorer.py`.
 
+For the five P1 wet-lab tasks, each task sample and resulting `Score.metadata`
+also carries a scorer-contract set, schema version, task scorer version, and
+SHA-256 bindings. The local contract manifest under
+`task_data/scorer_validity/` pins the exact scorer callable, ground truth,
+rubric, report schema, decision IDs, and evidence policy. Its seven synthetic
+fixture families per task exercise canonical and alternative valid paths plus
+forged, partial, orphan, contradictory, and retry trajectories.
+
+The 35-case deterministic regression is a technical conformance gate, not an
+expert label. Every checked-in fixture currently remains
+`pending_expert_review`; the promotion validator stays closed until all exact
+fixture definitions, materialized trajectories, rationales, validity labels,
+component vectors, and decision-level labels are reviewed and hash-frozen with
+their scorer/source and ground-truth contract.
+
 ## 5. Published Result Row
 
 Aggregation scripts deduplicate scored samples and export rows with:
@@ -83,3 +98,7 @@ The Hugging Face export stores these rows in `result_rows.jsonl` and records the
 source `.eval` checksums in `eval_log_manifest.jsonl`. The release manifest then
 checksums every exported artifact so consumers can audit a public number back to
 its source commit and log bundle.
+
+The current P2a fixture corpus is local development-conformance evidence and is
+not included in the v0.1.2 Hugging Face snapshot. It must not be described as a
+public model result or held-out evaluation set.

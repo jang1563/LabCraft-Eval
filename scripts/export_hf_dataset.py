@@ -346,7 +346,13 @@ def classify_task(task_id: str) -> str:
 
 def discover_task_dirs() -> list[Path]:
     task_root = REPO_ROOT / "task_data"
-    return sorted(path for path in task_root.iterdir() if path.is_dir())
+    return sorted(
+        path
+        for path in task_root.iterdir()
+        if path.is_dir()
+        and (path / "rubric.json").is_file()
+        and (path / "ground_truth.json").is_file()
+    )
 
 
 def task_records(commit: str) -> list[dict[str, Any]]:

@@ -53,6 +53,7 @@ For normal pull requests, run the smallest relevant local checks you can:
 ```bash
 uv run ruff check .
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
+uv run python scripts/validate_scorer_contracts.py
 uv run pytest
 uv run python scripts/export_hf_dataset.py \
   --out-dir build/hf_export_smoke \
@@ -66,6 +67,12 @@ uv run python scripts/upload_hf_dataset.py \
 
 The dry-run upload helper has no network side effects. Actual upload with
 `--execute` requires `huggingface-hub>=0.36,<1.0` in the active environment.
+
+The default scorer-contract validator checks deterministic technical
+conformance. A release or change that claims expert-approved P1 fixtures must
+also pass
+`uv run python scripts/validate_scorer_contracts.py --require-expert-approved`;
+it is expected to fail while the corpus remains a draft.
 
 Do not run API-backed Inspect evaluations in CI or casual pull requests unless
 the change explicitly requires it.

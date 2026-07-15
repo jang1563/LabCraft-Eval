@@ -99,6 +99,7 @@ from src.environment.purification_contract import (
     canonicalize_purification_resin,
     normalize_purification_label,
 )
+from src.scorer_contracts import scorer_contract_metadata
 from src.tools.discovery import (
     assay_primary_readout,
     validation_result_label,
@@ -154,11 +155,16 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
 
     for item in transcript:
         if isinstance(item, dict) and item.get("type") == "tool_call":
+            output_observed = item.get("content") is not None
             append_or_merge(
                 {
                     **item,
                     "_request_observed": True,
-                    "_tool_output_observed": item.get("content") is not None,
+                    # A normalized direct event is combined evidence only when
+                    # it carries an explicit result payload. Arguments alone are
+                    # still only a request and cannot prove execution.
+                    "_tool_output_observed": output_observed,
+                    "_combined_tool_event": output_observed,
                 }
             )
             continue
@@ -272,6 +278,34 @@ def _observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
     arguments = _coerce_arguments(call.get("arguments"))
     content_values = _coerce_content_dict(call.get("content"))
     return {**arguments, **content_values}
+
+
+def _has_linked_tool_evidence(call: Dict[str, Any]) -> bool:
+    """Return whether a normalized call contains request and result evidence."""
+    request_observed = call.get("_request_observed")
+    output_observed = call.get("_tool_output_observed")
+    return request_observed is True and output_observed is True
+
+
+def _output_authoritative_causal_calls(
+    tool_calls: List[Dict[str, Any]],
+    *,
+    experimental_tools: set[str],
+) -> List[Dict[str, Any]]:
+    """Keep linked experimental results and prevent request-field fallback."""
+    causal_calls: List[Dict[str, Any]] = []
+    for call in tool_calls:
+        tool_name = _normalize_tool_name(call.get("tool_name", ""))
+        if tool_name not in experimental_tools:
+            causal_calls.append(call)
+            continue
+        if not _has_linked_tool_evidence(call):
+            continue
+
+        # Experimental output is authoritative even for normalized combined
+        # test events; request arguments may never fill missing result fields.
+        causal_calls.append({**call, "arguments": {}})
+    return causal_calls
 
 
 def _coerce_float(value: Any) -> float | None:
@@ -1808,31 +1842,34 @@ def build_clone_trajectory_scorer():
 
 
 def _extract_reported_golden_gate_summary(final_answer: str) -> Dict[str, Any]:
+    number = r"([0-9]+(?:\.[0-9]+)?)"
+    field_specs = (
+        ("enzyme", r"^Type IIS enzyme:\s*(\S(?:.*\S)?)\s*$", str),
+        ("ligase", r"^Ligase:\s*(\S(?:.*\S)?)\s*$", str),
+        ("digest_temperature_c", rf"^Digest temperature:\s*{number}\s*C\s*$", float),
+        ("ligate_temperature_c", rf"^Ligate temperature:\s*{number}\s*C\s*$", float),
+        ("cycle_count", r"^Cycle count:\s*([0-9]+)\s*$", int),
+        ("fragment_count", r"^Fragment count:\s*([0-9]+)\s*$", int),
+        ("transformants_observed", r"^Transformants observed:\s*([0-9]+)\s*$", int),
+        ("interpretation", r"^Interpretation:\s*(\S(?:.*\S)?)\s*$", str),
+    )
+    lines = [line.strip() for line in final_answer.splitlines() if line.strip()]
+    if len(lines) != len(field_specs):
+        return {}
+
     summary: Dict[str, Any] = {}
-    enzyme_match = re.search(r"(?im)^Type IIS enzyme:\s*(.+)$", final_answer)
-    if enzyme_match:
-        summary["enzyme"] = enzyme_match.group(1).strip().lower()
-    ligase_match = re.search(r"(?im)^Ligase:\s*(.+)$", final_answer)
-    if ligase_match:
-        summary["ligase"] = ligase_match.group(1).strip()
-    digest_match = re.search(r"(?im)^Digest temperature:\s*([0-9]+(?:\.[0-9]+)?)\s*C", final_answer)
-    if digest_match:
-        summary["digest_temperature_c"] = float(digest_match.group(1))
-    ligate_match = re.search(r"(?im)^Ligate temperature:\s*([0-9]+(?:\.[0-9]+)?)\s*C", final_answer)
-    if ligate_match:
-        summary["ligate_temperature_c"] = float(ligate_match.group(1))
-    cycles_match = re.search(r"(?im)^Cycle count:\s*([0-9]+)", final_answer)
-    if cycles_match:
-        summary["cycle_count"] = int(cycles_match.group(1))
-    fragment_match = re.search(r"(?im)^Fragment count:\s*([0-9]+)", final_answer)
-    if fragment_match:
-        summary["fragment_count"] = int(fragment_match.group(1))
-    transformants_match = re.search(r"(?im)^Transformants observed:\s*([0-9]+)\b", final_answer)
-    if transformants_match:
-        summary["transformants_observed"] = int(transformants_match.group(1))
-    interpretation_match = re.search(r"(?im)^Interpretation:\s*(.+)$", final_answer)
-    if interpretation_match:
-        summary["interpretation"] = interpretation_match.group(1).strip()
+    for key, pattern, converter in field_specs:
+        matches = [
+            match
+            for line in lines
+            if (match := re.fullmatch(pattern, line, flags=re.IGNORECASE)) is not None
+        ]
+        if len(matches) != 1:
+            return {}
+        try:
+            summary[key] = converter(matches[0].group(1).strip())
+        except (TypeError, ValueError):
+            return {}
     return summary
 
 
@@ -1848,6 +1885,13 @@ GOLDEN_GATE_FRAGMENT_IDS = {
     "gg_insert_promoter",
     "gg_insert_cds",
     "gg_insert_terminator",
+}
+GOLDEN_GATE_CAUSAL_TOOLS = {
+    "golden_gate_assembly",
+    "transform_assembly",
+    "prepare_media",
+    "plate",
+    "count_colonies",
 }
 
 
@@ -1958,6 +2002,10 @@ def _has_canonical_golden_gate_countable_range(observed: Dict[str, Any]) -> bool
 
 
 def _reconstruct_golden_gate_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+    tool_calls = _output_authoritative_causal_calls(
+        _extract_tool_calls(tool_calls),
+        experimental_tools=GOLDEN_GATE_CAUSAL_TOOLS,
+    )
     assemblies: List[Dict[str, Any]] = []
     transforms: List[Dict[str, Any]] = []
     prepared_plates: Dict[str, Dict[str, Any]] = {}
@@ -2152,7 +2200,10 @@ def score_golden_gate_trajectory(
     ground_truth_path: str,
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
-    tool_calls = _extract_tool_calls(transcript)
+    tool_calls = _output_authoritative_causal_calls(
+        _extract_tool_calls(transcript),
+        experimental_tools=GOLDEN_GATE_CAUSAL_TOOLS,
+    )
     decision_quality = score_decision_quality(tool_calls, ground_truth)
     task_success = score_golden_gate_task_success(final_answer, tool_calls)
     troubleshooting = score_golden_gate_troubleshooting(final_answer, tool_calls, ground_truth)
@@ -2206,7 +2257,7 @@ def build_golden_gate_trajectory_scorer():
                 },
                 answer=final_answer[:500],
                 explanation=json.dumps(values["decision_scores"], indent=2, sort_keys=True),
-                metadata=values,
+                metadata={**values, **scorer_contract_metadata("golden_gate_01")},
             )
 
         return score
@@ -2220,37 +2271,44 @@ def build_golden_gate_trajectory_scorer():
 
 
 def _extract_reported_gibson_summary(final_answer: str) -> Dict[str, Any]:
+    number = r"([0-9]+(?:\.[0-9]+)?)"
+    field_specs = (
+        ("assembly_method", r"^Assembly method:\s*(\S(?:.*\S)?)\s*$", str),
+        ("master_mix", r"^Master mix:\s*(\S(?:.*\S)?)\s*$", str),
+        ("temperature_c", rf"^Temperature:\s*{number}\s*C\s*$", float),
+        ("duration_minutes", r"^Duration:\s*([0-9]+)\s*min\s*$", int),
+        ("fragment_count", r"^Fragment count:\s*([0-9]+)\s*$", int),
+        ("overlap_length_bp", r"^Overlap length:\s*([0-9]+)\s*bp\s*$", int),
+        ("transformants_observed", r"^Transformants observed:\s*([0-9]+)\s*$", int),
+        ("interpretation", r"^Interpretation:\s*(\S(?:.*\S)?)\s*$", str),
+    )
+    lines = [line.strip() for line in final_answer.splitlines() if line.strip()]
+    if len(lines) != len(field_specs):
+        return {}
+
     summary: Dict[str, Any] = {}
-
-    def unique_match(pattern: str) -> re.Match[str] | None:
-        matches = list(re.finditer(pattern, final_answer, flags=re.IGNORECASE | re.MULTILINE))
-        return matches[0] if len(matches) == 1 else None
-
-    method_match = unique_match(r"^Assembly method:\s*(\S(?:.*\S)?)\s*$")
-    if method_match:
-        summary["assembly_method"] = method_match.group(1).strip()
-    master_match = unique_match(r"^Master mix:\s*(\S(?:.*\S)?)\s*$")
-    if master_match:
-        summary["master_mix"] = master_match.group(1).strip()
-    temp_match = unique_match(r"^Temperature:\s*([0-9]+(?:\.[0-9]+)?)\s*C\s*$")
-    if temp_match:
-        summary["temperature_c"] = float(temp_match.group(1))
-    dur_match = unique_match(r"^Duration:\s*([0-9]+)\s*min\s*$")
-    if dur_match:
-        summary["duration_minutes"] = int(dur_match.group(1))
-    frag_match = unique_match(r"^Fragment count:\s*([0-9]+)\s*$")
-    if frag_match:
-        summary["fragment_count"] = int(frag_match.group(1))
-    overlap_match = unique_match(r"^Overlap length:\s*([0-9]+)\s*bp\s*$")
-    if overlap_match:
-        summary["overlap_length_bp"] = int(overlap_match.group(1))
-    transformants_match = unique_match(r"^Transformants observed:\s*([0-9]+)\s*$")
-    if transformants_match:
-        summary["transformants_observed"] = int(transformants_match.group(1))
-    interp_match = unique_match(r"^Interpretation:\s*(\S(?:.*\S)?)\s*$")
-    if interp_match:
-        summary["interpretation"] = interp_match.group(1).strip()
+    for key, pattern, converter in field_specs:
+        matches = [
+            match
+            for line in lines
+            if (match := re.fullmatch(pattern, line, flags=re.IGNORECASE)) is not None
+        ]
+        if len(matches) != 1:
+            return {}
+        try:
+            summary[key] = converter(matches[0].group(1).strip())
+        except (TypeError, ValueError):
+            return {}
     return summary
+
+
+GIBSON_CAUSAL_TOOLS = {
+    "gibson_assembly",
+    "transform_gibson",
+    "prepare_media",
+    "plate",
+    "count_colonies",
+}
 
 
 def _gibson_observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
@@ -2306,6 +2364,10 @@ def _has_canonical_gibson_countable_range(observed: Dict[str, Any]) -> bool:
 
 
 def _reconstruct_gibson_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+    tool_calls = _output_authoritative_causal_calls(
+        _extract_tool_calls(tool_calls),
+        experimental_tools=GIBSON_CAUSAL_TOOLS,
+    )
     assemblies: List[Dict[str, Any]] = []
     transforms: List[Dict[str, Any]] = []
     prepared_plates: Dict[str, Dict[str, Any]] = {}
@@ -2500,7 +2562,10 @@ def score_gibson_trajectory(
     ground_truth_path: str,
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
-    tool_calls = _extract_tool_calls(transcript)
+    tool_calls = _output_authoritative_causal_calls(
+        _extract_tool_calls(transcript),
+        experimental_tools=GIBSON_CAUSAL_TOOLS,
+    )
     decision_quality = score_decision_quality(tool_calls, ground_truth)
     task_success = score_gibson_task_success(final_answer, tool_calls)
     troubleshooting = score_gibson_troubleshooting(final_answer, tool_calls, ground_truth)
@@ -2554,7 +2619,7 @@ def build_gibson_trajectory_scorer():
                 },
                 answer=final_answer[:500],
                 explanation=json.dumps(values["decision_scores"], indent=2, sort_keys=True),
-                metadata=values,
+                metadata={**values, **scorer_contract_metadata("gibson_01")},
             )
 
         return score
@@ -2994,7 +3059,7 @@ def build_miniprep_trajectory_scorer():
                 },
                 answer=final_answer[:500],
                 explanation=json.dumps(values["decision_scores"], indent=2, sort_keys=True),
-                metadata=values,
+                metadata={**values, **scorer_contract_metadata("miniprep_01")},
             )
 
         return score
@@ -3530,7 +3595,7 @@ def build_express_trajectory_scorer():
                 },
                 answer=final_answer[:500],
                 explanation=json.dumps(values["decision_scores"], indent=2, sort_keys=True),
-                metadata=values,
+                metadata={**values, **scorer_contract_metadata("express_01")},
             )
 
         return score
@@ -4116,7 +4181,7 @@ def build_purify_trajectory_scorer():
                 },
                 answer=final_answer[:500],
                 explanation=json.dumps(values["decision_scores"], indent=2, sort_keys=True),
-                metadata=values,
+                metadata={**values, **scorer_contract_metadata("purify_01")},
             )
 
         return score

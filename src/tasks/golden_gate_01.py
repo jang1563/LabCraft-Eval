@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.scorer_contracts import scorer_contract_metadata
+
 from .base import TaskPaths
 
 GOLDEN_GATE_01_ROOT = Path(__file__).resolve().parents[2] / "task_data" / "golden_gate_01"
@@ -52,6 +54,7 @@ def build_golden_gate_01_sample() -> dict:
         "input": build_golden_gate_01_prompt(),
         "target": str(GOLDEN_GATE_01_GROUND_TRUTH),
         "metadata": {
+            **scorer_contract_metadata("golden_gate_01"),
             "task_id": "golden_gate_01",
             "ground_truth_path": str(GOLDEN_GATE_01_GROUND_TRUTH),
             "rubric_path": str(GOLDEN_GATE_01_RUBRIC),

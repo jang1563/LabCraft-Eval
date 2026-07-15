@@ -63,6 +63,15 @@ In v0.1.x, runtime scoring is implemented directly in
 `src/trajectory_scorer.py` with fixed top-level weights. The JSON rubric trees
 document the intended hierarchy but are not executed by the live Inspect scorer.
 
+The unreleased local P2a conformance layer adds a versioned manifest for the
+five P1 wet-lab scorers. It pins each scorer and Inspect builder, artifact
+digests, report fields, decision IDs, and evidence policy. A 35-case synthetic
+corpus covers canonical-valid, alternative-valid, forged, partial, orphan,
+contradictory, and retry trajectories. The deterministic technical regression
+passes locally, including fail-closed request/output evidence checks for Golden
+Gate and Gibson, but its labels remain AI-assisted drafts pending 35/35 expert
+review. It is not promoted benchmark evidence.
+
 The Safety Case Track uses a separate conversational safeguard scorer and is not
 merged into the wet-lab simulator leaderboard.
 
@@ -90,6 +99,13 @@ runtime-source, Inspect-version, manifest-schema, and no-limit-exhaustion
 checks. Human-baseline and multi-seed collection remain intentionally skipped,
 so these runs are compatibility and scorer-contract evidence only.
 
+The five newer P1 wet-lab tasks separately completed 20/20 accepted strict cells
+at their recorded clean evaluation commits. P2a subsequently changed the local
+Golden Gate and Gibson scorer behavior to close forged-request, orphan-output,
+and report-uniqueness gaps. Therefore the accepted P1 cells remain
+commit-bound compatibility evidence; they are not a claim that those external
+trajectories were rerun against the current working-tree scorer.
+
 Key public surfaces:
 
 - `results/results.md` for the historical frozen scorecard.
@@ -111,6 +127,9 @@ Minimum local checks:
 
 ```bash
 uv run pytest
+uv run python scripts/validate_scorer_contracts.py
+# Remains exit 2 until all 35 exact fixture definitions are expert-approved.
+uv run python scripts/validate_scorer_contracts.py --require-expert-approved
 uv run python scripts/export_hf_dataset.py \
   --out-dir build/hf_dataset \
   --release-name local_export \
@@ -138,6 +157,9 @@ experimental competence. Safety scope and reporting guidance are maintained in
   interpreted as current, leakage-free protocol-reasoning results.
 - The latest strict snapshot sentinels cover only one seed and were not promoted
   as a score-bearing public release.
+- The P2a scorer corpus is synthetic development-conformance evidence with 0/35
+  expert approvals; technical regression success alone does not validate its
+  scientific labels or make it promotion-eligible.
 - Human-baseline and multi-seed work are intentionally skipped at the current
   gate. Comparative reliability and paper-grade ranking claims remain blocked
   until an appropriate repeat design and external reference are completed.

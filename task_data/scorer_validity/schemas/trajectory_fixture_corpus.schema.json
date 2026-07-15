@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jang1563/LabCraft-Eval/task_data/scorer_validity/schemas/trajectory_fixture_corpus.schema.json",
+  "title": "LabCraft-Eval scorer trajectory fixture corpus",
+  "type": "object",
+  "required": [
+    "fixture_schema_version",
+    "task_id",
+    "scorer_version",
+    "ground_truth_sha256",
+    "corpus_role",
+    "review_status",
+    "promotion_eligible",
+    "base_trajectory",
+    "fixtures"
+  ],
+  "properties": {
+    "fixture_schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "task_id": {"type": "string"},
+    "scorer_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "ground_truth_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "corpus_role": {"const": "development_scorer_conformance"},
+    "review_status": {"enum": ["pending_expert_review", "expert_approved"]},
+    "promotion_eligible": {"type": "boolean"},
+    "base_trajectory": {
+      "type": "object",
+      "required": ["final_answer", "transcript"],
+      "properties": {
+        "final_answer": {"type": "string"},
+        "transcript": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {"$ref": "#/$defs/fixture"}
+    }
+  },
+  "$defs": {
+    "scoreVector": {
+      "type": "object",
+      "required": [
+        "overall",
+        "task_success",
+        "decision_quality",
+        "troubleshooting",
+        "efficiency",
+        "decision_scores"
+      ],
+      "properties": {
+        "overall": {"type": "number", "minimum": 0, "maximum": 1},
+        "task_success": {"type": "number", "minimum": 0, "maximum": 1},
+        "decision_quality": {"type": "number", "minimum": 0, "maximum": 1},
+        "troubleshooting": {"type": "number", "minimum": 0, "maximum": 1},
+        "efficiency": {"type": "number", "minimum": 0, "maximum": 1},
+        "decision_scores": {
+          "type": "object",
+          "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["origin", "label_status", "rationale", "reviewer", "reviewed_at"],
+      "properties": {
+        "origin": {"const": "ai_assisted_draft"},
+        "label_status": {"enum": ["pending_expert_review", "expert_approved"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "reviewer": {"type": ["string", "null"], "minLength": 1},
+        "reviewed_at": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "mutation": {
+      "type": "object",
+      "required": ["op", "path"],
+      "properties": {
+        "op": {"enum": ["append", "append_text", "filter_equal", "remove", "replace", "slice"]},
+        "path": {"type": "string", "pattern": "^/"},
+        "key": {"type": "string"},
+        "value": {},
+        "start": {"type": "integer"},
+        "stop": {"type": ["integer", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "fixture": {
+      "type": "object",
+      "required": [
+        "fixture_id",
+        "task_id",
+        "case_family",
+        "case_variant",
+        "expected_validity",
+        "mutations",
+        "expected_scores",
+        "annotation"
+      ],
+      "properties": {
+        "fixture_id": {"type": "string"},
+        "task_id": {"type": "string"},
+        "case_family": {
+          "enum": [
+            "canonical_valid",
+            "alternative_valid",
+            "forged",
+            "partial",
+            "orphan",
+            "contradictory",
+            "retry"
+          ]
+        },
+        "case_variant": {"type": "string"},
+        "expected_validity": {"enum": ["valid", "invalid"]},
+        "mutations": {"type": "array", "items": {"$ref": "#/$defs/mutation"}},
+        "expected_scores": {"$ref": "#/$defs/scoreVector"},
+        "annotation": {"$ref": "#/$defs/annotation"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

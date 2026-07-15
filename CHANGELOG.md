@@ -6,6 +6,12 @@ recorded rather than silently rewriting history.
 
 ## Unreleased
 
+- Add a versioned, hash-bound P1 scorer contract with 35 deterministic
+  development-conformance fixtures across five wet-lab tasks, package and wheel
+  validation, and a separate fail-closed expert-review gate; harden Golden Gate
+  and Gibson against request-only forged results, orphan outputs, incomplete
+  output fallback, non-unique reports, and retry-path hybridization. All fixture
+  labels remain pending expert review and are not promoted evidence.
 - Add a canonical project-status anchor with the scientific North Star, track
   roles, evidence limits, exact next gate, and P0-P3 promotion plan.
 - Make the no-dependency Hugging Face quickstart manifest-first, safe for

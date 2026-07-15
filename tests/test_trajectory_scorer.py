@@ -1586,7 +1586,12 @@ def _good_golden_gate_transcript():
             "countable_range_colonies": {"min": 25, "max": 250},
         },
     }
-    return [assembly_call, prepare, transform_call, plate_call, count]
+    calls = [assembly_call, prepare, transform_call, plate_call, count]
+    for call in calls:
+        # Direct normalized events still need an explicit simulator result.
+        # The shared object keeps focused mutation tests synchronized.
+        call["content"] = call["arguments"]
+    return calls
 
 
 def _good_golden_gate_answer() -> str:
@@ -1612,6 +1617,14 @@ def test_good_golden_gate_trajectory_scores_high():
     assert scores["decision_quality"] == 1.0
     assert scores["troubleshooting"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_golden_gate_rejects_arguments_only_normalized_execution_chain():
+    transcript = _good_golden_gate_transcript()
+    for call in transcript:
+        call.pop("content")
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
 
 
 def test_golden_gate_wrong_enzyme_fails_decision_quality():
@@ -2078,6 +2091,15 @@ def test_good_gibson_trajectory_scores_high():
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
     assert scores["overall"] >= 0.9
+
+
+def test_gibson_rejects_arguments_only_normalized_execution_chain():
+    transcript = _good_gibson_transcript()
+    for call in transcript:
+        call["arguments"].update(json.loads(call["content"]))
+        call.pop("content")
+
+    assert _score_gibson_task(transcript) == 0.0
 
 
 @pytest.mark.parametrize(

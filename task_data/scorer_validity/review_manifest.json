@@ -1,0 +1,11 @@
+{
+  "review_schema_version": "1.0.0",
+  "contract_set": "p1_wet_lab",
+  "status": "pending_expert_review",
+  "promotion_eligible": false,
+  "required_fixture_count": 35,
+  "reviewer": null,
+  "reviewed_at": null,
+  "approvals": [],
+  "review_instructions": "Review every fixture definition, materialized trajectory, rationale, validity label, and full score vector. Record the canonical effective-definition SHA-256, which binds the materialized trajectory and scorer, source, ground-truth, rubric, and weight contract, with one exact reviewer identity and RFC 3339 timestamp across the annotation, approval, and final manifest; do not promote partial review."
+}

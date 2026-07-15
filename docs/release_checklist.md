@@ -34,9 +34,21 @@ execution mode.
 ```bash
 uv sync --extra dev --extra analysis --extra providers
 uv run python scripts/model_matrix.py validate
+uv run python scripts/validate_scorer_contracts.py
 uv run pytest
 uv run pytest tests/test_citations.py tests/test_scope_compliance.py tests/test_inspect_task.py
 ```
+
+The default scorer-contract command is the technical regression gate. Any
+release that promotes the P1 fixture corpus or makes expert-validated scorer
+claims must additionally pass:
+
+```bash
+uv run python scripts/validate_scorer_contracts.py --require-expert-approved
+```
+
+That command intentionally exits 2 while any exact effective fixture definition
+is pending, stale, rejected, or not hash-bound to an expert decision.
 
 - Confirm the latest `CodeQL` workflow run has completed successfully for
   `main`, or document why code scanning was skipped for the release.

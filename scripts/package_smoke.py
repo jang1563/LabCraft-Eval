@@ -57,10 +57,35 @@ def main() -> int:
         if not path.exists():
             raise RuntimeError("Packaged task metadata path does not exist: {}".format(path))
 
+    from src.scorer_contracts import review_progress, run_scorer_regression
+
+    scorer_errors = run_scorer_regression()
+    if scorer_errors:
+        raise RuntimeError(
+            "Packaged P1 scorer regression failed:\n{}".format("\n".join(scorer_errors))
+        )
+    scorer_review = review_progress()
+    if (
+        scorer_review["required"] != 35
+        or scorer_review["approved"] < 0
+        or scorer_review["pending"] < 0
+        or scorer_review["approved"] + scorer_review["pending"]
+        != scorer_review["required"]
+        or (
+            scorer_review["promotion_ready"]
+            and scorer_review["approved"] != scorer_review["required"]
+        )
+    ):
+        raise RuntimeError(
+            "Inconsistent packaged scorer review state: {}".format(scorer_review)
+        )
+
     print(
-        "labcraft {} package smoke passed with {} snapshot tasks and safety_case_01.".format(
+        "labcraft {} package smoke passed with {} snapshot tasks, safety_case_01, "
+        "and {} scorer contract fixtures.".format(
             distribution.version,
             len(task_ids),
+            scorer_review["required"],
         )
     )
     return 0

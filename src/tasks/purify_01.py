@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.scorer_contracts import scorer_contract_metadata
+
 from .base import TaskPaths
 
 PURIFY_01_ROOT = Path(__file__).resolve().parents[2] / "task_data" / "purify_01"
@@ -60,6 +62,7 @@ def build_purify_01_sample() -> dict:
         "input": build_purify_01_prompt(),
         "target": str(PURIFY_01_GROUND_TRUTH),
         "metadata": {
+            **scorer_contract_metadata("purify_01"),
             "task_id": "purify_01",
             "ground_truth_path": str(PURIFY_01_GROUND_TRUTH),
             "rubric_path": str(PURIFY_01_RUBRIC),

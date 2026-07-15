@@ -1,0 +1,238 @@
+{
+  "contract_schema_version": "1.0.0",
+  "contract_set": "p1_wet_lab",
+  "contract_set_version": "1.0.0",
+  "status": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "component_weights": {
+    "task_success": 0.4,
+    "decision_quality": 0.3,
+    "troubleshooting": 0.2,
+    "efficiency": 0.1
+  },
+  "required_fixture_families": [
+    "canonical_valid",
+    "alternative_valid",
+    "forged",
+    "partial",
+    "orphan",
+    "contradictory",
+    "retry"
+  ],
+  "schema_paths": {
+    "contract_manifest": "task_data/scorer_validity/schemas/scorer_contract_manifest.schema.json",
+    "trajectory_fixture_corpus": "task_data/scorer_validity/schemas/trajectory_fixture_corpus.schema.json",
+    "review_manifest": "task_data/scorer_validity/schemas/review_manifest.schema.json"
+  },
+  "review_manifest_path": "task_data/scorer_validity/review_manifest.json",
+  "tasks": {
+    "golden_gate_01": {
+      "scorer_version": "1.0.0",
+      "scorer_callable": "src.trajectory_scorer:score_golden_gate_trajectory",
+      "inspect_builder": "src.trajectory_scorer:build_golden_gate_trajectory_scorer",
+      "scorer_source_path": "src/trajectory_scorer.py",
+      "scorer_source_sha256": "e372fee466f12faedc05991d61530ef4e61974eec7100b4c2addf2adf3a637de",
+      "ground_truth_path": "task_data/golden_gate_01/ground_truth.json",
+      "ground_truth_sha256": "112f2ab4b6aaf92648c35236bb71c570da6fd9d7b1714a07f387a620290a0f3a",
+      "rubric_path": "task_data/golden_gate_01/rubric.json",
+      "rubric_sha256": "f46c3fbb40c4eda81738b96d05021f9166c0f136759a82e457d980da70e43369",
+      "fixture_path": "task_data/scorer_validity/golden_gate_01/trajectory_fixtures.json",
+      "fixture_sha256": "b67c9d97e0e86078ef0f70bb12a856a0aafcac08fe133999f1e45376435fafa7",
+      "fixture_count": 7,
+      "report_field_count": 8,
+      "report_fields": [
+        "enzyme",
+        "ligase",
+        "digest_temperature_c",
+        "ligate_temperature_c",
+        "cycle_count",
+        "fragment_count",
+        "transformants_observed",
+        "interpretation"
+      ],
+      "decision_point_ids": [
+        "uses_type_iis_enzyme",
+        "uses_t4_dna_ligase",
+        "digest_temperature_37",
+        "ligate_temperature_16",
+        "cycle_count_30",
+        "ampicillin_selection_100"
+      ],
+      "evidence_policy": {
+        "request_and_output_required": true,
+        "output_authoritative": true,
+        "causal_order_required": true,
+        "attempt_policy": "linked_success_path",
+        "retry_semantics": "A completed linked path may survive unrelated attempts, but a report cannot splice an uncompleted retry into that path."
+      }
+    },
+    "gibson_01": {
+      "scorer_version": "1.0.0",
+      "scorer_callable": "src.trajectory_scorer:score_gibson_trajectory",
+      "inspect_builder": "src.trajectory_scorer:build_gibson_trajectory_scorer",
+      "scorer_source_path": "src/trajectory_scorer.py",
+      "scorer_source_sha256": "e372fee466f12faedc05991d61530ef4e61974eec7100b4c2addf2adf3a637de",
+      "ground_truth_path": "task_data/gibson_01/ground_truth.json",
+      "ground_truth_sha256": "a55dc3e7efce01baa21663fc3d1a8482695c85a032bf98e17db9ea54d8c3f1db",
+      "rubric_path": "task_data/gibson_01/rubric.json",
+      "rubric_sha256": "009c9202c55cb706b71fe3b5173e18cdb3bd5ba315fcb2eb6e7da76a9b73d974",
+      "fixture_path": "task_data/scorer_validity/gibson_01/trajectory_fixtures.json",
+      "fixture_sha256": "e5787486cd58278fd62dcef2f6b1a63b6548ddbbf80fa0d8ec77cf127233ac3b",
+      "fixture_count": 7,
+      "report_field_count": 8,
+      "report_fields": [
+        "assembly_method",
+        "master_mix",
+        "temperature_c",
+        "duration_minutes",
+        "fragment_count",
+        "overlap_length_bp",
+        "transformants_observed",
+        "interpretation"
+      ],
+      "decision_point_ids": [
+        "gibson_supported_master_mix",
+        "gibson_temperature_50",
+        "gibson_duration_15_60",
+        "gibson_ampicillin_selection_100"
+      ],
+      "evidence_policy": {
+        "request_and_output_required": true,
+        "output_authoritative": true,
+        "causal_order_required": true,
+        "attempt_policy": "linked_success_path",
+        "retry_semantics": "A completed linked path may survive unrelated attempts, but a report cannot splice an uncompleted retry into that path."
+      }
+    },
+    "miniprep_01": {
+      "scorer_version": "1.0.0",
+      "scorer_callable": "src.trajectory_scorer:score_miniprep_trajectory",
+      "inspect_builder": "src.trajectory_scorer:build_miniprep_trajectory_scorer",
+      "scorer_source_path": "src/trajectory_scorer.py",
+      "scorer_source_sha256": "e372fee466f12faedc05991d61530ef4e61974eec7100b4c2addf2adf3a637de",
+      "ground_truth_path": "task_data/miniprep_01/ground_truth.json",
+      "ground_truth_sha256": "190a7eb7966ae60c0e01fdc0961e296a6a0bc22406b46e23e751e33123f4243f",
+      "rubric_path": "task_data/miniprep_01/rubric.json",
+      "rubric_sha256": "d82ae6f0d1048f0111a1508e880e5c4d77aad98729e59010580f98670fb9fc76",
+      "fixture_path": "task_data/scorer_validity/miniprep_01/trajectory_fixtures.json",
+      "fixture_sha256": "7e0c3ff1091bc0875840026c513641d54d649e0f18d495c172cb48e6d083c304",
+      "fixture_count": 7,
+      "report_field_count": 11,
+      "report_fields": [
+        "culture_id",
+        "culture_volume_ml",
+        "lysis_buffer_sequence",
+        "lysis_duration_min",
+        "purification_method",
+        "elution_volume_ul",
+        "final_concentration_ng_ul",
+        "a260_a280_ratio",
+        "total_yield_ug",
+        "interpretation",
+        "diagnosis"
+      ],
+      "decision_point_ids": [
+        "canonical_lysis_buffer_sequence",
+        "lysis_duration_within_1_to_5_min",
+        "elution_volume_standard_50",
+        "culture_volume_in_high_copy_range"
+      ],
+      "evidence_policy": {
+        "request_and_output_required": true,
+        "output_authoritative": true,
+        "causal_order_required": true,
+        "attempt_policy": "exactly_one_experimental_call",
+        "retry_semantics": "More than one complete experimental result invalidates task, decision, troubleshooting, and efficiency credit."
+      }
+    },
+    "express_01": {
+      "scorer_version": "1.0.0",
+      "scorer_callable": "src.trajectory_scorer:score_express_trajectory",
+      "inspect_builder": "src.trajectory_scorer:build_express_trajectory_scorer",
+      "scorer_source_path": "src/trajectory_scorer.py",
+      "scorer_source_sha256": "e372fee466f12faedc05991d61530ef4e61974eec7100b4c2addf2adf3a637de",
+      "ground_truth_path": "task_data/express_01/ground_truth.json",
+      "ground_truth_sha256": "4a46ee8c463bb97a4d456bff339f71ea7c14e5d0fd0f556a605ecba5c6fd3114",
+      "rubric_path": "task_data/express_01/rubric.json",
+      "rubric_sha256": "cedbc1b5955946bc0808ce6e941a44933f42dcb169268364cfd0a043b9c2ab1e",
+      "fixture_path": "task_data/scorer_validity/express_01/trajectory_fixtures.json",
+      "fixture_sha256": "b4d6f99bf71a8ad541475c13fdc850b90cf17a7d76d7f83bc66d8ec9a05039c1",
+      "fixture_count": 7,
+      "report_field_count": 11,
+      "report_fields": [
+        "construct_id",
+        "expression_id",
+        "host_strain",
+        "iptg_concentration_mm",
+        "induction_od600",
+        "induction_temperature_c",
+        "induction_hours",
+        "lysis_buffer_ph",
+        "soluble_yield_mg_per_l",
+        "interpretation",
+        "diagnosis"
+      ],
+      "decision_point_ids": [
+        "uses_t7_expression_host",
+        "iptg_in_supported_pet_range",
+        "induction_od600_mid_log",
+        "uses_supported_induction_schedule",
+        "lysis_ph_native_ni_nta_compatible"
+      ],
+      "evidence_policy": {
+        "request_and_output_required": true,
+        "output_authoritative": true,
+        "causal_order_required": true,
+        "attempt_policy": "exactly_one_experimental_call",
+        "retry_semantics": "More than one complete experimental result invalidates task, decision, troubleshooting, and efficiency credit."
+      }
+    },
+    "purify_01": {
+      "scorer_version": "1.0.0",
+      "scorer_callable": "src.trajectory_scorer:score_purify_trajectory",
+      "inspect_builder": "src.trajectory_scorer:build_purify_trajectory_scorer",
+      "scorer_source_path": "src/trajectory_scorer.py",
+      "scorer_source_sha256": "e372fee466f12faedc05991d61530ef4e61974eec7100b4c2addf2adf3a637de",
+      "ground_truth_path": "task_data/purify_01/ground_truth.json",
+      "ground_truth_sha256": "0589e69989a614ccccb45314b3e912db9d2a2ff1506bcb1c504377228100f875",
+      "rubric_path": "task_data/purify_01/rubric.json",
+      "rubric_sha256": "0f0d9140927c218f6e6c3e0d02ae029ff701cf96487451801cbd9f8b4f7e45c5",
+      "fixture_path": "task_data/scorer_validity/purify_01/trajectory_fixtures.json",
+      "fixture_sha256": "ac265269c13f88b19f18f5f0cfb1951d815268b240763e4e4fd5ac44f56ef351",
+      "fixture_count": 7,
+      "report_field_count": 16,
+      "report_fields": [
+        "lysate_id",
+        "purification_id",
+        "resin",
+        "column_bed_volume_ml",
+        "load_imidazole_mm",
+        "wash_imidazole_mm",
+        "elute_imidazole_mm",
+        "flow_rate_ml_per_min",
+        "expected_band_kda",
+        "recovered_target_mass_mg",
+        "eluate_volume_ml",
+        "purified_concentration_mg_per_ml",
+        "sds_page_result",
+        "purity_percent",
+        "interpretation",
+        "diagnosis"
+      ],
+      "decision_point_ids": [
+        "load_imidazole_in_supported_range",
+        "wash_imidazole_matches_fixed_workflow",
+        "elution_imidazole_matches_fixed_workflow",
+        "flow_rate_in_supported_range"
+      ],
+      "evidence_policy": {
+        "request_and_output_required": true,
+        "output_authoritative": true,
+        "causal_order_required": true,
+        "attempt_policy": "exactly_one_experimental_call",
+        "retry_semantics": "More than one complete experimental result invalidates task, decision, troubleshooting, and efficiency credit."
+      }
+    }
+  }
+}

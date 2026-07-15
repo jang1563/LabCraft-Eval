@@ -1,0 +1,347 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "miniprep_01",
+  "scorer_version": "1.0.0",
+  "ground_truth_sha256": "190a7eb7966ae60c0e01fdc0961e296a6a0bc22406b46e23e751e33123f4243f",
+  "corpus_role": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "base_trajectory": {
+    "final_answer": "Culture ID: miniprep_culture_high_copy_001\nCulture volume: 5 mL\nLysis buffer sequence: P1,P2,N3\nLysis duration: 3 min\nPurification method: QIAprep silica spin column\nElution volume: 50 uL\nPlasmid concentration: 200.0 ng/uL\nA260/A280: 1.80\nTotal yield: 10.0 ug\nInterpretation: success\nDiagnosis: none",
+    "transcript": [
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_miniprep_001",
+            "function": "perform_miniprep",
+            "arguments": {
+              "culture_id": "miniprep_culture_high_copy_001",
+              "culture_volume_ml": 5.0,
+              "lysis_buffer_sequence": "P1,P2,N3",
+              "lysis_duration_min": 3,
+              "purification_method": "QIAprep silica spin column",
+              "elution_volume_ul": 50.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_miniprep_001",
+        "function": "perform_miniprep",
+        "content": {
+          "status": "prepared",
+          "preparation_accepted": true,
+          "failure_reasons": [],
+          "miniprep_id": "miniprep_001",
+          "culture_id": "miniprep_culture_high_copy_001",
+          "culture_volume_ml": 5.0,
+          "lysis_buffer_sequence": "P1,P2,N3",
+          "lysis_buffer_sequence_canonical": "P1,P2,N3",
+          "lysis_duration_min": 3,
+          "purification_method": "QIAprep silica spin column",
+          "purification_method_canonical": "QIAprep silica spin column",
+          "elution_volume_ul": 50.0,
+          "final_concentration_ng_ul": 200.0,
+          "a260_a280_ratio": 1.8,
+          "total_yield_ug": 10.0,
+          "source_culture_remaining_volume_ml": 0.0
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "miniprep_01.canonical_valid.paired_single_result",
+      "task_id": "miniprep_01",
+      "case_family": "canonical_valid",
+      "case_variant": "paired_single_result",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 1.0,
+          "lysis_duration_within_1_to_5_min": 1.0,
+          "elution_volume_standard_50": 1.0,
+          "culture_volume_in_high_copy_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "One complete paired miniprep result and an exact eleven-line report.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.alternative_valid.supported_one_hundred_ul_elution",
+      "task_id": "miniprep_01",
+      "case_family": "alternative_valid",
+      "case_variant": "supported_one_hundred_ul_elution",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/elution_volume_ul",
+          "value": 100.0
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/elution_volume_ul",
+          "value": 100.0
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/final_concentration_ng_ul",
+          "value": 100.0
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Culture ID: miniprep_culture_high_copy_001\nCulture volume: 5 mL\nLysis buffer sequence: P1,P2,N3\nLysis duration: 3 min\nPurification method: QIAprep silica spin column\nElution volume: 100 uL\nPlasmid concentration: 100.0 ng/uL\nA260/A280: 1.80\nTotal yield: 10.0 ug\nInterpretation: success\nDiagnosis: none"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.925,
+        "task_success": 1.0,
+        "decision_quality": 0.75,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 1.0,
+          "lysis_duration_within_1_to_5_min": 1.0,
+          "elution_volume_standard_50": 0.0,
+          "culture_volume_in_high_copy_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A 100 uL elution is valid but intentionally loses the preferred 50 uL decision point.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.forged.request_only_result_claim",
+      "task_id": "miniprep_01",
+      "case_family": "forged",
+      "case_variant": "request_only_result_claim",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "assistant"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 0.0,
+          "lysis_duration_within_1_to_5_min": 0.0,
+          "elution_volume_standard_50": 0.0,
+          "culture_volume_in_high_copy_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A request without its linked simulator output cannot establish a result.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.partial.missing_output_field",
+      "task_id": "miniprep_01",
+      "case_family": "partial",
+      "case_variant": "missing_output_field",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/transcript/1/content/final_concentration_ng_ul"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 0.0,
+          "lysis_duration_within_1_to_5_min": 0.0,
+          "elution_volume_standard_50": 0.0,
+          "culture_volume_in_high_copy_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A partial output cannot fall back to request arguments.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.orphan.output_without_request",
+      "task_id": "miniprep_01",
+      "case_family": "orphan",
+      "case_variant": "output_without_request",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "tool"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 0.0,
+          "lysis_duration_within_1_to_5_min": 0.0,
+          "elution_volume_standard_50": 0.0,
+          "culture_volume_in_high_copy_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "An orphan miniprep output has no causal request.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.contradictory.duplicate_interpretation",
+      "task_id": "miniprep_01",
+      "case_family": "contradictory",
+      "case_variant": "duplicate_interpretation",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nInterpretation: failure"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 1.0,
+          "lysis_duration_within_1_to_5_min": 1.0,
+          "elution_volume_standard_50": 1.0,
+          "culture_volume_in_high_copy_range": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A duplicate contradictory field invalidates the strict report only.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "miniprep_01.retry.second_complete_experimental_call",
+      "task_id": "miniprep_01",
+      "case_family": "retry",
+      "case_variant": "second_complete_experimental_call",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_miniprep_002",
+                "function": "perform_miniprep",
+                "arguments": {
+                  "culture_id": "miniprep_culture_high_copy_001",
+                  "culture_volume_ml": 5.0,
+                  "lysis_buffer_sequence": "P1,P2,N3",
+                  "lysis_duration_min": 3,
+                  "purification_method": "QIAprep silica spin column",
+                  "elution_volume_ul": 50.0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "tool",
+            "tool_call_id": "call_miniprep_002",
+            "function": "perform_miniprep",
+            "content": {
+              "status": "prepared",
+              "preparation_accepted": true,
+              "failure_reasons": [],
+              "miniprep_id": "miniprep_001",
+              "culture_id": "miniprep_culture_high_copy_001",
+              "culture_volume_ml": 5.0,
+              "lysis_buffer_sequence": "P1,P2,N3",
+              "lysis_buffer_sequence_canonical": "P1,P2,N3",
+              "lysis_duration_min": 3,
+              "purification_method": "QIAprep silica spin column",
+              "purification_method_canonical": "QIAprep silica spin column",
+              "elution_volume_ul": 50.0,
+              "final_concentration_ng_ul": 200.0,
+              "a260_a280_ratio": 1.8,
+              "total_yield_ug": 10.0,
+              "source_culture_remaining_volume_ml": 0.0
+            }
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "canonical_lysis_buffer_sequence": 0.0,
+          "lysis_duration_within_1_to_5_min": 0.0,
+          "elution_volume_standard_50": 0.0,
+          "culture_volume_in_high_copy_range": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Two complete miniprep attempts violate the exactly-once experimental contract.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}

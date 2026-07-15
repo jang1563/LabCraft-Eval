@@ -1,0 +1,518 @@
+{
+  "fixture_schema_version": "1.0.0",
+  "task_id": "gibson_01",
+  "scorer_version": "1.0.0",
+  "ground_truth_sha256": "a55dc3e7efce01baa21663fc3d1a8482695c85a032bf98e17db9ea54d8c3f1db",
+  "corpus_role": "development_scorer_conformance",
+  "review_status": "pending_expert_review",
+  "promotion_eligible": false,
+  "base_trajectory": {
+    "final_answer": "Assembly method: Gibson\nMaster mix: Gibson Assembly Master Mix\nTemperature: 50 C\nDuration: 15 min\nFragment count: 2\nOverlap length: 20 bp\nTransformants observed: 120\nInterpretation: success",
+    "transcript": [
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gibson_assembly_001",
+            "function": "gibson_assembly",
+            "arguments": {
+              "fragment_ids": [
+                "gibson_backbone_linear",
+                "gibson_insert_pcr"
+              ],
+              "master_mix_name": "Gibson Assembly Master Mix",
+              "temperature_c": 50.0,
+              "duration_minutes": 15,
+              "overlap_length_bp": 20
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gibson_assembly_001",
+        "function": "gibson_assembly",
+        "content": {
+          "status": "assembled",
+          "gibson_id": "gibson_001",
+          "fragment_ids": [
+            "gibson_backbone_linear",
+            "gibson_insert_pcr"
+          ],
+          "fragment_count": 2,
+          "master_mix_name": "Gibson Assembly Master Mix",
+          "master_mix_normalized": "gibsonassemblymastermix",
+          "master_mix_canonical": "Gibson Assembly Master Mix",
+          "temperature_c": 50.0,
+          "duration_minutes": 15,
+          "overlap_length_bp": 20,
+          "output_fragment_id": "fragment_020",
+          "effective_assembly_efficiency": 0.8,
+          "expected_transformant_yield": 500.0,
+          "failure_reasons": [],
+          "notes": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gibson_transform_001",
+            "function": "transform_gibson",
+            "arguments": {
+              "gibson_id": "gibson_001",
+              "heat_shock_seconds": 30,
+              "recovery_minutes": 60,
+              "outgrowth_media": "SOC",
+              "shaking": true,
+              "ice_incubation_minutes": 30
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gibson_transform_001",
+        "function": "transform_gibson",
+        "content": {
+          "status": "transformed",
+          "culture_id": "culture_001",
+          "gibson_id": "gibson_001",
+          "gibson_status": "assembled",
+          "output_fragment_id": "fragment_020",
+          "effective_assembly_efficiency": 0.8,
+          "expected_transformants": 500.0,
+          "heat_shock_seconds": 30,
+          "recovery_minutes": 60,
+          "outgrowth_media": "SOC",
+          "notes": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gibson_prepare_001",
+            "function": "prepare_media",
+            "arguments": {
+              "medium": "LB agar",
+              "antibiotic": "ampicillin",
+              "antibiotic_concentration_ug_ml": 100.0,
+              "plate_count": 1
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gibson_prepare_001",
+        "function": "prepare_media",
+        "content": {
+          "status": "prepared",
+          "media_id": "media_001",
+          "medium": "LB agar",
+          "antibiotic": "ampicillin",
+          "antibiotic_concentration_ug_ml": 100.0,
+          "plate_count": 1,
+          "plates": [
+            {
+              "plate_id": "plate_001",
+              "medium": "LB agar",
+              "antibiotic": "ampicillin",
+              "antibiotic_concentration_ug_ml": 100.0
+            }
+          ]
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gibson_plate_001",
+            "function": "plate",
+            "arguments": {
+              "culture_id": "culture_001",
+              "plate_id": "plate_001",
+              "dilution_factor": 1.0,
+              "volume_ul": 100.0
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gibson_plate_001",
+        "function": "plate",
+        "content": {
+          "status": "plated",
+          "plating_id": "plating_001",
+          "culture_id": "culture_001",
+          "plate_id": "plate_001",
+          "dilution_factor": 1.0,
+          "volume_ul": 100.0,
+          "countable_range_colonies": {
+            "min": 25,
+            "max": 250
+          },
+          "warnings": []
+        }
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "call_gibson_count_001",
+            "function": "count_colonies",
+            "arguments": {
+              "plating_id": "plating_001"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_gibson_count_001",
+        "function": "count_colonies",
+        "content": {
+          "status": "plated",
+          "plating_id": "plating_001",
+          "observed_colonies": 120,
+          "dilution_factor": 1.0,
+          "volume_ul": 100.0,
+          "countable_range_colonies": {
+            "min": 25,
+            "max": 250
+          },
+          "warnings": []
+        }
+      }
+    ]
+  },
+  "fixtures": [
+    {
+      "fixture_id": "gibson_01.canonical_valid.paired_causal_path",
+      "task_id": "gibson_01",
+      "case_family": "canonical_valid",
+      "case_variant": "paired_causal_path",
+      "expected_validity": "valid",
+      "mutations": [],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 1.0,
+          "gibson_temperature_50": 1.0,
+          "gibson_duration_15_60": 1.0,
+          "gibson_ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A complete linked Gibson assembly, transformation, selection, plating, and count path with an exact report.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.alternative_valid.nebuilder_hifi_sixty_minutes",
+      "task_id": "gibson_01",
+      "case_family": "alternative_valid",
+      "case_variant": "nebuilder_hifi_sixty_minutes",
+      "expected_validity": "valid",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/master_mix_name",
+          "value": "NEBuilder HiFi DNA Assembly Master Mix"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/0/tool_calls/0/arguments/duration_minutes",
+          "value": 60
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/master_mix_name",
+          "value": "NEBuilder HiFi DNA Assembly Master Mix"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/master_mix_normalized",
+          "value": "nebuilderhifidnaassemblymastermix"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/master_mix_canonical",
+          "value": "NEBuilder HiFi DNA Assembly Master Mix"
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content/duration_minutes",
+          "value": 60
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Assembly method: Gibson\nMaster mix: NEBuilder HiFi DNA Assembly Master Mix\nTemperature: 50 C\nDuration: 60 min\nFragment count: 2\nOverlap length: 20 bp\nTransformants observed: 120\nInterpretation: success"
+        }
+      ],
+      "expected_scores": {
+        "overall": 1.0,
+        "task_success": 1.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 1.0,
+          "gibson_temperature_50": 1.0,
+          "gibson_duration_15_60": 1.0,
+          "gibson_ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "NEBuilder HiFi and a 60-minute incubation are both explicitly supported alternatives.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.forged.request_only_complete_chain",
+      "task_id": "gibson_01",
+      "case_family": "forged",
+      "case_variant": "request_only_complete_chain",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "assistant"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 0.0,
+          "gibson_temperature_50": 0.0,
+          "gibson_duration_15_60": 0.0,
+          "gibson_ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Requests without linked outputs cannot establish Gibson execution or selection evidence.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.partial.incomplete_assembly_output",
+      "task_id": "gibson_01",
+      "case_family": "partial",
+      "case_variant": "incomplete_assembly_output",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "slice",
+          "path": "/transcript",
+          "start": 0,
+          "stop": 2
+        },
+        {
+          "op": "replace",
+          "path": "/transcript/1/content",
+          "value": {
+            "status": "assembled",
+            "gibson_id": "gibson_001"
+          }
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 0.0,
+          "gibson_temperature_50": 0.0,
+          "gibson_duration_15_60": 0.0,
+          "gibson_ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A partial output cannot inherit request fields or establish a completed causal path.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.orphan.tool_outputs_without_requests",
+      "task_id": "gibson_01",
+      "case_family": "orphan",
+      "case_variant": "tool_outputs_without_requests",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "filter_equal",
+          "path": "/transcript",
+          "key": "role",
+          "value": "tool"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.0,
+        "task_success": 0.0,
+        "decision_quality": 0.0,
+        "troubleshooting": 0.0,
+        "efficiency": 0.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 0.0,
+          "gibson_temperature_50": 0.0,
+          "gibson_duration_15_60": 0.0,
+          "gibson_ampicillin_selection_100": 0.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "Tool outputs without linked requests are orphan evidence.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.contradictory.duplicate_interpretation",
+      "task_id": "gibson_01",
+      "case_family": "contradictory",
+      "case_variant": "duplicate_interpretation",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append_text",
+          "path": "/final_answer",
+          "value": "\nInterpretation: failure"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 1.0,
+          "gibson_temperature_50": 1.0,
+          "gibson_duration_15_60": 1.0,
+          "gibson_ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "A contradictory duplicate report field invalidates task success but not the executed path.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    },
+    {
+      "fixture_id": "gibson_01.retry.untransformed_second_assembly_hybrid_report",
+      "task_id": "gibson_01",
+      "case_family": "retry",
+      "case_variant": "untransformed_second_assembly_hybrid_report",
+      "expected_validity": "invalid",
+      "mutations": [
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "id": "call_gibson_assembly_002",
+                "function": "gibson_assembly",
+                "arguments": {
+                  "fragment_ids": [
+                    "gibson_backbone_linear",
+                    "gibson_insert_pcr"
+                  ],
+                  "master_mix_name": "NEBuilder HiFi DNA Assembly Master Mix",
+                  "temperature_c": 50.0,
+                  "duration_minutes": 60,
+                  "overlap_length_bp": 20
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "append",
+          "path": "/transcript",
+          "value": {
+            "role": "tool",
+            "tool_call_id": "call_gibson_assembly_002",
+            "function": "gibson_assembly",
+            "content": {
+              "status": "assembled",
+              "gibson_id": "gibson_002",
+              "fragment_ids": [
+                "gibson_backbone_linear",
+                "gibson_insert_pcr"
+              ],
+              "fragment_count": 2,
+              "master_mix_name": "NEBuilder HiFi DNA Assembly Master Mix",
+              "master_mix_normalized": "nebuilderhifidnaassemblymastermix",
+              "master_mix_canonical": "NEBuilder HiFi DNA Assembly Master Mix",
+              "temperature_c": 50.0,
+              "duration_minutes": 60,
+              "overlap_length_bp": 20,
+              "output_fragment_id": "fragment_021",
+              "effective_assembly_efficiency": 0.8,
+              "expected_transformant_yield": 500.0,
+              "failure_reasons": [],
+              "notes": []
+            }
+          }
+        },
+        {
+          "op": "replace",
+          "path": "/final_answer",
+          "value": "Assembly method: Gibson\nMaster mix: NEBuilder HiFi DNA Assembly Master Mix\nTemperature: 50 C\nDuration: 60 min\nFragment count: 2\nOverlap length: 20 bp\nTransformants observed: 120\nInterpretation: success"
+        }
+      ],
+      "expected_scores": {
+        "overall": 0.6,
+        "task_success": 0.0,
+        "decision_quality": 1.0,
+        "troubleshooting": 1.0,
+        "efficiency": 1.0,
+        "decision_scores": {
+          "gibson_supported_master_mix": 1.0,
+          "gibson_temperature_50": 1.0,
+          "gibson_duration_15_60": 1.0,
+          "gibson_ampicillin_selection_100": 1.0
+        }
+      },
+      "annotation": {
+        "origin": "ai_assisted_draft",
+        "label_status": "pending_expert_review",
+        "rationale": "The report may not splice an untransformed second assembly into the first completed path.",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ PUBLIC_TEXT_PATHS = [
     *sorted((REPO_ROOT / "docs").rglob("*.md")),
     *sorted((REPO_ROOT / "results").glob("*.md")),
     *sorted((REPO_ROOT / "task_data").rglob("*.md")),
+    *sorted((REPO_ROOT / "task_data" / "scorer_validity").rglob("*.json")),
     REPO_ROOT / "hpc" / "README.md",
     *sorted((REPO_ROOT / "hpc").glob("*.sh")),
 ]

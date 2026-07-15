@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.scorer_contracts import scorer_contract_metadata
+
 from .base import TaskPaths
 
 EXPRESS_01_ROOT = Path(__file__).resolve().parents[2] / "task_data" / "express_01"
@@ -56,6 +58,7 @@ def build_express_01_sample() -> dict:
         "input": build_express_01_prompt(),
         "target": str(EXPRESS_01_GROUND_TRUTH),
         "metadata": {
+            **scorer_contract_metadata("express_01"),
             "task_id": "express_01",
             "ground_truth_path": str(EXPRESS_01_GROUND_TRUTH),
             "rubric_path": str(EXPRESS_01_RUBRIC),
