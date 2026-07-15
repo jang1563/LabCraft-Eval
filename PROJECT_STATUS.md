@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01` contract-validated, P1 at 4/20 cells |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01` and `gibson_01` contract-validated, P1 at 8/20 cells |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -37,10 +37,20 @@ wet-lab competence and not broad biology capability.
   bundle remains diagnostic-only and excluded from accepted evidence.
 - The remediated `golden_gate_01` array at clean revision
   `f7d5ba5062b69a3b33968d656272626c1870114c` passed all four strict cells and
-  independent semantic/postflight audit. P1 is now 4/20 accepted cells. One
+  independent semantic/postflight audit. One
   Haiku trajectory correctly scored task success 0 after it failed to recover
   from a three-colony, out-of-range plate; this is retained as substantive
   compatibility evidence, not treated as infrastructure failure.
+- The first hardened `gibson_01` array at clean revision
+  `9afc917bc5366c485e0904f200c5248b0148c77e` passed all four technical cells,
+  but its scorer rejected valid Gibson method labels in three final reports.
+  That pre-fix bundle remains diagnostic-only and excluded from accepted
+  evidence.
+- The remediated `gibson_01` array at clean revision
+  `fb6b6dd40d301b5035e6d06fc7e169fa98339c34` passed all four strict cells and
+  independent semantic/postflight audit. Each report binds to one complete
+  assembly, transformation, Amp100 plate, plating, and count path. P1 is now
+  8/20 accepted cells and 2/5 tasks.
 - The retained five-task snapshot sentinels validate compatibility and scorer
   contracts. They are not a public score-bearing release and do not support
   comparative model ranking.
@@ -67,8 +77,8 @@ Run seed 0 for the registered `current_balanced` matrix on these five newer
 flagship wet-lab tasks:
 
 1. `golden_gate_01` — complete at `f7d5ba5`
-2. `gibson_01` — next
-3. `miniprep_01`
+2. `gibson_01` — complete at `fb6b6dd`
+3. `miniprep_01` — next
 4. `express_01`
 5. `purify_01`
 
@@ -105,8 +115,8 @@ compatibility/scorer-contract evidence.
 
 - **P0 — locally complete; public sync pending:** public truth repair and
   consistent release/evidence labels are committed locally but not pushed.
-- **P1 — in progress:** 4/20 cells accepted; `golden_gate_01` is
-  contract-validated and `gibson_01` is next.
+- **P1 — in progress:** 8/20 cells accepted; `golden_gate_01` and `gibson_01`
+  are contract-validated and `miniprep_01` is next.
 - **P2 — planned:** reasoning, recovery, and counterfactual task depth plus
   modular/versioned scorer validation.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and

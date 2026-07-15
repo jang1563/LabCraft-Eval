@@ -38,7 +38,7 @@ build, isolated wheel installation, Inspect entry-point import, and GPT-5.6
 metadata registration.
 
 The compatibility array ran `growth_01`, seed 0, serially across the four
-current-core models. All four providers returned the expected resolved model
+current-core models. All four models returned the expected resolved model
 ID with the registered `{max_tokens: 16384, reasoning_effort: medium}` profile
 and Inspect 0.3.245:
 
@@ -249,10 +249,10 @@ buffer, and the 60 C / five-minute terminal digest, requires a causal successful
 assembly-to-countable-colony path within the canonical 25-250 range, binds every
 reported field to that path, uses a fail-closed success token, and budgets two
 reference calls. Because these changes are agent-visible and score-defining, a
-a fresh four-model clean-revision rerun was mandatory; that rerun is recorded
+fresh four-model clean-revision rerun was mandatory; that rerun is recorded
 below.
 
-## Remediated newer-task P1 sentinel verification
+## Remediated Golden Gate P1 sentinel verification
 
 Revision `f7d5ba5062b69a3b33968d656272626c1870114c` was transferred as a
 complete git bundle to a fresh detached checkout. The clean Cayuga preflight
@@ -293,12 +293,81 @@ This accepts `golden_gate_01` as the first completed P1 task: 4/20 cells and
 1/5 tasks are contract-validated. These remain one-seed compatibility and
 scorer-contract results, not comparative model-ranking evidence.
 
+## Initial Gibson P1 diagnostic
+
+The first hardened `gibson_01` gate used revision
+`9afc917bc5366c485e0904f200c5248b0148c77e`, including the exact evaluation
+revision validator, in a fresh detached checkout. Its clean Cayuga preflight
+passed 715 tests, Ruff, shell syntax, registry validation, wheel build,
+isolated installation, and package smoke under Inspect 0.3.245.
+
+The serial array used RUN_ID `2026_07_15_p1_gibson_seed0_9afc917`, seed 0,
+and the registered `current_balanced` generation profile. All four scheduler
+cells exited `0:0`; the four native logs and four schema-1.2.0 manifests passed
+the strict provenance validator with the exact clean revision, runtime source,
+requested/resolved model identities, registry hash, and no error or exhausted
+limit. All four evaluation stderr files were empty.
+
+The stored task-success score was nevertheless zero in every cell. Semantic
+audit found complete, report-matched, countable paths for Sol, Luna, and Sonnet
+with 50, 34, and 34 colonies, respectively. Their only rejected field was the
+scientifically valid method label `Gibson isothermal overlap assembly`; the
+scorer required the exact token `Gibson` despite the prompt requesting a
+generic method name. Changing only that label in offline replay changed each
+task-success score from zero to one. Haiku's zero remained substantive because
+its 3- and 0-colony observations were both outside the canonical countable
+range and it did not replate.
+
+The remediation replaces the brittle exact token with a finite allowlist of
+canonical Gibson method labels while continuing to reject negated, fuzzy, and
+unrelated labels. Because this is score-defining, the entire `9afc917` bundle
+remains diagnostic-only and a fresh clean-revision rerun was required.
+
+## Remediated Gibson P1 sentinel verification
+
+Revision `fb6b6dd40d301b5035e6d06fc7e169fa98339c34` was transferred as a
+complete bundle to a new detached checkout. The clean Cayuga preflight passed
+728 tests, Ruff, shell syntax, registry validation, wheel build, isolated
+installation, and package smoke under Inspect 0.3.245.
+
+The serial four-cell array used RUN_ID
+`2026_07_15_p1_gibson_remediated_seed0_fb6b6dd`, seed 0, and the registered
+`current_balanced` profile (`max_tokens=16384`, `reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 20 | 9 | 9 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `openai/gpt-5.6-luna` | 17 | 8 | 7 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-sonnet-5` | 14 | 6 | 6 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | 20 | 9 | 9 | 1.000 | 0.750 | 1.000 | 0.500 | 0.875 |
+
+All four cells exited `0:0` and passed the built-in and independently repeated
+strict validators. Independent postflight found exactly four schema-1.2.0
+manifests and four native logs, the exact clean commit and runtime source, seed
+0, Inspect 0.3.245, requested/resolved model identity, the registered profile,
+and no error or exhausted limit. The model-registry SHA-256 remained
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`,
+and all four evaluation stderr files were empty.
+
+Semantic audit confirmed one causal, report-matched path per cell: a supported
+two-fragment assembly at 50 C for 15-60 minutes, a linked transformation, a
+prepared 100 ug/mL ampicillin plate, an undiluted 100 uL plating, and a
+countable colony result. Sol and Luna reported 50 colonies; Sonnet and Haiku
+reported 34. Haiku first used an unsupported master-mix label, then correctly
+reassembled and completed the valid path. Its 0.75 decision score preserves
+that initial error, its troubleshooting score credits the correction, and an
+unrelated out-of-range dilution plate is not hybridized into the accepted path.
+
+This accepts `gibson_01` as the second completed P1 task: 8/20 cells and 2/5
+tasks are contract-validated. These remain one-seed compatibility and
+scorer-contract results, not comparative model-ranking evidence.
+
 ## Scale decision
 
 All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
-now 4/20 accepted cells after the remediated `golden_gate_01` gate. The initial
-Golden Gate bundle remains a pre-remediation diagnostic. Human-baseline and
-multi-seed work remain intentionally skipped. The next bounded gate is
-`gibson_01` on the same four-model, seed-zero protocol. Frozen historical
+now 8/20 accepted cells after the remediated `golden_gate_01` and `gibson_01`
+gates. Their initial bundles remain pre-remediation diagnostics. Human-baseline
+and multi-seed work remain intentionally skipped. The next bounded gate is
+`miniprep_01` on the same four-model, seed-zero protocol. Frozen historical
 results and every cancelled, diagnostic, or pre-remediation bundle remain
 excluded from promoted aggregates.
