@@ -246,6 +246,7 @@ def validate_cell(
     expected_resolved_model: str | None = None,
     expected_provider: str | None = None,
     expected_generation_config: dict[str, Any] | None = None,
+    expected_inspect_version: str | None = None,
     require_model_provenance: bool = False,
     require_clean_revision: bool = False,
 ) -> int:
@@ -420,6 +421,16 @@ def validate_cell(
             file=sys.stderr,
         )
         return 1
+    if expected_inspect_version and row["inspect_version"] != expected_inspect_version:
+        print(
+            "Inspect version mismatch: expected={} actual={} ({})".format(
+                expected_inspect_version,
+                row["inspect_version"] or "unknown",
+                row["eval_path"],
+            ),
+            file=sys.stderr,
+        )
+        return 1
 
     print(
         "Validated eval cell: task={} requested_model={} resolved_model={} "
@@ -445,6 +456,7 @@ def main() -> int:
     parser.add_argument("--seed", required=True, type=int)
     parser.add_argument("--expected-resolved-model")
     parser.add_argument("--expected-provider")
+    parser.add_argument("--expected-inspect-version")
     parser.add_argument(
         "--expected-generation-config",
         type=parse_expected_generation_config,
@@ -462,6 +474,7 @@ def main() -> int:
         expected_resolved_model=args.expected_resolved_model,
         expected_provider=args.expected_provider,
         expected_generation_config=args.expected_generation_config,
+        expected_inspect_version=args.expected_inspect_version,
         require_model_provenance=args.require_model_provenance,
         require_clean_revision=args.require_clean_revision,
     )

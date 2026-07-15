@@ -67,6 +67,30 @@ if [ "$RUNTIME_SOURCE_ROOT" != "$REPO_ROOT" ]; then
   exit 2
 fi
 
+EXPECTED_INSPECT_VERSION=$(
+  python_exec - <<'PY'
+import tomllib
+from pathlib import Path
+
+with Path("pyproject.toml").open("rb") as handle:
+    dependencies = tomllib.load(handle)["project"]["dependencies"]
+pins = [
+    dependency.split("==", 1)[1]
+    for dependency in dependencies
+    if dependency.lower().startswith("inspect-ai==")
+]
+if len(pins) != 1 or not pins[0]:
+    raise SystemExit("project dependencies must contain one exact inspect-ai pin")
+print(pins[0])
+PY
+)
+ACTUAL_INSPECT_VERSION=$(python_exec -c \
+  'from importlib.metadata import version; print(version("inspect-ai"))')
+if [ "$ACTUAL_INSPECT_VERSION" != "$EXPECTED_INSPECT_VERSION" ]; then
+  echo "Inspect version mismatch: expected $EXPECTED_INSPECT_VERSION, installed $ACTUAL_INSPECT_VERSION" >&2
+  exit 2
+fi
+
 if [ "${MODELS+x}" != "x" ]; then
   MODELS=$(python_exec scripts/model_matrix.py matrix "$MODEL_MATRIX" --format space)
   MODEL_SOURCE="matrix:${MODEL_MATRIX}"
@@ -125,20 +149,23 @@ EXPECTED_RESOLVED_MODEL=$(
 GENERATION_PROFILE_JSON=$(python_exec scripts/model_matrix.py generate-config "$MODEL")
 INSPECT_EVAL_ARGS_VALUE="${INSPECT_EVAL_ARGS:-}"
 
-mkdir -p "$LOG_DIR" "${BUNDLE_DIR}/manifests" "${BUNDLE_DIR}/stdout" "${REPO_ROOT}/results/hpc/slurm"
-
 if [ -z "${INSPECT_HOME:-}" ]; then
   export INSPECT_HOME="${TMPDIR:-/tmp}/inspect_ai_home/${SLURM_JOB_ID:-manual}/${ARRAY_ID}"
 fi
 
 COMMIT_SHA="$(git rev-parse HEAD)"
-WORKTREE_DIRTY=0
-if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
-  WORKTREE_DIRTY=1
+WORKTREE_STATUS=$(git status --porcelain --untracked-files=all)
+if [ -n "$WORKTREE_STATUS" ]; then
+  echo "Refusing API-backed HPC evaluation from a dirty worktree: $REPO_ROOT" >&2
+  echo "$WORKTREE_STATUS" >&2
+  exit 2
 fi
+WORKTREE_DIRTY=0
 MODEL_REGISTRY_SHA256=$(python_exec -c \
   'import hashlib, pathlib; print(hashlib.sha256(pathlib.Path("config/model_matrix.toml").read_bytes()).hexdigest())')
 MANIFEST_PATH="${BUNDLE_DIR}/manifests/cell_${ARRAY_ID}.json"
+
+mkdir -p "$LOG_DIR" "${BUNDLE_DIR}/manifests" "${BUNDLE_DIR}/stdout" "${REPO_ROOT}/results/hpc/slurm"
 
 python_exec - \
   "$MANIFEST_PATH" \
@@ -157,6 +184,7 @@ python_exec - \
   "$MODEL_PROVIDER" \
   "$EXPECTED_RESOLVED_MODEL" \
   "$GENERATION_PROFILE_JSON" \
+  "$EXPECTED_INSPECT_VERSION" \
   "$INSPECT_EVAL_ARGS_VALUE" \
   "$MODEL_REGISTRY_SHA256" \
   "$RUNTIME_SOURCE_ROOT" \
@@ -186,6 +214,7 @@ from pathlib import Path
     model_provider,
     expected_resolved_model,
     generation_profile_json,
+    expected_inspect_version,
     inspect_eval_args,
     model_registry_sha256,
     runtime_source_root,
@@ -214,6 +243,7 @@ payload = {
     "provider": model_provider,
     "expected_resolved_model": expected_resolved_model,
     "generation_profile": json.loads(generation_profile_json),
+    "expected_inspect_version": expected_inspect_version,
     "inspect_eval_args": inspect_eval_args,
     "model_registry_sha256": model_registry_sha256,
     "runtime_source_root": runtime_source_root,
@@ -237,6 +267,7 @@ echo "  model key:   ${MODEL_KEY}"
 echo "  model:       ${MODEL}"
 echo "  expected:    ${EXPECTED_RESOLVED_MODEL}"
 echo "  profile:     ${GENERATION_PROFILE_JSON}"
+echo "  inspect:     ${ACTUAL_INSPECT_VERSION}"
 echo "  source root: ${RUNTIME_SOURCE_ROOT}"
 echo "  seed:        ${SEED}"
 echo "  log_dir:     ${LOG_DIR}"
@@ -262,6 +293,8 @@ if [ "${VALIDATE_EVAL_CELL:-1}" != "0" ]; then
     --expected-provider "${MODEL_PROVIDER}"
     --expected-resolved-model "${EXPECTED_RESOLVED_MODEL}"
     --expected-generation-config "${GENERATION_PROFILE_JSON}"
+    --expected-inspect-version "${EXPECTED_INSPECT_VERSION}"
+    --require-clean-revision
   )
   if [ "$REQUIRE_MODEL_PROVENANCE" != "0" ]; then
     VALIDATE_ARGS+=(--require-model-provenance)

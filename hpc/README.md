@@ -46,6 +46,11 @@ The runners prefix and verify the submitted checkout on `PYTHONPATH`. This is a
 fail-closed provenance gate: reusing a virtual environment that was installed
 editable from another checkout must not cause runtime imports from that older
 source tree. Each cell manifest records the verified `runtime_source_root`.
+The array runner also rejects any tracked or untracked worktree change before an
+API call, requires the installed Inspect version to match the exact pin in the
+project dependencies, and makes the built-in cell validator require a clean
+native evaluation revision. Dirty or version-drifted runs must use a separate
+diagnostic workflow; they cannot be created through this release-cell runner.
 
 On Cayuga, load the current Slurm client before submitting jobs:
 

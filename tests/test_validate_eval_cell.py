@@ -132,6 +132,7 @@ def test_validate_cell_checks_model_provenance_but_allows_dirty_smoke(
             expected_resolved_model="gpt-5.6-sol-20260701",
             expected_provider="openai",
             expected_generation_config={"max_tokens": 8192},
+            expected_inspect_version="0.3.245",
             require_model_provenance=True,
         )
         == 0
@@ -157,6 +158,17 @@ def test_validate_cell_checks_model_provenance_but_allows_dirty_smoke(
             "openai/gpt-5.6-sol",
             0,
             expected_generation_config={"max_tokens": 4096},
+        )
+        == 1
+    )
+
+    assert (
+        validate_cell(
+            log_dir,
+            "growth_01",
+            "openai/gpt-5.6-sol",
+            0,
+            expected_inspect_version="0.3.999",
         )
         == 1
     )

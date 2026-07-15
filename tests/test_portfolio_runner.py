@@ -1,6 +1,7 @@
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -80,11 +81,38 @@ if [ "${{1:-}}" = "scripts/validate_eval_cell.py" ]; then
   printf '%s\\0' "$@" > "$VALIDATOR_LOG"
   exit 0
 fi
+if [ -n "${{FAKE_INSPECT_VERSION:-}}" ] && [ "${{1:-}}" = "-c" ] && \\
+   [[ "${{2:-}}" == *"importlib.metadata"* ]]; then
+  printf '%s\\n' "$FAKE_INSPECT_VERSION"
+  exit 0
+fi
 exec {python} "$@"
 """.format(python=shlex.quote(sys.executable))
     )
     fake_path.chmod(0o755)
     return fake_path
+
+
+def _write_fake_git(tmp_path: Path) -> Path:
+    real_git = shutil.which("git")
+    assert real_git is not None
+    bin_dir = tmp_path / "fake_git_bin"
+    bin_dir.mkdir()
+    fake_path = bin_dir / "git"
+    fake_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [ "${{1:-}}" = "status" ]; then
+  if [ -n "${{FAKE_GIT_STATUS:-}}" ]; then
+    printf '%s\\n' "$FAKE_GIT_STATUS"
+  fi
+  exit 0
+fi
+exec {git} "$@"
+""".format(git=shlex.quote(real_git))
+    )
+    fake_path.chmod(0o755)
+    return bin_dir
 
 
 def _write_python_with_stale_source_probe(tmp_path: Path) -> Path:
@@ -505,6 +533,7 @@ def test_run_portfolio_eval_rejects_unregistered_model_even_with_profile_overrid
 def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
     fake_inspect = _write_fake_inspect(tmp_path)
     fake_python = _write_python_with_fake_cell_validator(tmp_path)
+    fake_git_bin = _write_fake_git(tmp_path)
     bundle_dir = tmp_path / "hpc_bundle"
     validator_log = tmp_path / "validator_args.log"
     env = os.environ.copy()
@@ -521,6 +550,7 @@ def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
             "RUN_ID": "hpc-registry-test",
             "BUNDLE_DIR": str(bundle_dir),
             "LOG_DIR": str(bundle_dir / "logs"),
+            "PATH": "{}:{}".format(fake_git_bin, os.environ["PATH"]),
         }
     )
     env.pop("MODELS", None)
@@ -548,11 +578,87 @@ def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
     assert manifest["inspect_eval_args"] == ""
     assert manifest["schema_version"] == "1.2.0"
     assert manifest["runtime_source_root"] == str(REPO_ROOT.resolve())
+    assert manifest["expected_inspect_version"] == "0.3.245"
     validator_args = [
         item.decode() for item in validator_log.read_bytes().split(b"\0") if item
     ]
     config_index = validator_args.index("--expected-generation-config") + 1
     assert json.loads(validator_args[config_index]) == manifest["generation_profile"]
+    inspect_index = validator_args.index("--expected-inspect-version") + 1
+    assert validator_args[inspect_index] == "0.3.245"
+    assert "--require-clean-revision" in validator_args
+
+
+def test_hpc_runner_rejects_dirty_worktree_before_api_call(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    fake_python = _write_python_with_fake_cell_validator(tmp_path)
+    fake_git_bin = _write_fake_git(tmp_path)
+    bundle_dir = tmp_path / "hpc_bundle"
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOME": str(tmp_path / "home"),
+            "INSPECT_BIN": str(fake_inspect),
+            "FAKE_INSPECT_LOG": str(tmp_path / "inspect_calls.log"),
+            "PYTHON_BIN": str(fake_python),
+            "VALIDATOR_LOG": str(tmp_path / "validator_args.log"),
+            "FAKE_GIT_STATUS": " M README.md",
+            "PATH": "{}:{}".format(fake_git_bin, os.environ["PATH"]),
+            "TASKS": "golden_gate_01",
+            "SEEDS_TOTAL": "1",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "BUNDLE_DIR": str(bundle_dir),
+            "LOG_DIR": str(bundle_dir / "logs"),
+        }
+    )
+    env.pop("MODELS", None)
+
+    proc = subprocess.run(
+        ["bash", str(HPC_RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "Refusing API-backed HPC evaluation from a dirty worktree" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+    assert not (bundle_dir / "manifests").exists()
+
+
+def test_hpc_runner_rejects_drifted_inspect_before_api_call(tmp_path):
+    fake_inspect = _write_fake_inspect(tmp_path)
+    fake_python = _write_python_with_fake_cell_validator(tmp_path)
+    bundle_dir = tmp_path / "hpc_bundle"
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOME": str(tmp_path / "home"),
+            "INSPECT_BIN": str(fake_inspect),
+            "FAKE_INSPECT_LOG": str(tmp_path / "inspect_calls.log"),
+            "PYTHON_BIN": str(fake_python),
+            "VALIDATOR_LOG": str(tmp_path / "validator_args.log"),
+            "FAKE_INSPECT_VERSION": "0.3.222",
+            "TASKS": "golden_gate_01",
+            "SEEDS_TOTAL": "1",
+            "BUNDLE_DIR": str(bundle_dir),
+        }
+    )
+    env.pop("MODELS", None)
+
+    proc = subprocess.run(
+        ["bash", str(HPC_RUNNER_PATH)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 2
+    assert "Inspect version mismatch: expected 0.3.245, installed 0.3.222" in proc.stderr
+    assert not Path(env["FAKE_INSPECT_LOG"]).exists()
+    assert not (bundle_dir / "manifests").exists()
 
 
 def test_hpc_runner_rejects_generation_profile_overrides(tmp_path):

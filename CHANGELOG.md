@@ -17,6 +17,9 @@ recorded rather than silently rewriting history.
 - Align the README, safety scope, technical report, citation metadata, and
   release documentation around the flagship wet-lab benchmark, companion
   Discovery track, and separately scored experimental Safety Case track.
+- Make API-backed HPC release cells reject dirty checkouts and drifted Inspect
+  environments before launch, and require a clean native evaluation revision
+  in the built-in strict cell validator.
 
 ## 0.1.2 - 2026-07-12
 
