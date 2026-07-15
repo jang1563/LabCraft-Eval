@@ -3,11 +3,11 @@
   "parameters": [
     {
       "parameter_name": "accepted_type_iis_enzymes",
-      "description": "Type IIS restriction enzymes acceptable for Golden Gate one-pot assembly in the Engler protocol family.",
+      "description": "BsaI-family Type IIS restriction enzymes compatible with the BsaI-flanked Golden Gate-01 substrates.",
       "units": "enzyme names",
       "distribution": "deterministic",
       "parameters": {
-        "value": ["BsaI", "BsaI-HFv2", "BsmBI", "BsmBI-v2"]
+        "value": ["BsaI", "BsaI-HFv2"]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Silver",
@@ -21,7 +21,7 @@
           "doi": "10.1371/journal.pone.0003647",
           "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed canonical Golden Gate Type IIS one-pot method paper. BsaI is the canonical enzyme; BsmBI is the close analogue used in MoClo."
+          "tier_justification": "Peer-reviewed canonical Golden Gate one-pot method using BsaI. Golden Gate-01 supplies BsaI-flanked substrates, so enzymes with a different recognition site are not interchangeable."
         }
       ]
     },
@@ -50,8 +50,36 @@
       ]
     },
     {
+      "parameter_name": "accepted_one_pot_buffers",
+      "description": "ATP-containing T4 DNA ligase buffers compatible with one-pot BsaI digestion and ligation.",
+      "units": "buffer names",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": [
+          "T4 DNA ligase buffer",
+          "T4 DNA ligase reaction buffer",
+          "10X T4 DNA ligase reaction buffer"
+        ]
+      },
+      "claim_type": "protocol_threshold",
+      "minimum_tier_required": "Silver",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "Engler C, Kandzia R, Marillonnet S",
+          "title": "A one pot, one step, precision cloning method with high throughput capability",
+          "journal": "PLoS ONE",
+          "year": 2008,
+          "doi": "10.1371/journal.pone.0003647",
+          "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
+          "tier": "Silver",
+          "tier_justification": "The canonical one-pot reaction uses ATP-containing T4 DNA ligase buffer so both BsaI and T4 DNA ligase remain active."
+        }
+      ]
+    },
+    {
       "parameter_name": "digest_cycling_temperature_c",
-      "description": "Incubation temperature for the BsaI / BsmBI digest step during Golden Gate cycling.",
+      "description": "Incubation temperature for the BsaI digest step during Golden Gate cycling.",
       "units": "Celsius",
       "distribution": "deterministic",
       "parameters": {
@@ -63,7 +91,7 @@
       "citations": [
         {
           "title": "NEB BsaI-HFv2 product page (R3733)",
-          "canonical_url": "https://www.neb.com/en-us/products/r3733-bsai-hfv2",
+          "canonical_url": "https://www.neb.com/en-us/products/r3733-bsai-hf-v2",
           "tier": "Bronze",
           "tier_justification": "Authoritative vendor product page listing 37 C as the BsaI optimal incubation temperature."
         }
@@ -82,40 +110,36 @@
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "NEB T4 DNA Ligase Protocol (M0202)",
-          "canonical_url": "https://www.neb.com/en-us/protocols/0001/01/01/dna-ligation-with-t4-dna-ligase-m0202",
+          "title": "NEB T4 DNA Ligase product page (M0202)",
+          "canonical_url": "https://www.neb.com/en/products/m0202-t4-dna-ligase",
           "tier": "Bronze",
           "tier_justification": "Authoritative NEB protocol supporting 16 C as the canonical T4 ligase ligation temperature."
         }
       ]
     },
     {
-      "parameter_name": "recommended_cycle_count_min",
-      "description": "Minimum number of 37 C / 16 C cycles for Golden Gate assembly of 4 fragments.",
+      "parameter_name": "required_cycle_count",
+      "description": "Number of 37 C / 16 C cycles in the frozen Golden Gate-01 thermal program.",
       "units": "cycles",
       "distribution": "deterministic",
       "parameters": {
-        "value": 25
+        "value": 30
       },
       "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "authors": "Engler C, Kandzia R, Marillonnet S",
-          "title": "A one pot, one step, precision cloning method with high throughput capability",
-          "journal": "PLoS ONE",
-          "year": 2008,
-          "doi": "10.1371/journal.pone.0003647",
-          "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
-          "tier": "Silver",
-          "tier_justification": "Original Golden Gate paper reports 25 cycles of 37 C / 16 C as giving efficient assembly."
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative Golden Gate protocol specifies 30 cycles of 37 C / 16 C for assemblies containing two to ten inserts."
         }
       ]
     },
     {
-      "parameter_name": "heat_kill_temperature_c",
-      "description": "Temperature used to heat-kill BsaI and T4 ligase at the end of Golden Gate cycling.",
+      "parameter_name": "final_digest_temperature_c",
+      "description": "Temperature of the terminal restriction-digestion hold after Golden Gate cycling.",
       "units": "Celsius",
       "distribution": "deterministic",
       "parameters": {
@@ -126,10 +150,30 @@
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "NEB BsaI-HFv2 product page (R3733)",
-          "canonical_url": "https://www.neb.com/en-us/products/r3733-bsai-hfv2",
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
           "tier": "Bronze",
-          "tier_justification": "Authoritative NEB reference: BsaI-HFv2 heat-inactivates at 80 C; BsaI-HF and the NEB Golden Gate Assembly Mix kit recommend 60 C for 5 min. 60 C is used here as the standard in-kit heat-kill step."
+          "tier_justification": "Authoritative Golden Gate protocol specifies a 60 C terminal restriction-digestion step after 37 C / 16 C cycling. This is not labelled as BsaI-HFv2 heat inactivation."
+        }
+      ]
+    },
+    {
+      "parameter_name": "final_digest_duration_minutes",
+      "description": "Duration of the terminal restriction-digestion hold after Golden Gate cycling.",
+      "units": "minutes",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 5
+      },
+      "claim_type": "protocol_threshold",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative Golden Gate protocol specifies a five-minute terminal restriction-digestion step after cycling."
         }
       ]
     },

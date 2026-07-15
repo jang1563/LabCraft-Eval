@@ -979,10 +979,13 @@ def test_golden_gate_parameter_bundle_exposes_required_values():
     bundle = load_golden_gate_parameters(GOLDEN_GATE_PARAMETERS_PATH)
     assert bundle.value("digest_cycling_temperature_c") == pytest.approx(37.0)
     assert bundle.value("ligate_cycling_temperature_c") == pytest.approx(16.0)
-    assert bundle.integer("recommended_cycle_count_min") == 25
+    assert bundle.integer("required_cycle_count") == 30
     assert bundle.integer("fragment_count") == 4
-    assert "BsaI" in bundle.choices("accepted_type_iis_enzymes")
+    assert set(bundle.choices("accepted_type_iis_enzymes")) == {"BsaI", "BsaI-HFv2"}
+    assert "T4 DNA ligase buffer" in bundle.choices("accepted_one_pot_buffers")
     assert bundle.text("preferred_ligase_name") == "T4 DNA ligase"
+    assert bundle.value("final_digest_temperature_c") == pytest.approx(60.0)
+    assert bundle.integer("final_digest_duration_minutes") == 5
 
 
 def test_list_golden_gate_substrates_returns_four_fragments():
@@ -991,6 +994,7 @@ def test_list_golden_gate_substrates_returns_four_fragments():
     assert observation["status"] == "golden_gate_substrates_ready"
     fragment_ids = {f["fragment_id"] for f in observation["fragments"]}
     assert {"gg_backbone", "gg_insert_promoter", "gg_insert_cds", "gg_insert_terminator"} == fragment_ids
+    assert all(fragment["recognition_sites"] == ["BsaI"] for fragment in observation["fragments"])
 
 
 def test_golden_gate_assembly_happy_path_status():
@@ -1000,6 +1004,27 @@ def test_golden_gate_assembly_happy_path_status():
     assert assembly["ligase_normalized"] == "t4 dna ligase"
     assert assembly["fragment_count"] == 4
     assert assembly["output_fragment_id"] is not None
+    assert assembly["final_digest_temperature_c"] == pytest.approx(60.0)
+
+
+def test_golden_gate_bsai_hfv2_is_compatible_with_bsai_flanked_substrates():
+    state = create_lab_state(sample_id="gg-bsai-hfv2", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI-HFv2",
+        ligase_name="T4 DNA ligase",
+    )
+
+    assert result["status"] == "assembled"
+    assert result["enzyme_normalized"] == "bsai"
+    assert result["output_fragment_id"] is not None
 
 
 def test_golden_gate_wrong_enzyme_is_flagged():
@@ -1017,6 +1042,207 @@ def test_golden_gate_wrong_enzyme_is_flagged():
         ligase_name="T4 DNA ligase",
     )
     assert result["status"] == "wrong_enzyme"
+
+
+@pytest.mark.parametrize("enzyme_name", ("BsmBI", "BsmBI-v2"))
+def test_golden_gate_rejects_other_type_iis_sites_for_bsai_flanked_substrates(enzyme_name):
+    state = create_lab_state(sample_id="gg-incompatible-site", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name=enzyme_name,
+        ligase_name="T4 DNA ligase",
+    )
+
+    assert result["status"] == "wrong_enzyme"
+    assert result["output_fragment_id"] is None
+
+
+@pytest.mark.parametrize("enzyme_name", ("BsaI-v2", "BsaI-HF", "BsaI-HFv3"))
+def test_golden_gate_rejects_undeclared_bsai_variants(enzyme_name):
+    state = create_lab_state(sample_id="gg-undeclared-enzyme", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name=enzyme_name,
+        ligase_name="T4 DNA ligase",
+    )
+
+    assert result["status"] == "wrong_enzyme"
+    assert result["output_fragment_id"] is None
+
+
+def test_golden_gate_requires_every_fragment_to_match_the_selected_enzyme():
+    state = create_lab_state(sample_id="gg-mixed-sites", seed=1)
+    list_golden_gate_substrates(state=state)
+    state.dna_fragments["gg_insert_cds"].recognition_sites = ["BsmBI"]
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+    )
+
+    assert result["status"] == "wrong_enzyme"
+    assert result["output_fragment_id"] is None
+
+
+@pytest.mark.parametrize(
+    "buffer",
+    ("water", "rCutSmart Buffer", "NEBuffer r3.1", "T4 DNA Ligase buffer (water)"),
+)
+def test_golden_gate_rejects_buffers_without_the_one_pot_ligation_contract(buffer):
+    state = create_lab_state(sample_id="gg-wrong-buffer", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+        buffer=buffer,
+    )
+
+    assert result["status"] == "wrong_buffer"
+    assert result["output_fragment_id"] is None
+
+
+@pytest.mark.parametrize(
+    "buffer",
+    (
+        "T4 DNA Ligase Buffer (10X)",
+        "1X T4 DNA Ligase Reaction Buffer",
+        "ATP-containing T4 DNA ligase buffer",
+    ),
+)
+def test_golden_gate_accepts_agent_visible_t4_buffer_aliases(buffer):
+    state = create_lab_state(sample_id="gg-buffer-alias", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+        buffer=buffer,
+    )
+
+    assert result["status"] == "assembled"
+    assert result["output_fragment_id"] is not None
+
+
+def test_golden_gate_accepts_exact_agent_visible_t4_buffer_reference():
+    database_path = Path(__file__).resolve().parents[1] / "data" / "enzyme_database.json"
+    database = json.loads(database_path.read_text())
+    t4_ligase = next(entry for entry in database if entry["name"] == "T4 DNA ligase")
+
+    state = create_lab_state(sample_id="gg-reference-buffer", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+        buffer=t4_ligase["buffer"],
+    )
+
+    assert result["status"] == "assembled"
+    assert result["output_fragment_id"] is not None
+
+
+@pytest.mark.parametrize(
+    "terminal_kwargs",
+    (
+        {"final_digest_minutes": 0},
+        {"final_digest_minutes": -5},
+        {"final_digest_minutes": 10},
+        {"final_digest_temperature_c": 0.0},
+        {"final_digest_temperature_c": 80.0},
+    ),
+)
+def test_golden_gate_rejects_wrong_terminal_digest(terminal_kwargs):
+    state = create_lab_state(sample_id="gg-wrong-terminal", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+        **terminal_kwargs,
+    )
+
+    assert result["status"] == "wrong_terminal_digest"
+    assert result["output_fragment_id"] is None
+
+
+@pytest.mark.parametrize(
+    "thermal_kwargs",
+    (
+        {"cycle_count": -1},
+        {"cycle_count": 0},
+        {"cycle_count": 25},
+        {"cycle_count": 999},
+        {"digest_temperature_c": 0.0},
+        {"digest_temperature_c": 35.0},
+        {"digest_temperature_c": 39.0},
+        {"ligate_temperature_c": 14.0},
+        {"ligate_temperature_c": 20.0},
+        {"ligate_temperature_c": 99.0},
+    ),
+)
+def test_golden_gate_rejects_noncanonical_thermal_program(thermal_kwargs):
+    state = create_lab_state(sample_id="gg-wrong-thermal", seed=1)
+    list_golden_gate_substrates(state=state)
+    result = golden_gate_assembly(
+        state=state,
+        fragment_ids=[
+            "gg_backbone",
+            "gg_insert_promoter",
+            "gg_insert_cds",
+            "gg_insert_terminator",
+        ],
+        enzyme_name="BsaI",
+        ligase_name="T4 DNA ligase",
+        **thermal_kwargs,
+    )
+
+    assert result["status"] == "wrong_thermal_program"
+    assert result["output_fragment_id"] is None
 
 
 def test_golden_gate_wrong_ligase_is_flagged():

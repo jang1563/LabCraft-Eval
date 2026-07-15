@@ -3,7 +3,7 @@
   "decision_points": [
     {
       "id": "uses_type_iis_enzyme",
-      "description": "Agent chose a Type IIS enzyme (BsaI or BsmBI) for the one-pot assembly.",
+      "description": "Agent chose a BsaI-family Type IIS enzyme compatible with the supplied BsaI-flanked substrates.",
       "minimum_tier_required": "Silver",
       "matcher": {
         "tool_name": "golden_gate_assembly",
@@ -11,8 +11,8 @@
         "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "one_of",
-        "values": ["bsai", "bsmbi"]
+        "type": "exact",
+        "value": "bsai"
       },
       "scoring_rule": "binary",
       "citations": [
@@ -57,7 +57,7 @@
     },
     {
       "id": "digest_temperature_37",
-      "description": "Digest step temperature is 37 C (BsaI/BsmBI optimum).",
+      "description": "Digest step temperature is 37 C (BsaI optimum).",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "golden_gate_assembly",
@@ -65,15 +65,14 @@
         "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "range",
-        "min": 35.0,
-        "max": 39.0
+        "type": "exact",
+        "value": 37.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
           "title": "NEB BsaI-HFv2 product page (R3733)",
-          "canonical_url": "https://www.neb.com/en-us/products/r3733-bsai-hfv2",
+          "canonical_url": "https://www.neb.com/en-us/products/r3733-bsai-hf-v2",
           "tier": "Bronze",
           "tier_justification": "Authoritative NEB product page supporting 37 C as the BsaI optimum."
         }
@@ -89,72 +88,39 @@
         "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "range",
-        "min": 14.0,
-        "max": 20.0
+        "type": "exact",
+        "value": 16.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "NEB T4 DNA Ligase Protocol (M0202)",
-          "canonical_url": "https://www.neb.com/en-us/protocols/0001/01/01/dna-ligation-with-t4-dna-ligase-m0202",
+          "title": "NEB T4 DNA Ligase product page (M0202)",
+          "canonical_url": "https://www.neb.com/en/products/m0202-t4-dna-ligase",
           "tier": "Bronze",
           "tier_justification": "NEB T4 ligase protocol: 16 C overnight for cohesive-end ligation."
         }
       ]
     },
     {
-      "id": "cycle_count_at_least_25",
-      "description": "Thermal cycling runs at least 25 cycles of 37 C / 16 C for efficient Golden Gate.",
-      "minimum_tier_required": "Silver",
+      "id": "cycle_count_30",
+      "description": "Thermal cycling runs the cited 30 cycles of 37 C / 16 C.",
+      "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "golden_gate_assembly",
         "argument": "cycle_count",
         "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "range",
-        "min": 25,
-        "max": 100
-      },
-      "scoring_rule": "binary",
-      "citations": [
-        {
-          "authors": "Engler C, Kandzia R, Marillonnet S",
-          "title": "A one pot, one step, precision cloning method with high throughput capability",
-          "journal": "PLoS ONE",
-          "year": 2008,
-          "doi": "10.1371/journal.pone.0003647",
-          "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
-          "tier": "Silver",
-          "tier_justification": "Original Golden Gate paper reports 25 cycles of 37/16 as giving efficient assembly."
-        }
-      ]
-    },
-    {
-      "id": "uses_all_four_fragments",
-      "description": "Exactly four fragments (backbone + three inserts) are submitted to the assembly.",
-      "minimum_tier_required": "Silver",
-      "matcher": {
-        "tool_name": "golden_gate_assembly",
-        "argument": "fragment_count",
-        "occurrence": "all"
-      },
-      "acceptable_values": {
         "type": "exact",
-        "value": 4
+        "value": 30
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "authors": "Engler C, Kandzia R, Marillonnet S",
-          "title": "A one pot, one step, precision cloning method with high throughput capability",
-          "journal": "PLoS ONE",
-          "year": 2008,
-          "doi": "10.1371/journal.pone.0003647",
-          "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
-          "tier": "Silver",
-          "tier_justification": "Golden Gate-01 is a four-fragment directional assembly as described in the original paper."
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative Golden Gate protocol specifies 30 cycles of 37 C / 16 C for assemblies containing two to ten inserts."
         }
       ]
     },
@@ -168,7 +134,7 @@
         "filters": {
           "antibiotic": "ampicillin"
         },
-        "occurrence": "first"
+        "occurrence": "all"
       },
       "acceptable_values": {
         "type": "exact",
@@ -187,10 +153,10 @@
   ],
   "failure_diagnosis_map": {
     "wrong_enzyme": {
-      "canonical_diagnosis": "A non-Type IIS enzyme was used; Golden Gate one-pot cycling requires BsaI or BsmBI.",
+      "canonical_diagnosis": "The chosen enzyme was incompatible with the BsaI-flanked substrates; Golden Gate-01 requires BsaI or BsaI-HFv2.",
       "acceptable_variants": [
-        "Golden Gate assembly must use a Type IIS enzyme such as BsaI or BsmBI.",
-        "BsaI or BsmBI is required for Golden Gate; the chosen enzyme is not compatible."
+        "Golden Gate-01 must use BsaI for the supplied BsaI-flanked substrates.",
+        "BsaI or BsaI-HFv2 is required because the supplied substrates contain BsaI sites."
       ],
       "judge_strategy": "substring_any",
       "minimum_tier_required": "Silver",
@@ -248,10 +214,65 @@
           "tier_justification": "Canonical Golden Gate paper demonstrates four-fragment directional assembly."
         }
       ]
+    },
+    "wrong_thermal_program": {
+      "canonical_diagnosis": "The thermal program was incompatible; Golden Gate-01 requires 30 cycles of 37 C digestion and 16 C ligation.",
+      "acceptable_variants": [
+        "Use the cited 30-cycle 37 C / 16 C Golden Gate program.",
+        "The digestion temperature, ligation temperature, or cycle count did not match the Golden Gate-01 program."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative Golden Gate protocol specifies 30 cycles of 37 C digestion and 16 C ligation for two to ten inserts."
+        }
+      ]
+    },
+    "wrong_buffer": {
+      "canonical_diagnosis": "The one-pot buffer was incompatible; Golden Gate-01 requires an ATP-containing T4 DNA ligase reaction buffer.",
+      "acceptable_variants": [
+        "Use T4 DNA ligase buffer so both BsaI and T4 DNA ligase remain active.",
+        "The selected buffer did not support one-pot restriction and ligation."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Silver",
+      "citations": [
+        {
+          "authors": "Engler C, Kandzia R, Marillonnet S",
+          "title": "A one pot, one step, precision cloning method with high throughput capability",
+          "journal": "PLoS ONE",
+          "year": 2008,
+          "doi": "10.1371/journal.pone.0003647",
+          "canonical_url": "https://doi.org/10.1371/journal.pone.0003647",
+          "tier": "Silver",
+          "tier_justification": "The canonical one-pot reaction uses T4 DNA ligase buffer to support concurrent restriction and ligation."
+        }
+      ]
+    },
+    "wrong_terminal_digest": {
+      "canonical_diagnosis": "The terminal digest was incompatible; Golden Gate-01 requires the cited 60 C, five-minute final digestion step.",
+      "acceptable_variants": [
+        "Use the 60 C final digest for five minutes after cycling.",
+        "The terminal restriction-digestion temperature or duration was incorrect."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "title": "NEB Golden Gate Assembly Mix protocol (E1601)",
+          "canonical_url": "https://www.neb.com/en/protocols/golden-gate-assembly-protocol-for-using-neb-golden-gate-assembly-mix-e1601?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Authoritative Golden Gate protocol specifies a 60 C terminal digest for five minutes after cycling."
+        }
+      ]
     }
   },
   "efficiency_reference": {
-    "optimal_tool_calls": 6,
+    "optimal_tool_calls": 8,
     "max_reasonable_tool_calls": 15,
     "reagent_budget": {
       "assembly_reactions": 1,

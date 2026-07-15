@@ -460,7 +460,7 @@ LabCraft-Eval/
 │   └── judge.py              # Legacy judge prompt utilities; trajectory scoring is deterministic
 ├── data/
 │   ├── reagent_database.json     # 84 common reagents
-│   ├── enzyme_database.json      # 46 enzymes
+│   ├── enzyme_database.json      # 48 enzymes
 │   ├── safety_database.json      # 44 chemicals with GHS hazards
 │   ├── discovery_track/          # Synthetic target/assay evidence for discovery tasks
 │   ├── safety_case/              # Safety-case scenarios and scorer-validation fixtures

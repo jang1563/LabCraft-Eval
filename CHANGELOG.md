@@ -20,6 +20,13 @@ recorded rather than silently rewriting history.
 - Make API-backed HPC release cells reject dirty checkouts and drifted Inspect
   environments before launch, and require a clean native evaluation revision
   in the built-in strict cell validator.
+- Make `golden_gate_01` substrate-specific and fail closed: add exact-ranked
+  Type IIS references; validate the exact 30-cycle thermal program, one-pot
+  buffer, and 60 C terminal digest; rename the misleading tool field
+  `heat_kill_temperature_c` to `final_digest_temperature_c`; bind every report
+  to one causal BsaI assembly, transformation, countable selection plate, and
+  colony-count path; and stop rewarding disclosed fragment count as an
+  independent protocol decision.
 
 ## 0.1.2 - 2026-07-12
 

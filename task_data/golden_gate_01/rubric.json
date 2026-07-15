@@ -3,7 +3,7 @@
   "task_title": "One-pot Golden Gate / Type IIS assembly of a four-fragment construct",
   "source": "LabCraft Golden Gate-01",
   "num_errors_introduced": 0,
-  "total_leaf_nodes": 10,
+  "total_leaf_nodes": 9,
   "rubric": {
     "name": "Task Evaluation",
     "weight": 1.0,
@@ -19,7 +19,7 @@
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "The final answer uses every required field and the values are consistent with the trajectory: Type IIS enzyme is BsaI or BsmBI, ligase is T4 DNA ligase, the assembly completed successfully, and the reported transformant count matches the simulator observation.",
+            "requirement": "The final answer uses every required field and the values match a linked trajectory from a successful BsaI assembly through transformation, a countable selection plate, and colony counting.",
             "grading_notes": "Measured by score_golden_gate_task_success."
           }
         ]
@@ -30,16 +30,16 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses a Type IIS enzyme (BsaI or BsmBI)",
-            "weight": 0.1428,
+            "name": "Uses BsaI for the supplied BsaI-flanked substrates",
+            "weight": 0.1667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Every golden_gate_assembly call uses BsaI or BsmBI.",
+            "requirement": "Every golden_gate_assembly call uses BsaI or BsaI-HFv2.",
             "grading_notes": "Measured from golden_gate_assembly.enzyme_normalized."
           },
           {
             "name": "Uses T4 DNA ligase",
-            "weight": 0.1428,
+            "weight": 0.1667,
             "is_leaf": true,
             "category": "decision_quality",
             "requirement": "Every golden_gate_assembly call uses T4 DNA ligase.",
@@ -47,39 +47,31 @@
           },
           {
             "name": "Digest temperature 37 C",
-            "weight": 0.1428,
+            "weight": 0.1667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Digest cycling temperature is in 35 - 39 C.",
+            "requirement": "Digest cycling temperature is 37 C.",
             "grading_notes": "Measured from golden_gate_assembly.digest_temperature_c."
           },
           {
             "name": "Ligate temperature 16 C",
-            "weight": 0.1428,
+            "weight": 0.1667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Ligate cycling temperature is in 14 - 20 C.",
+            "requirement": "Ligate cycling temperature is 16 C.",
             "grading_notes": "Measured from golden_gate_assembly.ligate_temperature_c."
           },
           {
-            "name": "At least 25 cycles",
-            "weight": 0.1428,
+            "name": "Runs the 30-cycle program",
+            "weight": 0.1667,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Cycle count is at least 25.",
+            "requirement": "Cycle count is exactly 30.",
             "grading_notes": "Measured from golden_gate_assembly.cycle_count."
           },
           {
-            "name": "All four fragments submitted",
-            "weight": 0.1428,
-            "is_leaf": true,
-            "category": "decision_quality",
-            "requirement": "Exactly four fragments are submitted.",
-            "grading_notes": "Measured from golden_gate_assembly.fragment_count."
-          },
-          {
             "name": "Uses 100 ug/mL ampicillin selection",
-            "weight": 0.1432,
+            "weight": 0.1665,
             "is_leaf": true,
             "category": "decision_quality",
             "requirement": "Selection plate uses 100 ug/mL ampicillin.",

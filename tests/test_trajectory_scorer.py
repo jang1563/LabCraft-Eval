@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -1472,7 +1473,7 @@ def _good_golden_gate_transcript():
             "digest_temperature_c": 37.0,
             "ligate_temperature_c": 16.0,
             "final_digest_minutes": 5,
-            "heat_kill_temperature_c": 60.0,
+            "final_digest_temperature_c": 60.0,
             "output_fragment_id": "fragment_010",
             "status": "assembled",
             "effective_assembly_efficiency": 0.85,
@@ -1487,6 +1488,15 @@ def _good_golden_gate_transcript():
             "antibiotic": "ampicillin",
             "antibiotic_concentration_ug_ml": 100,
             "plate_count": 1,
+            "plates": [
+                {
+                    "plate_id": "plate_001",
+                    "medium": "LB agar",
+                    "antibiotic": "ampicillin",
+                    "antibiotic_concentration_ug_ml": 100,
+                }
+            ],
+            "status": "prepared",
         },
     }
     transform_call = {
@@ -1496,6 +1506,7 @@ def _good_golden_gate_transcript():
             "assembly_id": "assembly_001",
             "culture_id": "culture_001",
             "status": "transformed",
+            "assembly_status": "assembled",
             "effective_assembly_efficiency": 0.85,
         },
     }
@@ -1505,8 +1516,12 @@ def _good_golden_gate_transcript():
         "arguments": {
             "culture_id": "culture_001",
             "plate_id": "plate_001",
+            "plating_id": "plating_001",
             "dilution_factor": 1.0,
             "volume_ul": 100,
+            "observed_colonies": 120,
+            "status": "plated",
+            "countable_range_colonies": {"min": 25, "max": 250},
         },
     }
     count = {
@@ -1514,8 +1529,9 @@ def _good_golden_gate_transcript():
         "tool_name": "count_colonies",
         "arguments": {
             "plating_id": "plating_001",
-            "observed_colonies": 300,
+            "observed_colonies": 120,
             "status": "plated",
+            "countable_range_colonies": {"min": 25, "max": 250},
         },
     }
     return [assembly_call, prepare, transform_call, plate_call, count]
@@ -1529,8 +1545,8 @@ def _good_golden_gate_answer() -> str:
         "Ligate temperature: 16 C\n"
         "Cycle count: 30\n"
         "Fragment count: 4\n"
-        "Transformants observed: 300\n"
-        "Interpretation: Four-fragment Golden Gate assembly completed and transformed successfully."
+        "Transformants observed: 120\n"
+        "Interpretation: success"
     )
 
 
@@ -1571,6 +1587,280 @@ def test_golden_gate_wrong_ligase_fails_decision_quality():
         ground_truth_path=str(GOLDEN_GATE_GROUND_TRUTH_PATH),
     )
     assert scores["decision_scores"]["uses_t4_dna_ligase"] == 0.0
+
+
+@pytest.mark.parametrize("keep_calls", (3, 4))
+def test_golden_gate_requires_a_linked_plate_and_count_call(keep_calls):
+    transcript = _good_golden_gate_transcript()[:keep_calls]
+    answer = _good_golden_gate_answer().replace(
+        "Transformants observed: 120",
+        "Transformants observed: 0",
+    )
+
+    assert score_golden_gate_task_success(answer, transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        ("Type IIS enzyme: BsaI", "Type IIS enzyme: BsmBI"),
+        ("Type IIS enzyme: BsaI", "Type IIS enzyme: BsaI-v2"),
+        ("Type IIS enzyme: BsaI", "Type IIS enzyme: BsaI-HF"),
+        ("Type IIS enzyme: BsaI", "Type IIS enzyme: BsaI-HFv3"),
+        ("Ligase: T4 DNA ligase", "Ligase: T4 RNA ligase"),
+        ("Digest temperature: 37 C", "Digest temperature: 0 C"),
+        ("Ligate temperature: 16 C", "Ligate temperature: 99 C"),
+        ("Cycle count: 30", "Cycle count: 999"),
+        ("Fragment count: 4", "Fragment count: 3"),
+        ("Transformants observed: 120", "Transformants observed: 121"),
+        ("Interpretation: success", "Interpretation: failure"),
+    ),
+)
+def test_golden_gate_rejects_report_fields_inconsistent_with_completed_path(replacement):
+    old, new = replacement
+    answer = _good_golden_gate_answer().replace(old, new)
+
+    assert score_golden_gate_task_success(answer, _good_golden_gate_transcript()) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("buffer", "water"),
+        ("buffer", "T4 DNA Ligase buffer (water)"),
+        ("digest_temperature_c", 0.0),
+        ("ligate_temperature_c", 99.0),
+        ("cycle_count", 0),
+        ("cycle_count", 999),
+        ("final_digest_temperature_c", 80.0),
+        ("final_digest_minutes", 0),
+        ("output_fragment_id", None),
+        ("enzyme_normalized", "bsmbi"),
+        ("ligase_normalized", "t4 rna ligase"),
+    ),
+)
+def test_golden_gate_scorer_independently_rejects_invalid_assembly_contract(
+    field, value
+):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[0]["arguments"][field] = value
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+def test_golden_gate_scorer_requires_transform_to_confirm_assembled_input():
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[2]["arguments"]["assembly_status"] = "wrong_thermal_program"
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    "buffer",
+    (
+        "T4 DNA Ligase Buffer (10X)",
+        "1X T4 DNA Ligase Reaction Buffer",
+        "ATP-containing T4 DNA ligase buffer",
+    ),
+)
+def test_golden_gate_scorer_accepts_agent_visible_t4_buffer_aliases(buffer):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[0]["arguments"]["buffer"] = buffer
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 1.0
+
+
+def test_golden_gate_scorer_accepts_exact_agent_visible_t4_buffer_reference():
+    database_path = Path(__file__).resolve().parents[1] / "data" / "enzyme_database.json"
+    database = json.loads(database_path.read_text())
+    t4_ligase = next(entry for entry in database if entry["name"] == "T4 DNA ligase")
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[0]["arguments"]["buffer"] = t4_ligase["buffer"]
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 1.0
+
+
+def test_golden_gate_rejects_fractional_colony_counts_in_transcript():
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[4]["arguments"]["observed_colonies"] = 120.4
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("call_index", "field", "value"),
+    (
+        (2, "assembly_id", "assembly_unrelated"),
+        (3, "culture_id", "culture_unrelated"),
+        (4, "plating_id", "plating_unrelated"),
+    ),
+)
+def test_golden_gate_rejects_unlinked_execution_paths(call_index, field, value):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[call_index]["arguments"][field] = value
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+@pytest.mark.parametrize("status", ("count_out_of_range", "selection_failed"))
+def test_golden_gate_rejects_non_countable_plate_status(status):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[3]["arguments"]["status"] = status
+    transcript[4]["arguments"]["status"] = status
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+def test_golden_gate_accepts_bsai_hfv2_report_for_bsai_family_path():
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[0]["arguments"]["enzyme_name"] = "BsaI-HFv2"
+    transcript[0]["arguments"]["enzyme_normalized"] = "bsai"
+    answer = _good_golden_gate_answer().replace(
+        "Type IIS enzyme: BsaI",
+        "Type IIS enzyme: BsaI-HFv2",
+    )
+
+    assert score_golden_gate_task_success(answer, transcript) == 1.0
+
+
+@pytest.mark.parametrize(
+    ("executed_enzyme", "reported_enzyme"),
+    (("BsaI", "BsaI-HFv2"), ("BsaI-HFv2", "BsaI")),
+)
+def test_golden_gate_report_must_match_the_executed_bsai_variant(
+    executed_enzyme, reported_enzyme
+):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[0]["arguments"]["enzyme_name"] = executed_enzyme
+    answer = _good_golden_gate_answer().replace(
+        "Type IIS enzyme: BsaI",
+        f"Type IIS enzyme: {reported_enzyme}",
+    )
+
+    assert score_golden_gate_task_success(answer, transcript) == 0.0
+
+
+def test_golden_gate_simulator_result_overrides_transform_input_alias():
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transform = transcript[2]
+    transform["content"] = json.dumps(transform["arguments"])
+    transform["arguments"] = {
+        "assembly_id": "1",
+        "heat_shock_seconds": 30,
+        "recovery_minutes": 60,
+        "outgrowth_media": "SOC",
+    }
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 1.0
+
+
+def test_golden_gate_rejects_reversed_causal_order():
+    transcript = list(reversed(copy.deepcopy(_good_golden_gate_transcript())))
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+@pytest.mark.parametrize("observed_colonies", (0, 24, 251, 500))
+def test_golden_gate_rejects_counts_outside_the_canonical_countable_range(
+    observed_colonies,
+):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[4]["arguments"]["observed_colonies"] = observed_colonies
+    answer = _good_golden_gate_answer().replace(
+        "Transformants observed: 120",
+        f"Transformants observed: {observed_colonies}",
+    )
+
+    assert score_golden_gate_task_success(answer, transcript) == 0.0
+
+
+@pytest.mark.parametrize(("call_index", "value"), ((3, None), (4, None), (4, {"min": 0, "max": 500})))
+def test_golden_gate_rejects_missing_or_noncanonical_countable_ranges(call_index, value):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    if value is None:
+        transcript[call_index]["arguments"].pop("countable_range_colonies")
+    else:
+        transcript[call_index]["arguments"]["countable_range_colonies"] = value
+
+    assert score_golden_gate_task_success(_good_golden_gate_answer(), transcript) == 0.0
+
+
+@pytest.mark.parametrize("observed_colonies", (25, 250))
+def test_golden_gate_accepts_canonical_countable_range_boundaries(observed_colonies):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    transcript[4]["arguments"]["observed_colonies"] = observed_colonies
+    answer = _good_golden_gate_answer().replace(
+        "Transformants observed: 120",
+        f"Transformants observed: {observed_colonies}",
+    )
+
+    assert score_golden_gate_task_success(answer, transcript) == 1.0
+
+
+@pytest.mark.parametrize("bad_first", (True, False))
+def test_golden_gate_ampicillin_retry_policy_is_order_independent(bad_first):
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    good_prepare = transcript[1]
+    bad_prepare = copy.deepcopy(good_prepare)
+    bad_prepare["arguments"]["antibiotic_concentration_ug_ml"] = 50
+    bad_prepare["arguments"]["plates"][0]["antibiotic_concentration_ug_ml"] = 50
+    bad_prepare["arguments"]["plates"][0]["plate_id"] = "plate_002"
+    prepares = [bad_prepare, good_prepare] if bad_first else [good_prepare, bad_prepare]
+    transcript = [transcript[0], *prepares, *transcript[2:]]
+
+    scores = score_golden_gate_trajectory(
+        final_answer=_good_golden_gate_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GOLDEN_GATE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["decision_scores"]["ampicillin_selection_100"] == 0.0
+
+
+def test_golden_gate_completed_path_survives_a_later_untransformed_failed_retry():
+    transcript = copy.deepcopy(_good_golden_gate_transcript())
+    failed_retry = copy.deepcopy(transcript[0])
+    failed_retry["arguments"].update(
+        {
+            "assembly_id": "assembly_002",
+            "enzyme_name": "BsmBI-v2",
+            "enzyme_normalized": "bsmbi",
+            "status": "wrong_enzyme",
+        }
+    )
+    transcript.append(failed_retry)
+
+    scores = score_golden_gate_trajectory(
+        final_answer=_good_golden_gate_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GOLDEN_GATE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_quality"] < 1.0
+
+
+@pytest.mark.parametrize(
+    ("reference_calls", "expected_efficiency"),
+    ((3, 1.0), (10, 0.5), (11, 0.0)),
+)
+def test_golden_gate_efficiency_budget_includes_required_reference_calls(
+    reference_calls, expected_efficiency
+):
+    lookup = {
+        "type": "tool_call",
+        "tool_name": "lookup_enzyme",
+        "arguments": {"enzyme_name": "BsaI"},
+    }
+    transcript = [copy.deepcopy(lookup) for _ in range(reference_calls)]
+    transcript.extend(_good_golden_gate_transcript())
+    scores = score_golden_gate_trajectory(
+        final_answer=_good_golden_gate_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GOLDEN_GATE_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["efficiency"] == expected_efficiency
 
 
 def _good_gibson_transcript():

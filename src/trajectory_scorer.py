@@ -1724,37 +1724,271 @@ def _extract_reported_golden_gate_summary(final_answer: str) -> Dict[str, Any]:
     return summary
 
 
-def _reconstruct_golden_gate_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
-    assembly_count = 0
-    transform_assembly_count = 0
-    assembly_statuses: List[str] = []
-    latest_efficiency = 0.0
-    transformants_observed = 0
-    last_assembly = None
+GOLDEN_GATE_COUNTABLE_MIN = 25
+GOLDEN_GATE_COUNTABLE_MAX = 250
+GOLDEN_GATE_DIGEST_TEMPERATURE_C = 37.0
+GOLDEN_GATE_LIGATE_TEMPERATURE_C = 16.0
+GOLDEN_GATE_CYCLE_COUNT = 30
+GOLDEN_GATE_FINAL_DIGEST_TEMPERATURE_C = 60.0
+GOLDEN_GATE_FINAL_DIGEST_MINUTES = 5
+GOLDEN_GATE_FRAGMENT_IDS = {
+    "gg_backbone",
+    "gg_insert_promoter",
+    "gg_insert_cds",
+    "gg_insert_terminator",
+}
 
-    for call in tool_calls:
+
+def _golden_gate_observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge a call with the simulator result authoritative over input aliases."""
+    arguments = _coerce_arguments(call.get("arguments"))
+    content_values = _coerce_content_dict(call.get("content"))
+    return {**arguments, **content_values}
+
+
+def _coerce_strict_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if math.isfinite(value) and value.is_integer() else None
+    if isinstance(value, str) and re.fullmatch(r"[+-]?\d+", value.strip()):
+        return int(value.strip())
+    return None
+
+
+def _normalize_golden_gate_enzyme(value: Any) -> str:
+    token = _normalize_reported_text(value)
+    aliases = {
+        "bsai": "bsai",
+        "bsaihfv2": "bsaihfv2",
+    }
+    return aliases.get(token, token)
+
+
+def _normalize_golden_gate_buffer(value: Any) -> str:
+    token = _normalize_reported_text(value)
+    aliases = {
+        "t4dnaligasebuffer": "t4dnaligasebuffer",
+        "t4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "t4dnaligasebuffer10x": "t4dnaligasebuffer",
+        "t4dnaligasereactionbuffer10x": "t4dnaligasebuffer",
+        "1xt4dnaligasebuffer": "t4dnaligasebuffer",
+        "1xt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "10xt4dnaligasebuffer": "t4dnaligasebuffer",
+        "10xt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "atpcontainingt4dnaligasebuffer": "t4dnaligasebuffer",
+        "atpcontainingt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "t4dnaligasebuffer50mmtrishclph7510mmmgcl21mmatp10mmdtt": (
+            "t4dnaligasebuffer"
+        ),
+    }
+    return aliases.get(token, token)
+
+
+def _golden_gate_assembly_contract_is_valid(assembly: Dict[str, Any]) -> bool:
+    fragment_ids = assembly.get("fragment_ids")
+    if (
+        str(assembly.get("status", "")) != "assembled"
+        or not assembly.get("output_fragment_id")
+        or not isinstance(fragment_ids, list)
+        or len(fragment_ids) != len(GOLDEN_GATE_FRAGMENT_IDS)
+        or set(fragment_ids) != GOLDEN_GATE_FRAGMENT_IDS
+        or _coerce_strict_int(assembly.get("fragment_count")) != 4
+    ):
+        return False
+
+    if _normalize_golden_gate_enzyme(assembly.get("enzyme_name")) not in {
+        "bsai",
+        "bsaihfv2",
+    }:
+        return False
+    if _normalize_reported_text(assembly.get("enzyme_normalized")) != "bsai":
+        return False
+    if _normalize_reported_text(assembly.get("ligase_name")) != "t4dnaligase":
+        return False
+    if _normalize_reported_text(assembly.get("ligase_normalized")) != "t4dnaligase":
+        return False
+    if _normalize_golden_gate_buffer(assembly.get("buffer")) != "t4dnaligasebuffer":
+        return False
+
+    numeric_contract = (
+        ("digest_temperature_c", GOLDEN_GATE_DIGEST_TEMPERATURE_C),
+        ("ligate_temperature_c", GOLDEN_GATE_LIGATE_TEMPERATURE_C),
+        ("final_digest_temperature_c", GOLDEN_GATE_FINAL_DIGEST_TEMPERATURE_C),
+    )
+    if any(
+        not _numeric_values_match(assembly.get(field), expected, tolerance=0.0)
+        for field, expected in numeric_contract
+    ):
+        return False
+    return (
+        _coerce_strict_int(assembly.get("cycle_count")) == GOLDEN_GATE_CYCLE_COUNT
+        and _coerce_strict_int(assembly.get("final_digest_minutes"))
+        == GOLDEN_GATE_FINAL_DIGEST_MINUTES
+    )
+
+
+def _has_canonical_golden_gate_countable_range(observed: Dict[str, Any]) -> bool:
+    countable_range = observed.get("countable_range_colonies")
+    if not isinstance(countable_range, dict):
+        return False
+    return _numeric_values_match(
+        countable_range.get("min"),
+        GOLDEN_GATE_COUNTABLE_MIN,
+        tolerance=0.0,
+    ) and _numeric_values_match(
+        countable_range.get("max"),
+        GOLDEN_GATE_COUNTABLE_MAX,
+        tolerance=0.0,
+    )
+
+
+def _reconstruct_golden_gate_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+    assemblies: List[Dict[str, Any]] = []
+    transforms: List[Dict[str, Any]] = []
+    prepared_plates: Dict[str, Dict[str, Any]] = {}
+    platings: List[Dict[str, Any]] = []
+    counts: List[Dict[str, Any]] = []
+    latest_efficiency = 0.0
+
+    for call_index, call in enumerate(tool_calls):
         name = _normalize_tool_name(call.get("tool_name", ""))
-        observed = _observed_values(call)
+        observed = {
+            **_golden_gate_observed_values(call),
+            "_call_index": call_index,
+        }
         if name == "golden_gate_assembly":
-            assembly_count += 1
-            assembly_statuses.append(str(observed.get("status", "")))
+            assemblies.append(observed)
             latest_efficiency = _coerce_float(observed.get("effective_assembly_efficiency")) or 0.0
-            last_assembly = observed
         elif name == "transform_assembly":
-            transform_assembly_count += 1
+            transforms.append(observed)
+        elif name == "prepare_media" and str(observed.get("status", "")) == "prepared":
+            for plate in observed.get("plates", []) or []:
+                if not isinstance(plate, dict) or not plate.get("plate_id"):
+                    continue
+                prepared_plates[str(plate["plate_id"])] = {
+                    **plate,
+                    "status": "prepared",
+                    "_call_index": call_index,
+                }
+        elif name == "plate":
+            platings.append(observed)
         elif name == "count_colonies":
-            value = _coerce_int(observed.get("observed_colonies"))
-            if value is not None and value > transformants_observed:
-                transformants_observed = value
+            counts.append(observed)
+
+    completed_paths: List[Dict[str, Any]] = []
+    for assembly in assemblies:
+        if not assembly.get("assembly_id") or not _golden_gate_assembly_contract_is_valid(
+            assembly
+        ):
+            continue
+        for transform in transforms:
+            if (
+                str(transform.get("status", "")) != "transformed"
+                or str(transform.get("assembly_status", "")) != "assembled"
+                or transform.get("assembly_id") != assembly.get("assembly_id")
+                or not transform.get("culture_id")
+                or transform["_call_index"] <= assembly["_call_index"]
+            ):
+                continue
+            for plating in platings:
+                if (
+                    str(plating.get("status", "")) != "plated"
+                    or plating.get("culture_id") != transform.get("culture_id")
+                    or not plating.get("plating_id")
+                    or not plating.get("plate_id")
+                    or plating["_call_index"] <= transform["_call_index"]
+                    or not _has_canonical_golden_gate_countable_range(plating)
+                ):
+                    continue
+                prepared = prepared_plates.get(str(plating["plate_id"]))
+                if prepared is None or prepared["_call_index"] >= plating["_call_index"]:
+                    continue
+                if str(prepared.get("antibiotic", "")).strip().casefold() != "ampicillin":
+                    continue
+                if not _numeric_values_match(
+                    prepared.get("antibiotic_concentration_ug_ml"),
+                    100.0,
+                    tolerance=1e-9,
+                ):
+                    continue
+                for count in counts:
+                    observed_colonies = _coerce_strict_int(count.get("observed_colonies"))
+                    if (
+                        str(count.get("status", "")) != "plated"
+                        or count.get("plating_id") != plating.get("plating_id")
+                        or observed_colonies is None
+                        or not GOLDEN_GATE_COUNTABLE_MIN
+                        <= observed_colonies
+                        <= GOLDEN_GATE_COUNTABLE_MAX
+                        or count["_call_index"] <= plating["_call_index"]
+                        or not _has_canonical_golden_gate_countable_range(count)
+                    ):
+                        continue
+                    completed_paths.append(
+                        {
+                            "assembly": assembly,
+                            "transform": transform,
+                            "prepared_plate": prepared,
+                            "plating": plating,
+                            "count": count,
+                            "transformants_observed": observed_colonies,
+                        }
+                    )
 
     return {
-        "assembly_count": assembly_count,
-        "transform_assembly_count": transform_assembly_count,
-        "assembly_statuses": assembly_statuses,
-        "last_assembly": last_assembly,
+        "assembly_count": len(assemblies),
+        "transform_assembly_count": len(transforms),
+        "assembly_statuses": [str(assembly.get("status", "")) for assembly in assemblies],
+        "last_assembly": assemblies[-1] if assemblies else None,
         "latest_efficiency": latest_efficiency,
-        "transformants_observed": transformants_observed,
+        "completed_paths": completed_paths,
     }
+
+def _golden_gate_report_matches_path(
+    reported: Dict[str, Any],
+    path: Dict[str, Any],
+) -> bool:
+    assembly = path["assembly"]
+    reported_enzyme = _normalize_golden_gate_enzyme(reported.get("enzyme"))
+    observed_enzyme = _normalize_golden_gate_enzyme(
+        assembly.get("enzyme_name") or assembly.get("enzyme_normalized")
+    )
+    if (
+        reported_enzyme not in {"bsai", "bsaihfv2"}
+        or reported_enzyme != observed_enzyme
+    ):
+        return False
+
+    reported_ligase = _normalize_reported_text(reported.get("ligase"))
+    observed_ligase = _normalize_reported_text(
+        assembly.get("ligase_normalized") or assembly.get("ligase_name")
+    )
+    if reported_ligase != "t4dnaligase" or reported_ligase != observed_ligase:
+        return False
+
+    numeric_fields = (
+        ("digest_temperature_c", 1e-9),
+        ("ligate_temperature_c", 1e-9),
+        ("cycle_count", 0.0),
+        ("fragment_count", 0.0),
+    )
+    if any(
+        not _numeric_values_match(
+            reported.get(field),
+            assembly.get(field),
+            tolerance=tolerance,
+        )
+        for field, tolerance in numeric_fields
+    ):
+        return False
+    if reported.get("fragment_count") != 4:
+        return False
+    if reported.get("transformants_observed") != path["transformants_observed"]:
+        return False
+    return _interpretation_reports_success(reported.get("interpretation"))
 
 
 def score_golden_gate_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
@@ -1771,24 +2005,11 @@ def score_golden_gate_task_success(final_answer: str, tool_calls: List[Dict[str,
     }
     if required - set(reported):
         return 0.0
-    enzyme_token = reported["enzyme"].replace(" ", "").replace("-hfv2", "").replace("-v2", "")
-    if enzyme_token not in {"bsai", "bsmbi"}:
-        return 0.0
-    if "t4" not in reported["ligase"].lower():
-        return 0.0
-    if reported["fragment_count"] != 4:
-        return 0.0
     reconstructed = _reconstruct_golden_gate_results(tool_calls)
-    if reconstructed["assembly_count"] < 1 or reconstructed["transform_assembly_count"] < 1:
-        return 0.0
-    last = reconstructed["last_assembly"] or {}
-    if str(last.get("status")) != "assembled":
-        return 0.0
-    if reported["transformants_observed"] != reconstructed["transformants_observed"]:
-        return 0.0
-    if "assembl" not in reported["interpretation"].lower():
-        return 0.0
-    return 1.0
+    return 1.0 if any(
+        _golden_gate_report_matches_path(reported, path)
+        for path in reconstructed["completed_paths"]
+    ) else 0.0
 
 
 def score_golden_gate_troubleshooting(
@@ -1797,12 +2018,8 @@ def score_golden_gate_troubleshooting(
     reconstructed = _reconstruct_golden_gate_results(tool_calls)
     failure_markers: List[str] = []
     for status in reconstructed["assembly_statuses"]:
-        if status == "wrong_enzyme":
-            failure_markers.append("wrong_enzyme")
-        elif status == "wrong_ligase":
-            failure_markers.append("wrong_ligase")
-        elif status == "wrong_fragment_count":
-            failure_markers.append("wrong_fragment_count")
+        if status in ground_truth.get("failure_diagnosis_map", {}):
+            failure_markers.append(status)
     if not failure_markers:
         return _score_no_failure_troubleshooting(tool_calls, ground_truth)
     final_answer_lower = final_answer.lower()

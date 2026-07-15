@@ -178,7 +178,7 @@ class AssemblyReaction:
     digest_temperature_c: float
     ligate_temperature_c: float
     final_digest_minutes: int
-    heat_kill_temperature_c: float
+    final_digest_temperature_c: float
     status: str
     effective_assembly_efficiency: float
     expected_transformant_yield: float

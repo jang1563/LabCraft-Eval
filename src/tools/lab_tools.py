@@ -335,7 +335,7 @@ async def golden_gate_assembly_call(
     digest_temperature_c: float,
     ligate_temperature_c: float,
     final_digest_minutes: int,
-    heat_kill_temperature_c: float,
+    final_digest_temperature_c: float,
 ) -> str:
     state = _current_state()
     try:
@@ -349,7 +349,7 @@ async def golden_gate_assembly_call(
             digest_temperature_c=digest_temperature_c,
             ligate_temperature_c=ligate_temperature_c,
             final_digest_minutes=final_digest_minutes,
-            heat_kill_temperature_c=heat_kill_temperature_c,
+            final_digest_temperature_c=final_digest_temperature_c,
         )
     except (KeyError, ValueError) as exc:
         return _tool_error_observation("golden_gate_assembly", exc)
@@ -995,7 +995,7 @@ def golden_gate_assembly_tool():
             digest_temperature_c: float,
             ligate_temperature_c: float,
             final_digest_minutes: int,
-            heat_kill_temperature_c: float,
+            final_digest_temperature_c: float,
         ) -> str:
             """Run a Golden Gate assembly.
 
@@ -1008,7 +1008,7 @@ def golden_gate_assembly_tool():
                 digest_temperature_c: Digest-step temperature.
                 ligate_temperature_c: Ligation-step temperature.
                 final_digest_minutes: Final digest hold after cycling.
-                heat_kill_temperature_c: Heat-inactivation temperature.
+                final_digest_temperature_c: Temperature of the final digest hold.
             """
             return await golden_gate_assembly_call(
                 fragment_ids=fragment_ids,
@@ -1019,7 +1019,7 @@ def golden_gate_assembly_tool():
                 digest_temperature_c=digest_temperature_c,
                 ligate_temperature_c=ligate_temperature_c,
                 final_digest_minutes=final_digest_minutes,
-                heat_kill_temperature_c=heat_kill_temperature_c,
+                final_digest_temperature_c=final_digest_temperature_c,
             )
 
         return execute

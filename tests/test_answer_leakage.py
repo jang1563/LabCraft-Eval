@@ -19,7 +19,11 @@ from src.tasks.clone_01 import build_clone_01_prompt, build_clone_01_sample
 from src.tasks.express_01 import build_express_01_prompt, build_express_01_sample
 from src.tasks.followup_01 import build_followup_01_prompt
 from src.tasks.gibson_01 import build_gibson_01_prompt, build_gibson_01_sample
-from src.tasks.golden_gate_01 import build_golden_gate_01_prompt, build_golden_gate_01_sample
+from src.tasks.golden_gate_01 import (
+    GOLDEN_GATE_01_GROUND_TRUTH,
+    build_golden_gate_01_prompt,
+    build_golden_gate_01_sample,
+)
 from src.tasks.growth_01 import build_growth_01_prompt
 from src.tasks.miniprep_01 import build_miniprep_01_prompt, build_miniprep_01_sample
 from src.tasks.purify_01 import (
@@ -100,6 +104,15 @@ def test_clone_prompt_requires_substrate_inspection_for_enzyme_choice():
     assert "bamhi" not in prompt
 
 
+def test_golden_gate_given_fragment_count_is_not_scored_as_a_decision():
+    payload = json.loads(GOLDEN_GATE_01_GROUND_TRUTH.read_text())
+    decision_ids = {point["id"] for point in payload["decision_points"]}
+
+    assert "four-fragment" in build_golden_gate_01_prompt().casefold()
+    assert "uses_all_four_fragments" not in decision_ids
+    assert "Interpretation: <success|failure>" in build_golden_gate_01_prompt()
+
+
 def test_given_ni_nta_method_is_not_scored_as_a_decision():
     payload = json.loads(PURIFY_01_GROUND_TRUTH.read_text())
     decision_ids = {point["id"] for point in payload["decision_points"]}
@@ -170,7 +183,7 @@ def test_human_transform_handler_requires_all_evaluated_choices():
                 "digest_temperature_c",
                 "ligate_temperature_c",
                 "final_digest_minutes",
-                "heat_kill_temperature_c",
+                "final_digest_temperature_c",
             ),
         ),
         (gibson_assembly_call, ("overlap_length_bp",)),
@@ -303,7 +316,7 @@ def test_solver_assistant_prompts_do_not_supply_protocol_answers(monkeypatch, so
                 "digest_temperature_c",
                 "ligate_temperature_c",
                 "final_digest_minutes",
-                "heat_kill_temperature_c",
+                "final_digest_temperature_c",
             ),
         ),
         (gibson_assembly_tool, ("overlap_length_bp",)),

@@ -24,8 +24,8 @@ Starting substrates (call list_golden_gate_substrates to inspect):
 - gg_insert_terminator: terminator insert
 
 Workflow guidance:
-1. Inspect the substrates and use reference evidence to choose a compatible Type IIS enzyme, ligase, buffer, and thermal program.
-2. Run enough digest/ligation cycles for a four-fragment assembly and include an appropriate final digest and heat-inactivation step.
+1. Inspect the substrates and use reference evidence to choose a compatible Type IIS enzyme, ligase, one-pot buffer, and thermal cycling program.
+2. Run enough digest/ligation cycles for the supplied four-fragment assembly and use the cited terminal digest step.
 3. Transform the assembled construct into competent E. coli using transform_assembly.
 4. Prepare an appropriate ampicillin selection plate and plate a defensible volume.
 5. Count transformants.
@@ -38,7 +38,7 @@ Ligate temperature: <float> C
 Cycle count: <int>
 Fragment count: <int>
 Transformants observed: <int>
-Interpretation: <sentence mentioning 'assembly' or 'assembled'>
+Interpretation: <success|failure>
 
 Constraints:
 - Use only the available lab tools and reference tools.

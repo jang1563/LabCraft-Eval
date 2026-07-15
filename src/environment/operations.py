@@ -168,6 +168,37 @@ def _normalize_choice(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().lower()
 
 
+def _normalize_type_iis_enzyme(value: str) -> str:
+    token = re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+    aliases = {
+        "bsai": "bsai",
+        "bsaihfv2": "bsai",
+        "bsmbi": "bsmbi",
+        "bsmbiv2": "bsmbi",
+    }
+    return aliases.get(token, token)
+
+
+def _normalize_golden_gate_buffer(value: str) -> str:
+    token = re.sub(r"[^a-z0-9]+", "", str(value).casefold())
+    aliases = {
+        "t4dnaligasebuffer": "t4dnaligasebuffer",
+        "t4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "t4dnaligasebuffer10x": "t4dnaligasebuffer",
+        "t4dnaligasereactionbuffer10x": "t4dnaligasebuffer",
+        "1xt4dnaligasebuffer": "t4dnaligasebuffer",
+        "1xt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "10xt4dnaligasebuffer": "t4dnaligasebuffer",
+        "10xt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "atpcontainingt4dnaligasebuffer": "t4dnaligasebuffer",
+        "atpcontainingt4dnaligasereactionbuffer": "t4dnaligasebuffer",
+        "t4dnaligasebuffer50mmtrishclph7510mmmgcl21mmatp10mmdtt": (
+            "t4dnaligasebuffer"
+        ),
+    }
+    return aliases.get(token, token)
+
+
 def _canonical_pcr_polymerase_name(value: str) -> str:
     """Map common PCR polymerase labels to the names used by task parameters."""
     normalized = _normalize_choice(value)
@@ -1451,25 +1482,34 @@ def golden_gate_assembly(
     enzyme_name: str,
     ligase_name: str,
     buffer: str = "T4 DNA ligase buffer",
-    cycle_count: int = 25,
+    cycle_count: int = 30,
     digest_temperature_c: float = 37.0,
     ligate_temperature_c: float = 16.0,
     final_digest_minutes: int = 5,
-    heat_kill_temperature_c: float = 60.0,
+    final_digest_temperature_c: float = 60.0,
 ) -> Dict[str, object]:
     """Simulate a Golden Gate / Type IIS one-pot assembly."""
     _ensure_golden_gate_substrates(state)
     bundle = _golden_gate_bundle()
-    accepted_enzymes = {e.lower() for e in bundle.choices("accepted_type_iis_enzymes")}
+    accepted_enzymes = {
+        _normalize_type_iis_enzyme(enzyme)
+        for enzyme in bundle.choices("accepted_type_iis_enzymes")
+    }
+    accepted_buffers = {
+        _normalize_golden_gate_buffer(buffer_name)
+        for buffer_name in bundle.choices("accepted_one_pot_buffers")
+    }
     required_ligase = bundle.text("preferred_ligase_name")
     optimal_digest_c = bundle.value("digest_cycling_temperature_c")
     optimal_ligate_c = bundle.value("ligate_cycling_temperature_c")
-    min_cycles = bundle.integer("recommended_cycle_count_min")
+    final_digest_c = bundle.value("final_digest_temperature_c")
+    final_digest_duration = bundle.integer("final_digest_duration_minutes")
+    required_cycles = bundle.integer("required_cycle_count")
     base_efficiency = bundle.value("base_assembly_efficiency")
     expected_fragment_count = bundle.integer("fragment_count")
 
     notes: List[str] = []
-    status = "assembled"
+    failure_statuses: List[str] = []
 
     for fragment_id in fragment_ids:
         if fragment_id not in state.dna_fragments:
@@ -1480,7 +1520,7 @@ def golden_gate_assembly(
             )
 
     if len(fragment_ids) != expected_fragment_count:
-        status = "wrong_fragment_count"
+        failure_statuses.append("wrong_fragment_count")
         notes.append(
             "Golden Gate-01 requires exactly {:d} fragments; received {:d}.".format(
                 expected_fragment_count, len(fragment_ids)
@@ -1494,43 +1534,89 @@ def golden_gate_assembly(
             "gg_insert_terminator",
         }
         if set(fragment_ids) != expected_fragment_ids:
-            status = "wrong_fragment_count"
+            failure_statuses.append("wrong_fragment_count")
             notes.append(
                 "Golden Gate-01 requires each expected backbone/promoter/CDS/terminator fragment exactly once."
             )
 
-    enzyme_normalized = _normalize_choice(enzyme_name).replace("-hfv2", "").replace("-v2", "").replace(" ", "")
-    if not any(enzyme_normalized == a.replace("-hfv2", "").replace("-v2", "").replace(" ", "") for a in accepted_enzymes):
-        status = "wrong_enzyme"
+    enzyme_normalized = _normalize_type_iis_enzyme(enzyme_name)
+    substrates_match_enzyme = all(
+        enzyme_normalized
+        in {
+            _normalize_type_iis_enzyme(site)
+            for site in state.dna_fragments[fragment_id].recognition_sites
+        }
+        for fragment_id in fragment_ids
+    )
+    if enzyme_normalized not in accepted_enzymes or not substrates_match_enzyme:
+        failure_statuses.append("wrong_enzyme")
         notes.append(
-            "Enzyme '{}' is not a Type IIS enzyme accepted by Golden Gate-01 (use BsaI or BsmBI).".format(enzyme_name)
+            "Enzyme '{}' is not compatible with the BsaI-flanked Golden Gate-01 substrates.".format(enzyme_name)
         )
 
     if _normalize_choice(ligase_name) != _normalize_choice(required_ligase):
-        status = "wrong_ligase"
+        failure_statuses.append("wrong_ligase")
         notes.append(
             "Non-T4 ligase used; Golden Gate cycling requires T4 DNA ligase co-incubation."
         )
 
-    efficiency_multiplier = 1.0
-    if abs(float(digest_temperature_c) - optimal_digest_c) > 2.0:
+    if _normalize_golden_gate_buffer(buffer) not in accepted_buffers:
+        failure_statuses.append("wrong_buffer")
         notes.append(
-            "Digest cycling temperature deviated from the {:.0f} C optimum.".format(optimal_digest_c)
+            "Golden Gate-01 requires an ATP-containing T4 DNA ligase reaction buffer."
         )
-        efficiency_multiplier *= 0.6
-    if abs(float(ligate_temperature_c) - optimal_ligate_c) > 2.0:
+
+    if not math.isclose(
+        float(final_digest_temperature_c),
+        final_digest_c,
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    ) or not math.isclose(
+        float(final_digest_minutes),
+        float(final_digest_duration),
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    ):
+        failure_statuses.append("wrong_terminal_digest")
         notes.append(
-            "Ligate cycling temperature deviated from the {:.0f} C optimum.".format(optimal_ligate_c)
-        )
-        efficiency_multiplier *= 0.6
-    if int(cycle_count) < min_cycles:
-        notes.append(
-            "Cycle count {:d} is below the recommended minimum {:d}.".format(
-                int(cycle_count), min_cycles
+            "Golden Gate-01 requires the cited {:.0f} C, {:d}-minute terminal digest.".format(
+                final_digest_c,
+                final_digest_duration,
             )
         )
-        efficiency_multiplier *= 0.5
 
+    cycle_count_value = float(cycle_count)
+    thermal_program_valid = (
+        math.isfinite(float(digest_temperature_c))
+        and math.isclose(
+            float(digest_temperature_c),
+            optimal_digest_c,
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        )
+        and math.isfinite(float(ligate_temperature_c))
+        and math.isclose(
+            float(ligate_temperature_c),
+            optimal_ligate_c,
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        )
+        and math.isfinite(cycle_count_value)
+        and cycle_count_value.is_integer()
+        and int(cycle_count_value) == required_cycles
+    )
+    if not thermal_program_valid:
+        failure_statuses.append("wrong_thermal_program")
+        notes.append(
+            "Golden Gate-01 requires {:d} cycles of {:.0f} C digestion and {:.0f} C ligation.".format(
+                required_cycles,
+                optimal_digest_c,
+                optimal_ligate_c,
+            )
+        )
+
+    efficiency_multiplier = 1.0
+    status = failure_statuses[0] if failure_statuses else "assembled"
     if status == "assembled":
         effective_efficiency = base_efficiency * efficiency_multiplier
     elif status == "wrong_enzyme":
@@ -1571,7 +1657,7 @@ def golden_gate_assembly(
         digest_temperature_c=float(digest_temperature_c),
         ligate_temperature_c=float(ligate_temperature_c),
         final_digest_minutes=int(final_digest_minutes),
-        heat_kill_temperature_c=float(heat_kill_temperature_c),
+        final_digest_temperature_c=float(final_digest_temperature_c),
         status=status,
         effective_assembly_efficiency=float(effective_efficiency),
         expected_transformant_yield=float(expected_transformant_yield),
@@ -1593,7 +1679,7 @@ def golden_gate_assembly(
         "digest_temperature_c": float(digest_temperature_c),
         "ligate_temperature_c": float(ligate_temperature_c),
         "final_digest_minutes": int(final_digest_minutes),
-        "heat_kill_temperature_c": float(heat_kill_temperature_c),
+        "final_digest_temperature_c": float(final_digest_temperature_c),
         "output_fragment_id": output_fragment_id,
         "effective_assembly_efficiency": float(effective_efficiency),
         "expected_transformant_yield": float(expected_transformant_yield),

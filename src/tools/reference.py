@@ -10,16 +10,25 @@ _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 
 def _search_database(db_path: Path, query: str) -> List[Dict[str, object]]:
-    """Search a JSON database for entries matching the query."""
+    """Search a JSON database, preferring exact names and aliases."""
     with open(db_path) as handle:
         db = json.load(handle)
-    query_lower = query.lower()
-    return [
-        entry
-        for entry in db
-        if query_lower in entry.get("name", "").lower()
-        or query_lower in json.dumps(entry).lower()
-    ]
+    query_lower = query.strip().casefold()
+    exact_matches: List[Dict[str, object]] = []
+    name_matches: List[Dict[str, object]] = []
+    content_matches: List[Dict[str, object]] = []
+
+    for entry in db:
+        names = [entry.get("name", ""), *entry.get("aliases", [])]
+        normalized_names = [str(name).strip().casefold() for name in names]
+        if query_lower in normalized_names:
+            exact_matches.append(entry)
+        elif any(query_lower in name for name in normalized_names):
+            name_matches.append(entry)
+        elif query_lower in json.dumps(entry).casefold():
+            content_matches.append(entry)
+
+    return [*exact_matches, *name_matches, *content_matches]
 
 
 async def lookup_reagent_call(reagent_name: str) -> str:

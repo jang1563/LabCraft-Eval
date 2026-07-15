@@ -25,6 +25,42 @@ class TestSearchDatabase:
         assert len(results) > 0
         assert results[0]["name"] == "EcoRI"
 
+    @pytest.mark.parametrize(
+        ("query", "expected_name"),
+        (
+            ("BsaI", "BsaI-HFv2"),
+            ("BsmBI", "BsmBI-v2"),
+            ("T4 DNA ligase", "T4 DNA ligase"),
+        ),
+    )
+    def test_exact_enzyme_names_and_aliases_rank_before_content_matches(
+        self, query, expected_name
+    ):
+        db_path = _DATA_DIR / "enzyme_database.json"
+        results = _search_database(db_path, query)
+
+        assert results
+        assert results[0]["name"] == expected_name
+
+    def test_generic_type_iis_search_exposes_distinct_enzyme_families(self):
+        db_path = _DATA_DIR / "enzyme_database.json"
+        results = _search_database(db_path, "Type IIS restriction enzyme")
+        by_name = {entry["name"]: entry for entry in results}
+
+        assert by_name["BsaI-HFv2"]["recognition_sequence"] == "GGTCTC"
+        assert by_name["BsaI-HFv2"]["optimal_temperature_c"] == 37
+        assert by_name["BsaI-HFv2"]["acceptable_temperature_range_c"] == [37, 37]
+        assert by_name["BsaI-HFv2"]["golden_gate_final_digest_temperature_c"] == 60
+        assert by_name["BsaI-HFv2"]["golden_gate_final_digest_time_min"] == 5
+        assert by_name["BsaI-HFv2"]["golden_gate_cycle_count"] == 30
+        assert by_name["BsaI-HFv2"]["golden_gate_one_pot_buffer"] == (
+            "T4 DNA ligase reaction buffer"
+        )
+        assert by_name["BsmBI-v2"]["recognition_sequence"] == "CGTCTC"
+        assert by_name["BsmBI-v2"]["optimal_temperature_c"] == 55
+        assert "Esp3I" not in by_name["BsmBI-v2"]["aliases"]
+        assert "Esp3I" in by_name["BsmBI-v2"]["isoschizomers"]
+
     def test_search_safety_by_name(self):
         db_path = _DATA_DIR / "safety_database.json"
         if not db_path.exists():
@@ -84,11 +120,15 @@ class TestDatabaseContent:
             assert "optimal_temperature_c" in entry or "optimal_temperature" in entry
 
     def test_t4_ligase_temperature(self):
-        """T4 DNA Ligase optimal temp should be 16°C (or 25°C for quick ligation)."""
+        """The headline condition must fit cohesive-end cloning, not blunt-end ligation."""
         db_path = _DATA_DIR / "enzyme_database.json"
         if not db_path.exists():
             pytest.skip("Enzyme database not available")
         results = _search_database(db_path, "T4 DNA Ligase")
         assert len(results) > 0
-        temp = results[0].get("optimal_temperature_c", results[0].get("optimal_temperature"))
-        assert temp in [16, 25, "16", "25"]
+        assert results[0]["name"] == "T4 DNA ligase"
+        assert results[0]["optimal_temperature_c"] == 16
+        assert results[0]["room_temperature_ligation_c"] == 25
+        assert results[0]["cohesive_end_room_temperature_range_c"] == [20, 25]
+        assert results[0]["cohesive_end_room_temperature_time_min"] == 10
+        assert "Golden Gate cohesive-end cycling" in results[0]["notes"]

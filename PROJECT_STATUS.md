@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot contract validated by one-seed sentinels, newer-task gate next |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot contract validated by one-seed sentinels, `golden_gate_01` remediation rerun next |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -31,8 +31,14 @@ wet-lab competence and not broad biology capability.
   registered `current_balanced` four-model matrix. Retained cells passed clean
   revision, requested/resolved model, generation-profile, runtime-source,
   Inspect-version, manifest-schema, and no-limit-exhaustion gates.
-- Those sentinels validate compatibility and scorer contracts. They are not a
-  public score-bearing release and do not support comparative model ranking.
+- The first `golden_gate_01` P1 array completed four of four technical cells at
+  clean revision `b20382a7c473bd73e9707e288fa7fd8b4a3732a1`, but semantic
+  audit reproduced scorer false positives and reference-contract defects. The
+  bundle is diagnostic-only; P1 remains 0/20 accepted cells pending a clean
+  remediation rerun.
+- The retained five-task snapshot sentinels validate compatibility and scorer
+  contracts. They are not a public score-bearing release and do not support
+  comparative model ranking.
 - Historical v0.1.1, newer-task, Discovery, HPC, and live Safety Case summaries
   remain historical or provisional unless explicitly promoted under the rules
   below.
@@ -55,7 +61,7 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 Run seed 0 for the registered `current_balanced` matrix on these five newer
 flagship wet-lab tasks:
 
-1. `golden_gate_01`
+1. `golden_gate_01` remediation rerun
 2. `gibson_01`
 3. `miniprep_01`
 4. `express_01`
@@ -92,8 +98,10 @@ compatibility/scorer-contract evidence.
 
 ## Current Priority Board
 
-- **P0 — current:** public truth repair and consistent release/evidence labels.
-- **P1 — next:** five newer wet-lab tasks × four core models × seed 0.
+- **P0 — locally complete; public sync pending:** public truth repair and
+  consistent release/evidence labels are committed locally but not pushed.
+- **P1 — in progress:** 0/20 cells accepted; the initial `golden_gate_01`
+  bundle is diagnostic and the remediated clean rerun is next.
 - **P2 — planned:** reasoning, recovery, and counterfactual task depth plus
   modular/versioned scorer validation.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and

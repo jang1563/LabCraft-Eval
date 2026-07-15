@@ -200,12 +200,63 @@ four-mass measurement set. All eight final cells passed requested/resolved
 model, generation profile, clean worktree, schema 1.2.0, exact runtime source,
 Inspect-version, and no-limit-exhaustion gates.
 
+## Initial newer-task P1 diagnostic
+
+P1 began with `golden_gate_01` only, following the one-task-at-a-time gate.
+Revision `b20382a7c473bd73e9707e288fa7fd8b4a3732a1` was transferred as an exact
+git bundle to a fresh detached checkout. The isolated preflight passed 507
+tests, Ruff, shell syntax, registry validation, lock validation, wheel build,
+isolated installation, and package smoke. The pinned environment used Inspect
+0.3.245, OpenAI 2.45.0, and Anthropic 0.116.0.
+
+The serial four-model array used RUN_ID
+`2026_07_15_p1_golden_gate_seed0_b20382a` and the registered
+`current_balanced` generation profile (`max_tokens=16384`,
+`reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 24 | 9 | 13 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `openai/gpt-5.6-luna` | 23 | 9 | 12 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `anthropic/claude-sonnet-5` | 17 | 7 | 8 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `anthropic/claude-haiku-4-5-20251001` | 31 | 13 | 16 | 1.000 | 0.857 | 1.000 | 0.000 | 0.857 |
+
+All four native logs had `status=success`, one sample with ID
+`golden_gate_01_seeded_seed_00`, no error or exhausted limit, and exact
+requested/resolved model identity. The independent postflight found exactly
+four manifests and four non-empty logs; all manifests recorded schema 1.2.0,
+the exact commit above, `worktree_dirty=false`, seed 0, the expected runtime
+source, and Inspect 0.3.245. The model-registry SHA-256 was
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`.
+All four strict validators passed, and all four scheduler stderr files were
+empty. This establishes infrastructure and provenance validity only.
+
+The required semantic audit then reproduced pre-remediation contract defects:
+the reference database lacked BsaI/BsmBI entries while presenting 25 C as the
+headline T4 ligase condition; BsmBI was accepted for BsaI-flanked substrates;
+plate/count could be omitted while reporting zero; final protocol fields were
+not bound to the executed assembly; and the six-call full-efficiency budget
+left no room for the reference evidence requested by the prompt. The supplied
+four-fragment count was also incorrectly treated as an independent decision.
+
+These defects plausibly contributed to Haiku's five enzyme lookups (four of
+which returned no entry), 25 C ligation choice, and 16-call threshold crossing.
+Therefore none of the four stored scores above is promoted, and no model-quality
+interpretation is retained. The remediation makes the task BsaI-specific,
+adds exact-ranked enzyme references, uses the cohesive-end 16 C T4 condition,
+validates the exact 30-cycle 37 C / 16 C program, an ATP-containing one-pot
+buffer, and the 60 C / five-minute terminal digest, requires a causal successful
+assembly-to-countable-colony path within the canonical 25-250 range, binds every
+reported field to that path, uses a fail-closed success token, and budgets two
+reference calls. Because these changes are agent-visible and score-defining, a
+fresh four-model clean-revision rerun is mandatory.
+
 ## Scale decision
 
-All five snapshot tasks now have a strict one-seed sentinel across the four
-current-core models. These runs validate compatibility and scorer contracts;
-they are not comparative quality estimates. Human-baseline and multi-seed work
-remain intentionally skipped. The next bounded gate should use the same
-four-model, seed-zero protocol on the newer current wet-lab tasks, while frozen
-historical results and every cancelled or diagnostic bundle remain excluded
-from promoted aggregates.
+All five snapshot tasks retain strict one-seed sentinel coverage. P1 remains
+0/20 accepted cells because the initial `golden_gate_01` bundle is a
+pre-remediation diagnostic. Human-baseline and multi-seed work remain
+intentionally skipped. The next bounded gate is a fresh `golden_gate_01`
+four-model, seed-zero rerun at the clean remediation revision. Frozen
+historical results and every cancelled, diagnostic, or pre-remediation bundle
+remain excluded from promoted aggregates.
