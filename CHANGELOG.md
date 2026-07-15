@@ -4,6 +4,20 @@ All notable public-facing changes to LabCraft-Eval should be documented here.
 This project keeps result bundles reproducible, so corrections should be
 recorded rather than silently rewriting history.
 
+## Unreleased
+
+- Add a canonical project-status anchor with the scientific North Star, track
+  roles, evidence limits, exact next gate, and P0-P3 promotion plan.
+- Make the no-dependency Hugging Face quickstart manifest-first, safe for
+  metadata-only snapshots, checksum-verified, and resistant to stale mutable-tag
+  caches.
+- Separate the current v0.1.2 metadata contract from historical provisional
+  v0.1.1 scores in the leaderboard source, with explicit empty states and
+  manifest-backed release selection.
+- Align the README, safety scope, technical report, citation metadata, and
+  release documentation around the flagship wet-lab benchmark, companion
+  Discovery track, and separately scored experimental Safety Case track.
+
 ## 0.1.2 - 2026-07-12
 
 - Publish the integrity and provenance corrections as v0.1.2, generalize

@@ -61,6 +61,7 @@ See [Key findings and limitations](#key-findings-and-limitations) for the full a
 | Code and benchmark repository | <https://github.com/jang1563/LabCraft-Eval> |
 | Hugging Face dataset export | <https://huggingface.co/datasets/jang1563/LabCraft-Eval> |
 | Hugging Face leaderboard Space | <https://huggingface.co/spaces/jang1563/LabCraft-Eval-Leaderboard> |
+| Current project status and next gate | [PROJECT_STATUS.md](PROJECT_STATUS.md) |
 | Architecture overview | [docs/architecture.md](docs/architecture.md) |
 | Trajectory walkthrough | [docs/trajectory_walkthrough.md](docs/trajectory_walkthrough.md) |
 | HF export data dictionary | [docs/hf_data_dictionary.md](docs/hf_data_dictionary.md) |
@@ -77,67 +78,50 @@ See [Key findings and limitations](#key-findings-and-limitations) for the full a
 | Public artifact roadmap | [docs/publication_roadmap.md](docs/publication_roadmap.md) |
 | Hugging Face release plan | [docs/hf_release.md](docs/hf_release.md) |
 
-Recommended reading path: start with the architecture overview and trajectory
-walkthrough, then the frozen simulator scorecard, then the failure-mode
-analysis, then the Discovery Decision Track. The Safety Case Track is separate
-and optional; it is not merged into the simulator leaderboard.
+## Current evidence status
 
-Machine-readable path: use the Hugging Face export script to write JSONL files,
-checksums, a release manifest, and a dataset-card `README.md` without scraping
-Markdown result pages.
+- **v0.1.2 is the current code and metadata release.** Its Hugging Face snapshot
+  contains the task, schema, citation, and manifest contracts but intentionally
+  contains no model score rows or raw evaluation logs.
+- **v0.1.1 is the frozen historical score-bearing release.** Its April 2026
+  scores are provisional, pre-remediation benchmark-development evidence, not a
+  current model or provider ranking.
+- **The July 2026 current-model runs are strict seed-zero sentinels.** They
+  validate model compatibility, scorer contracts, and provenance gates across
+  the five snapshot tasks; they are not comparative quality estimates.
+- **No current-contract leaderboard has been promoted yet.** New scored releases
+  must bundle clean raw `.eval` logs and satisfy schema 0.3 provenance checks.
 
-```bash
-uv run python scripts/export_hf_dataset.py \
-  --out-dir build/hf_dataset \
-  --release-name local_export \
-  --no-results \
-  --clean-output \
-  --copy-plots
-uv run python scripts/validate_hf_export.py build/hf_dataset
-```
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the scientific North Star, track
+roles, current maturity, and exact next evaluation gate.
 
-This metadata-only command is also the path exercised by CI. It validates task,
-rubric, ground-truth, citation, plot, and manifest packaging, but it does not
-validate or publish structured score rows. Copied frozen plots remain
-historical visual assets and do not acquire schema 0.3 score provenance from
-this smoke path. Schema 0.3 score-bearing exports require an
-explicit `--log-dir` containing successful `.eval` logs whose native Inspect
-`evaluation_revision.dirty` value is `false` and whose generation configuration
-is explicitly pinned. Score-bearing exports bundle the raw `.eval` evidence;
-they do not publish checksum-only references to local or ignored log paths.
+## Product structure
 
-The exporter refuses a non-empty output directory by default so stale files
-cannot leak into a release. Choose a new directory, or pass `--clean-output`
-only when intentionally replacing a disposable export directory such as
-`build/hf_dataset`. Destructive cleanup is restricted to children of `build/`.
+- **Flagship — wet-lab execution and recovery:** seeded molecular-microbiology
+  simulator tasks with full tool trajectories and deterministic four-axis
+  scoring.
+- **Companion — Discovery Decision Track:** synthetic evidence triage and
+  next-experiment decisions, reported separately from simulator execution.
+- **Experimental — Safety Case Track:** text-only safeguard-quality evaluation
+  on legitimate research-support requests. It has a distinct scorer and scope
+  and is never merged into the simulator leaderboard.
 
-The exporter also refuses a dirty packaging worktree, because a HEAD commit
-cannot identify uncommitted files included in a release bundle.
+Recommended reading path: start with the [architecture](docs/architecture.md)
+and [trajectory walkthrough](docs/trajectory_walkthrough.md), then read the
+[failure-mode analysis](results/analysis.md). Treat the frozen scorecard only as
+historical evidence.
 
-The manifest and JSONL records use `source_commit` for the packaging HEAD commit
-recorded when the exporter runs. Final releases should be built from a clean
-packaging worktree. Score and log-manifest rows separately preserve
-`evaluation_revision`, the native code revision recorded when Inspect ran the
-evaluation. These commits can differ and must not be interpreted as the same
-provenance field.
-
-Before uploading a dataset snapshot, inspect the dry-run upload plan:
-
-```bash
-uv run python scripts/upload_hf_dataset.py \
-  build/hf_dataset \
-  --repo-id jang1563/LabCraft-Eval
-```
-
-For actual upload with `--execute`, install `huggingface-hub>=0.36,<1.0` in the
-active environment first.
-
-Quickly inspect the public Hugging Face snapshot without extra dependencies:
+Quickly inspect the current public Hugging Face metadata snapshot without extra
+dependencies:
 
 ```bash
 python3 examples/hf_quickstart.py
 python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
 ```
+
+Release engineering details, including metadata-only and score-bearing export
+commands, live in [docs/hf_release.md](docs/hf_release.md) and the
+[release checklist](docs/release_checklist.md).
 
 ## Discovery Decision Track
 
@@ -156,14 +140,19 @@ Quick discovery links:
 - [results/discovery_track.md](results/discovery_track.md) for the historical bundle, scores, and pre-remediation limitations
 - `./scripts/run_discovery_bundle.sh` to run the recommended 2-model / 3-repeat Discovery bundle into a new timestamped `build/eval_runs/` directory
 
-## Optional Safety Case Track
+## Experimental Safety Case Track
 
-LabCraft-Eval also includes a separate **Safety Case Track** for measuring
+LabCraft-Eval also includes a separate, experimental **Safety Case Track** for measuring
 deployment-safeguard quality on legitimate bio-research requests. This track is
 not a stochastic lab simulator and not a harmful-biology capability benchmark:
 it is a single-turn conversational eval that checks whether a model stays
 helpful on allowed BSL-1/BSL-2 research while keeping appropriate boundaries,
 citations, monitoring signals, and residual-risk framing.
+
+Its text-only policy scenarios may cover a wider set of benign, non-viral
+mammalian research-support contexts than the executable simulator. The exact
+track boundary is defined in [SAFETY.md](SAFETY.md); its scores and scenarios do
+not expand the simulator task surface.
 
 Current safety-case surface:
 
@@ -492,7 +481,14 @@ LabCraft-Eval/
 
 ## Safety scope
 
-LabCraft-Eval is deliberately limited to BSL-1/BSL-2 benign molecular microbiology with standard *E. coli* strains, standard cloning vectors, and routine reagents. Select agents, gain-of-function work, mammalian virology, and any content aimed at increasing real-world capability for harmful biology are explicitly excluded. Full policy in [SAFETY.md](SAFETY.md).
+The executable LabCraft simulator is deliberately limited to benign BSL-1/BSL-2
+molecular microbiology, biochemistry, and narrowly defined non-viral reporter
+workflows. The experimental Safety Case Track is text-only and may use broader
+legitimate, non-viral research-support scenarios, but it exposes no simulator
+tools and remains outside the simulator leaderboard. Select agents,
+gain-of-function work, mammalian virology, and content intended to increase
+real-world capability for harmful biology are excluded project-wide. Full track
+boundaries are in [SAFETY.md](SAFETY.md).
 
 Parameter, ground-truth, and safety records carry public citation metadata. The Gold / Silver / Bronze / Copper tier system is documented in [SAFETY.md](SAFETY.md), and [tests/test_citations.py](tests/test_citations.py) checks required citation fields and declared tiers. Those tests do not independently verify that every external source resolves or supports each numeric claim.
 

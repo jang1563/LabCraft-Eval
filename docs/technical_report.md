@@ -1,6 +1,7 @@
 # LabCraft-Eval Technical Report
 
-Version: v0.1.1
+Version: v0.1.2
+Author: Jihoon Kim, Weill Cornell Medicine
 
 ## Abstract
 
@@ -8,15 +9,20 @@ LabCraft-Eval is a compact Inspect AI benchmark for evaluating whether language
 model agents can execute benign molecular-microbiology workflows inside a
 seeded simulator with task-dependent deterministic and stochastic operations.
 The benchmark combines public protocol prompts, tool-mediated lab operations,
-citation metadata, and deterministic four-axis trajectory scoring. The v0.1.1
-public release includes a frozen five-task simulator snapshot, newer wet-lab
-task surfaces, a Discovery Decision Track, and a separate Safety Case Track.
+citation metadata, and deterministic four-axis trajectory scoring. The v0.1.2
+codebase implements 14 runnable simulator and decision tasks plus a separate
+Safety Case Track. Its public Hugging Face v0.1.2 snapshot is intentionally a
+metadata-only integrity release and contains no promoted result rows or raw
+evaluation logs.
 
-> **Evidence status:** the v0.1.1 and early newer-task score bundles are
-> historical, provisional artifacts. Some were collected before answer-bearing
-> protocol hints were removed from agent-facing prompts, with unpinned generation
-> settings and earlier scorer behavior. They are not directly comparable to runs
-> of the current task definitions and are not validated model/provider rankings.
+> **Evidence status:** the published v0.1.1 scorecard, early newer-task bundles,
+> the HPC candidate, and live Safety Case summaries are historical or
+> provisional artifacts. Some were collected before answer-bearing guidance was
+> removed, with older scorer behavior or incomplete public provenance. Under the
+> current contract, all five frozen snapshot tasks have passed a strict
+> four-model, seed-zero compatibility sentinel. Those sentinel runs validate
+> provider compatibility, provenance checks, and scorer contracts; they are not
+> a promoted score-bearing release or a model/provider ranking.
 
 ## Motivation
 
@@ -37,6 +43,11 @@ transformation, incubation, measurement, assembly, purification, or
 decision-support tools. The simulator returns observations, and Inspect records
 the complete `.eval` trajectory.
 
+The scientific flagship is the wet-lab execution and recovery surface. The
+Discovery Decision Track is a companion decision-quality surface. The Safety
+Case Track is experimental, uses a separate scoring contract, and is never
+merged into the flagship leaderboard.
+
 ## Scoring
 
 The simulator tasks are scored along four deterministic axes:
@@ -55,31 +66,46 @@ document the intended hierarchy but are not executed by the live Inspect scorer.
 The Safety Case Track uses a separate conversational safeguard scorer and is not
 merged into the wet-lab simulator leaderboard.
 
-## Public Results
+## Public Evidence
 
-The frozen v0.1 scorecard reports 100 scored sample rows across five simulator
-tasks, four frontier models, and five seed-labelled repetitions. These
+The frozen v0.1.1 scorecard reports 100 historical sample rows across five
+simulator tasks, four models, and five seed-labelled repetitions. These
 repetitions combine model-output variation, formatting and message-budget
 effects, and task-dependent environment changes; they are not five independent
-stochastic environments for every task. Newer task bundles,
-discovery-decision results, HPC candidate bundles, and safety-case results are
-reported on separate result pages to avoid changing the historical snapshot.
+stochastic environments for every task. The scorecard is preserved for
+historical audit and is not a current-contract comparison.
+
+The v0.1.2 Hugging Face release is metadata-only. It publishes the benchmark
+inventory, rubrics, ground truth, citations, schemas, plots retained as
+historical visual assets, and a checksum-bearing release manifest. It
+intentionally omits `result_rows.jsonl` and raw `.eval` logs, so it must not be
+presented as a new scored benchmark release.
+
+Current-contract evidence is recorded in
+`docs/model_refresh_status_2026_07.md`. Five snapshot tasks (`transform_01`,
+`growth_01`, `pcr_01`, `screen_01`, and `clone_01`) completed one strict
+seed-zero sentinel across the registered four-model core matrix. Every retained
+cell passed clean-revision, requested/resolved-model, generation-profile,
+runtime-source, Inspect-version, manifest-schema, and no-limit-exhaustion
+checks. Human-baseline and multi-seed collection remain intentionally skipped,
+so these runs are compatibility and scorer-contract evidence only.
 
 Key public surfaces:
 
-- `results/results.md` for the frozen scorecard.
-- `results/analysis.md` for failure-mode analysis.
-- `results/discovery_track.md` for discovery-decision results.
-- `results/hpc_v0_2_current_n10.md` for the larger HPC candidate bundle.
-- `results/safety_case_live_v0_2.md` for live Safety Case Track results.
+- `results/results.md` for the historical frozen scorecard.
+- `results/analysis.md` for historical failure-mode analysis.
+- `results/discovery_track.md` for historical discovery-decision results.
+- `results/hpc_v0_2_current_n10.md` for the provisional HPC candidate summary.
+- `results/safety_case_live_v0_2.md` for the provisional live Safety Case summary.
+- `PROJECT_STATUS.md` for the current continuation state and next gate.
 
 ## Reproducibility
 
 The GitHub repository is the source of truth for code, tests, task definitions,
 scorers, and release history. The Hugging Face dataset provides a
-machine-readable snapshot with JSONL files, plots, and `release_manifest.json`.
-The manifest records the source commit, schema version, byte counts, record
-counts, and SHA-256 checksums for each exported artifact.
+machine-readable snapshot with JSONL records and `release_manifest.json`. The
+manifest records the source commit, schema version, byte counts, record counts,
+and SHA-256 checksums for each exported artifact.
 
 Minimum local checks:
 
@@ -106,17 +132,21 @@ experimental competence. Safety scope and reporting guidance are maintained in
 
 - The simulator has citation metadata but is not physically grounded in a real
   lab; repository checks do not independently validate every scientific claim.
-- The frozen scorecard is intentionally compact and should not be overread as a
-  broad model capability ranking.
+- The frozen scorecard is historical and should not be overread as a broad
+  model capability ranking.
 - Historical bundles collected with answer-bearing prompt guidance must not be
   interpreted as current, leakage-free protocol-reasoning results.
-- Current task bundles and HPC candidates are reported separately until they are
-  intentionally promoted into a new release.
-- Human baseline work is early and should be treated as calibration support,
-  not a final expert reference distribution.
+- The latest strict snapshot sentinels cover only one seed and were not promoted
+  as a score-bearing public release.
+- Human-baseline and multi-seed work are intentionally skipped at the current
+  gate. Comparative reliability and paper-grade ranking claims remain blocked
+  until an appropriate repeat design and external reference are completed.
+- Current task bundles and HPC candidates remain separate until they are
+  intentionally promoted under the release criteria in `PROJECT_STATUS.md`.
 
 ## Citation
 
-If you use LabCraft-Eval, cite the repository URL, the source commit SHA, and
-the release manifest or result bundle used. For v0.1.1, use the GitHub release
-and Hugging Face dataset tag that share the same manifest-backed snapshot.
+If you use LabCraft-Eval, cite the repository URL, the exact source commit, and
+the release manifest or result bundle used. For v0.1.2, use the GitHub release
+and Hugging Face dataset tag that share the metadata-only manifest-backed
+snapshot; do not attribute historical score rows to v0.1.2.

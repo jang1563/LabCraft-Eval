@@ -6,7 +6,9 @@ message: >-
 title: "LabCraft-Eval: A stochastic agent evaluation environment for benign molecular-microbiology protocols"
 type: software
 authors:
-  - name: "The LabCraft-Eval Authors"
+  - family-names: "Kim"
+    given-names: "Jihoon"
+    affiliation: "Weill Cornell Medicine"
 repository-code: "https://github.com/jang1563/LabCraft-Eval"
 url: "https://github.com/jang1563/LabCraft-Eval"
 version: "0.1.2"

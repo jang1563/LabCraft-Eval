@@ -1,166 +1,100 @@
 # LabCraft-Eval Public Artifact Roadmap
 
 Prepared: 2026-06-15
+Last reviewed: 2026-07-15
+Current continuation anchor: [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 
-This roadmap turns LabCraft-Eval from a strong research repository into a
-premium public benchmark artifact that is easy for both humans and machines to
-understand. It complements the existing HPC v0.2 execution plan: HPC produces
-trustworthy numbers; this roadmap makes the repository, release bundles, and
-Hugging Face surfaces trustworthy to consume.
+This roadmap tracks the work required to turn LabCraft-Eval into a premium,
+scientifically defensible public benchmark. GitHub remains the source of truth
+for code, methodology, provenance, and release history. Hugging Face remains
+the distribution surface for manifest-backed benchmark records and, only when
+available, promoted score-bearing evidence.
 
-## North Star
+## Scientific North Star
 
-GitHub is the source of truth for code, methodology, provenance, and release
-history. Hugging Face is the distribution surface for machine-readable benchmark
-records, result tables, and an interactive leaderboard.
+> Auditable evaluation of whether AI agents can execute, diagnose, and recover
+> benign molecular-biology workflows inside a stateful laboratory simulator.
+
+The flagship contribution is the wet-lab execution and recovery benchmark. The
+Discovery Decision Track is a companion decision-quality surface. The Safety
+Case Track is an experimental, separately scored surface and must not be merged
+into the flagship leaderboard.
 
 The public experience should satisfy two tests:
 
-- A human reviewer can understand the benchmark's purpose, novelty, limitations,
-  safety scope, and quickstart path in the first few minutes.
-- A machine consumer can load tasks, rubrics, citations, result rows, release
-  manifests, and schema versions without scraping Markdown prose.
+- A human reviewer can identify the benchmark claim, evidence tier,
+  limitations, safety scope, and reproducibility path in a few minutes.
+- A machine consumer can load task, rubric, citation, manifest, and any
+  promoted result records without scraping Markdown or guessing provenance.
 
-## Phase 1: Public Trust Layer
+## Previous Phase Reconciliation
 
-Goal: make the GitHub repository read as maintained research software.
+| Previous phase | Status on 2026-07-15 | Disposition |
+| --- | --- | --- |
+| Phase 1: Public Trust Layer | **Completed for v0.1.2** | CI, contribution, security, changelog, citation, and release-trust files are present. Ongoing maintenance belongs to P0. |
+| Phase 2: Machine-Readable Benchmark Package | **Completed for metadata-only releases** | Schema 0.3 export, validation, checksums, and manifest-backed packaging are implemented. A score-bearing current release remains gated. |
+| Phase 3: Hugging Face Premium Surface | **Current / partial** | Dataset and leaderboard surfaces exist, but the public v0.1.2 dataset is metadata-only and historical score views must remain explicitly labelled. |
+| Phase 4: v0.2 Scientific Credibility | **Superseded** | Replaced by the bounded P1-P3 sequence below. The historical HPC candidate is not a promoted current result. |
+| Phase 5: Paper and Portfolio Grade | **Superseded** | Replaced by P3, after current-contract evidence and scientific-validity gates pass. |
 
-Deliverables:
+## P0-P3 Status Board
 
-- Add GitHub Actions CI for tests, citation/scope checks, lint, and export-smoke
-  validation.
-- Add issue templates, a pull request template, and contribution guidance.
-- Add a security and safety reporting policy distinct from the benchmark scope
-  policy in `SAFETY.md`.
-- Add a changelog that records public-facing releases, renames, result bundle
-  promotions, and scorer changes.
-- Keep the README as the entry point, but move deep implementation and release
-  details into focused docs.
+| Priority | Status | Objective | Exit criteria |
+| --- | --- | --- | --- |
+| **P0: Public truth repair** | **Current** | Make every public entry point accurately distinguish the v0.1.2 metadata release, historical provisional scores, and current compatibility evidence. | Quickstart is manifest-first and safe for metadata-only snapshots; historical leaderboard evidence is visibly labelled; README, safety scope, report, citation metadata, and continuation docs agree. |
+| **P1: v0.2 contract gate** | **Next** | Validate the five newer flagship wet-lab tasks with the registered four-model core matrix and seed 0. | Every one of the 20 cells passes the strict validator with clean revision, exact requested/resolved model identity, registered generation profile, expected runtime source, current manifest schema, and no exhausted limits. Results remain compatibility/scorer-contract evidence, not a ranking. |
+| **P2: Scientific depth and scorer validity** | **Planned** | Add tasks that discriminate execution, diagnosis, recovery, and counterfactual reasoning; reduce scorer brittleness. | At least one reasoning, one recovery, and one counterfactual task family; task-level scorer modules with explicit versions; expert-labelled valid/invalid trajectory fixtures; alternative-valid-path and wrong-path ablations; a declared held-out or rotating evaluation policy. |
+| **P3: Current scored release and publication package** | **Deferred** | Promote a clean, independently auditable current-contract result bundle and package the benchmark for paper-level review. | Public raw `.eval` logs, manifest-backed result rows, exact code/model/generation provenance, reproducible aggregation, uncertainty appropriate to the repeat design, the promoted release added to the existing leaderboard selector, and a technical report that cites only promoted evidence. Human-baseline and multi-seed work must be explicitly reopened before comparative or paper-grade ranking claims. |
 
-Definition of done:
+## Exact P1 Gate
 
-- A new visitor sees CI, licenses, citation metadata, safety policy,
-  contribution guidance, and release history without reading private notes.
-- Every public-support path tells the user where to report code bugs, scoring
-  issues, safety concerns, and commercial licensing questions.
+Use seed 0 and the registered `current_balanced` matrix on:
 
-## Phase 2: Machine-Readable Benchmark Package
+- `golden_gate_01`
+- `gibson_01`
+- `miniprep_01`
+- `express_01`
+- `purify_01`
 
-Goal: export one stable data package that mirrors the public benchmark surface.
+Run one task at a time through the existing immutable-checkout and strict-cell
+validation path. Preserve diagnostic and cancelled bundles, but exclude them
+from promoted aggregates. Human-baseline and multi-seed work remain
+intentionally skipped during this gate.
 
-Deliverables:
+## Promotion Rules
 
-- `schemas/*.schema.json` files for release manifests, task records, rubric
-  records, citation records, and result rows.
-- `scripts/export_hf_dataset.py`, producing:
-  - `tasks.jsonl`
-  - `rubrics.jsonl`
-  - `ground_truth.jsonl`
-  - `citations.jsonl`
-  - `result_rows.jsonl`
-  - `eval_log_manifest.jsonl`
-  - `release_manifest.json`
-- SHA-256 checksums for every exported artifact.
-- A schema version and source commit in every exported record.
-- CI checks that the export command completes and writes valid JSON.
+A task may move from experimental to contract-validated only when all planned
+P1 cells satisfy the strict provenance and completion gates. A task may move to
+release-ready only after its scorer accepts scientifically valid alternative
+paths, rejects known wrong paths, and its public prompt contains no
+answer-bearing guidance.
 
-Definition of done:
+A result bundle may be called current and score-bearing only when:
 
-- Consumers can reproduce the benchmark inventory and reported result rows
-  without importing LabCraft internals.
-- A release bundle can be audited back to a commit SHA, result directory, task
-  matrix, model matrix, seed range, and scorer version.
+- native logs and aggregate records are public and independently
+  re-aggregatable;
+- the source commit, evaluation revision, model resolution, generation config,
+  Inspect version, task matrix, seed/repeat design, and scorer version are
+  recorded;
+- every included cell is clean, complete, and free of limit exhaustion;
+- historical, diagnostic, cancelled, and pre-remediation rows are excluded;
+- the public dataset, leaderboard, report, and release notes reference the same
+  immutable bundle.
 
-## Phase 3: Hugging Face Premium Surface
-
-Goal: make Hugging Face the easiest way to inspect and reuse the benchmark data.
-
-Recommended surfaces:
-
-- Dataset repo: `LabCraft-Eval`
-  - Dataset card with YAML metadata, tags, licenses, task categories, safety
-    scope, intended use, out-of-scope use, data fields, and citation.
-  - Viewer-friendly JSONL files for tasks, rubrics, citations, and result rows.
-  - Release tags matching GitHub releases.
-- Space: `LabCraft-Eval Leaderboard`
-  - Track selector: frozen snapshot, current wet-lab, discovery, safety case.
-  - Model x task scorecard.
-  - Axis heatmap.
-  - Seed variance view.
-  - Links to exact release manifests and GitHub commit SHAs.
-- Collection:
-  - Dataset.
-  - Leaderboard Space.
-  - GitHub repository.
-  - Paper or technical report, once available.
-
-Definition of done:
-
-- The HF dataset card explains how to use the data responsibly and points back
-  to GitHub for code and reproducibility.
-- The HF Space never reports a number without a manifest-backed source.
-
-## Phase 4: v0.2 Scientific Credibility
-
-Goal: promote a larger result bundle without weakening the frozen v0.1 snapshot.
-
-Deliverables:
-
-- Complete the HPC v0.2 N=10 candidate with append-only logs and manifests.
-- Add a small expert baseline pilot on `transform_01`, `growth_01`, and one
-  discovery task.
-- Run a prompt-sensitivity sweep for the `growth_01` troubleshooting gap.
-- Add a reasoning-focused companion to `transform_01` so the benchmark is not
-  overread as only an output-format reliability test.
-- Freeze and document scorer versions.
-
-Definition of done:
-
-- Public numbers cite commit SHA, run ID, task matrix, model matrix, seed range,
-  aggregation command, and scorer version.
-- The main claim remains narrow: compact, reproducible, benign wet-lab protocol
-  and discovery-decision reliability with deterministic multi-axis scoring.
-
-## Phase 5: Paper and Portfolio Grade
-
-Goal: turn the repository into a polished research artifact.
-
-Deliverables:
-
-- Short technical report or preprint.
-- One end-to-end trajectory walkthrough.
-- Architecture diagram.
-- Reproducibility capsule with exact environment, command, expected output, and
-  checksum.
-- GitHub release with attached machine-readable bundle.
-- Matching Hugging Face dataset tag and optional DOI-bearing archive.
-
-Definition of done:
-
-- Reviewers can evaluate the idea, inspect the implementation, reproduce a
-  smoke run, and download the canonical data bundle without asking for private
-  context.
+Passing a one-seed sentinel does not establish a model ranking. A comparative
+or publication-grade claim additionally requires a predeclared repeat design
+and an appropriate external reference such as expert validation or a human
+baseline.
 
 ## Ownership Rules
 
 - Do not overwrite historical `.eval` logs or published result files.
-- Do not merge safety-case scores into wet-lab simulator leaderboards.
+- Do not merge Safety Case scores into wet-lab simulator leaderboards.
 - Do not claim real wet-lab capability measurement; the simulator is
   citation-backed but not physically grounded.
 - Do not broaden biological scope without updating `SAFETY.md`, tests, task
   metadata, and public release notes.
-- Treat schema changes as release-relevant changes.
-
-## Immediate Backlog
-
-1. Add the public trust files: CI, issue templates, PR template,
-   `CONTRIBUTING.md`, `SECURITY.md`, and `CHANGELOG.md`.
-2. Add the first HF export skeleton and validate that it writes JSONL and a
-   manifest from the current checked-in task/result files.
-3. Add schema files for export records and keep them intentionally small until
-   downstream consumers need additional fields.
-4. Add `docs/hf_release.md` with the expected HF dataset layout and card
-   sections.
-5. After the skeleton lands, decide whether the first public HF bundle should be
-   v0.1 frozen snapshot only or v0.1 plus clearly separated v0.2 candidate
-   tracks.
+- Treat schema, scorer, task-contract, and promotion-state changes as
+  release-relevant changes.
+- Keep the v0.1.2 metadata-only release distinct from future score-bearing
+  releases.

@@ -137,8 +137,8 @@ python3 examples/hf_quickstart.py
 python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
 ```
 
-For notebook or analysis workflows that already use `huggingface_hub`, load the
-full snapshot and then parse the JSONL files:
+For notebook or analysis workflows that already use `huggingface_hub`, pin the
+release, inspect the manifest first, and treat result rows as optional:
 
 ```python
 import json
@@ -146,9 +146,21 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 
-snapshot_dir = Path(snapshot_download("jang1563/LabCraft-Eval", repo_type="dataset"))
+snapshot_dir = Path(
+    snapshot_download(
+        "jang1563/LabCraft-Eval",
+        repo_type="dataset",
+        revision="v0.1.2",
+    )
+)
+manifest = json.loads((snapshot_dir / "release_manifest.json").read_text())
+manifest_paths = {entry["path"] for entry in manifest["files"]}
 tasks = [json.loads(line) for line in (snapshot_dir / "tasks.jsonl").open()]
-results = [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]
+results = (
+    [json.loads(line) for line in (snapshot_dir / "result_rows.jsonl").open()]
+    if "result_rows.jsonl" in manifest_paths
+    else []
+)
 ```
 
 `result_rows.jsonl` is absent from metadata-only exports. Consumers should
@@ -247,8 +259,12 @@ working commit.
 ## Leaderboard Space
 
 The optional HF Space should read only the exported files, not arbitrary GitHub
-Markdown pages. Minimum views:
+Markdown pages. The checked-in scaffold defaults to the current v0.1.2
+metadata-only contract and exposes v0.1.1 in a separately labelled historical,
+provisional score-bearing view. Each allowlisted release label is fixed to an
+immutable dataset commit and expected source manifest. Minimum views:
 
+- Release and evidence-tier selector.
 - Model x task scorecard.
 - Per-axis heatmap.
 - Seed variance table.
@@ -257,6 +273,9 @@ Markdown pages. Minimum views:
 
 Each displayed number should link to the matching release manifest and result
 row source.
+
+The live Space may lag this checked-in behavior until the scaffold is explicitly
+uploaded and verified.
 
 Current Space:
 

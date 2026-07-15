@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [
-    { name = "The LabCraft-Eval Authors" },
+    { name = "Jihoon Kim" },
 ]
 keywords = [
     "agent-evaluation",

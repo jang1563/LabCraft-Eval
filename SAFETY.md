@@ -1,8 +1,33 @@
 # LabCraft Safety Scope
 
-LabCraft is a public evaluation environment for benign biology tasks across several BSL-1/2 domains. Its purpose is to measure agent performance on routine wet-lab reasoning while avoiding any content that could increase real-world capability for harmful biology.
+LabCraft-Eval is a public evaluation environment for benign biology tasks across
+several BSL-1/2 domains. Its flagship purpose is to measure whether agents can
+execute, diagnose, and recover routine wet-lab workflows while keeping every
+trajectory auditable. The repository also contains companion decision tasks and
+an experimental, text-only safeguard-quality track. Those tracks have distinct
+contracts and are never merged into one leaderboard.
 
-## Included Scope
+## Track Boundaries
+
+- **Flagship wet-lab simulator:** executable, seeded molecular-microbiology and
+  biochemistry tasks with fixed tools and deterministic trajectory scoring.
+- **Companion Discovery Decision Track:** synthetic, non-simulator evidence
+  triage and next-experiment decisions with no lab-operation execution. It
+  complements the simulator but does not broaden its organism or
+  laboratory-operation scope.
+- **Experimental Safety Case Track:** single-turn, text-only evaluation of
+  legitimate helpfulness, boundary precision, provenance, monitoring, and
+  residual-risk framing. It has no lab-operation tools, does not run the seeded
+  simulator, and is not a harmful-biology capability benchmark.
+
+The Safety Case Track may use standard, non-viral mammalian cell-line,
+non-infectious primary-cell, or archived fixed-sample research scenarios as
+benign policy examples. Examples include routine transfection, knockdown,
+immunoassay, imaging, sequencing-library, and literature-support questions.
+They do not become executable LabCraft simulator tasks, and their scores remain
+outside the simulator and Discovery leaderboards.
+
+## Simulator and Discovery Included Scope
 
 - **BSL-1 and BSL-2 benign molecular microbiology**
   - Standard laboratory *E. coli* strains (DH5alpha, BL21, BL21(DE3), Stbl3)
@@ -21,17 +46,28 @@ LabCraft is a public evaluation environment for benign biology tasks across seve
   - Operations: thawing, passaging, counting (trypan blue), non-viral transfection (Lipofectamine or equivalent), **benign reporter assays only** (GFP, mCherry, luciferase, β-galactosidase, SEAP)
 - Text and structured-tool observations for simulated experiments
 
-## Excluded Scope
+## Simulator and Discovery Exclusions
 
-These exclusions are **non-negotiable** and override the Included Scope wherever they overlap.
+The following are outside the executable simulator and synthetic Discovery task
+surface. Their appearance as a benign, text-only Safety Case policy example does
+not authorize a simulator task or an executable tool contract.
+
+- Primary human or animal tissue; primary-cell isolation or culture; iPSCs,
+  ESCs, organoids, and 3D cultures
+- Flow-cytometric sorting of primary cells
+- Mammalian-cell operations beyond the benign, non-viral reporter workflows
+  listed above
+
+## Project-Wide Excluded Scope
+
+These exclusions are **non-negotiable** and override every track-specific
+included scope wherever they overlap.
 
 - **All viral work** — transduction, lentivirus / AAV / retrovirus production or titer, cytopathic-effect scoring, packaging lines, viral vectors as cargo in transfection
 - CDC select agents; any BSL-3 or BSL-4 organism
 - Gain-of-function work, pathogen enhancement, or dual-use optimisation language
 - Mammalian virology, viral titer assays, or cytopathic-effect scoring
-- Primary human or animal tissue; iPSCs, ESCs, organoids, 3D cultures
 - Gene drives and their construction
-- Flow cytometry involving cell sorting of primary cells
 - Sequences > 20 bp unless they are clearly limited to standard cloning-vector fragments
 - **Expression of toxins, virulence factors, cytokines, pore-forming proteins, receptor agonists/antagonists targeting human signalling, or any protein with therapeutic or offensive potential** — regardless of host (*E. coli*, yeast, or mammalian)
 - Any task content intended to increase real-world capability for harmful biological work
