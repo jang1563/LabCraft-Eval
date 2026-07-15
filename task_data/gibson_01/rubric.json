@@ -3,7 +3,7 @@
   "task_title": "Isothermal Gibson overlap assembly of a two-fragment construct",
   "source": "LabCraft Gibson-01",
   "num_errors_introduced": 0,
-  "total_leaf_nodes": 8,
+  "total_leaf_nodes": 7,
   "rubric": {
     "name": "Task Evaluation",
     "weight": 1.0,
@@ -15,12 +15,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Reports master mix, temperature, duration, overlap, transformants, and interpretation",
+            "name": "Reports the complete result from one causally valid Gibson path",
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "Final answer contains every required field, assembly completed successfully, transformants reported match the simulator.",
-            "grading_notes": "Measured by score_gibson_task_success."
+            "requirement": "Final answer reports assembly method, master mix, temperature, duration, fragment count, overlap, counted transformants, and a success interpretation matching one assembled -> transformed -> 100 ug/mL ampicillin plated -> counted simulator path.",
+            "grading_notes": "Measured by score_gibson_task_success; reported values must bind to the same successful simulator path and a countable colony result."
           }
         ]
       },
@@ -30,44 +30,36 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Incubates at 50 C",
-            "weight": 0.2,
+            "name": "Uses a supported Gibson-compatible master mix",
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Temperature in 48 - 52 C.",
+            "requirement": "The simulator canonicalizes every assembly call to Gibson Assembly Master Mix, NEBuilder HiFi DNA Assembly Master Mix, or the exact ISO-buffer enzyme formulation.",
+            "grading_notes": "Measured from gibson_assembly.master_mix_canonical; generic or substring-only HiFi labels do not qualify."
+          },
+          {
+            "name": "Incubates at 50 C",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "Every assembly call uses exactly 50 C.",
             "grading_notes": "Measured from gibson_assembly.temperature_c."
           },
           {
-            "name": "Incubates at least 15 min",
-            "weight": 0.2,
+            "name": "Incubates for 15-60 minutes",
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Duration at least 15 min.",
+            "requirement": "Every assembly call uses a duration from 15 through 60 minutes, inclusive.",
             "grading_notes": "Measured from gibson_assembly.duration_minutes."
           },
           {
-            "name": "Overlap at least 20 bp",
-            "weight": 0.2,
-            "is_leaf": true,
-            "category": "decision_quality",
-            "requirement": "overlap_length_bp at least 20.",
-            "grading_notes": "Measured from gibson_assembly.overlap_length_bp."
-          },
-          {
-            "name": "Uses two fragments",
-            "weight": 0.2,
-            "is_leaf": true,
-            "category": "decision_quality",
-            "requirement": "fragment_count equals 2.",
-            "grading_notes": "Measured from gibson_assembly.fragment_count."
-          },
-          {
             "name": "Uses 100 ug/mL ampicillin",
-            "weight": 0.2,
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Selection plates use 100 ug/mL ampicillin.",
-            "grading_notes": "Measured from prepare_media arguments."
+            "requirement": "Every prepared ampicillin selection plate uses exactly 100 ug/mL.",
+            "grading_notes": "Measured from all matching prepare_media outputs."
           }
         ]
       },
@@ -77,12 +69,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Diagnoses wrong master mix when triggered",
+            "name": "Corrects or diagnoses each triggered Gibson-contract failure",
             "weight": 1.0,
             "is_leaf": true,
             "category": "troubleshooting",
-            "requirement": "If assembly reports wrong_master_mix, final answer explains the Gibson enzyme-trio requirement.",
-            "grading_notes": "Defaults to 1.0 if no failure triggered."
+            "requirement": "For wrong_fragment_count, wrong_master_mix, wrong_temperature, wrong_duration, or wrong_overlap_length, the trajectory later completes a valid assembly or the final answer gives the mapped actionable diagnosis.",
+            "grading_notes": "Defaults to full credit when no assembly failure is triggered; otherwise each failure event must be recovered or diagnosed."
           }
         ]
       },
@@ -96,8 +88,8 @@
             "weight": 1.0,
             "is_leaf": true,
             "category": "efficiency",
-            "requirement": "Stays within the reference tool-call budget.",
-            "grading_notes": "Full credit at or under optimal_tool_calls."
+            "requirement": "Stays within the reference tool-call budget while making scorable progress.",
+            "grading_notes": "Full credit at or under 8 tool calls."
           }
         ]
       }

@@ -7,6 +7,15 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
+from .gibson_contract import (
+    GIBSON_FRAGMENT_IDS,
+    GIBSON_MAX_DURATION_MINUTES,
+    GIBSON_MIN_DURATION_MINUTES,
+    GIBSON_OVERLAP_LENGTH_BP,
+    GIBSON_TEMPERATURE_C,
+    canonicalize_gibson_master_mix,
+    normalize_gibson_master_mix,
+)
 from .state import (
     AssemblyReaction,
     DigestReaction,
@@ -1768,7 +1777,7 @@ def _ensure_gibson_substrates(state: LabState) -> None:
         return
     bundle = _gibson_bundle()
     insert_length = bundle.integer("insert_length_bp")
-    overlap = bundle.integer("minimum_overlap_length_bp")
+    overlap = bundle.integer("task_overlap_length_bp")
     backbone = DnaFragment(
         fragment_id="gibson_backbone_linear",
         name="Linearised Gibson destination vector (20 bp homology overhangs)",
@@ -1831,11 +1840,11 @@ def gibson_assembly(
     """Simulate a Gibson isothermal overlap assembly."""
     _ensure_gibson_substrates(state)
     bundle = _gibson_bundle()
-    accepted_mixes = {_normalize_choice(m) for m in bundle.choices("accepted_master_mixes")}
-    optimal_temp = bundle.value("optimal_temperature_c")
-    min_duration = bundle.integer("minimum_duration_minutes_two_fragments")
-    min_overlap = bundle.integer("minimum_overlap_length_bp")
     base_efficiency = bundle.value("base_assembly_efficiency")
+
+    temperature = _require_positive_float(temperature_c, "temperature_c")
+    duration = _require_positive_integer(duration_minutes, "duration_minutes")
+    overlap = _require_positive_integer(overlap_length_bp, "overlap_length_bp")
 
     for fragment_id in fragment_ids:
         if fragment_id not in state.dna_fragments:
@@ -1846,48 +1855,48 @@ def gibson_assembly(
             )
 
     notes: List[str] = []
-    status = "assembled"
-    expected_fragment_ids = {"gibson_backbone_linear", "gibson_insert_pcr"}
-    if len(fragment_ids) != len(expected_fragment_ids) or set(fragment_ids) != expected_fragment_ids:
-        status = "wrong_fragment_count"
+    failure_markers: List[str] = []
+    if len(fragment_ids) != len(GIBSON_FRAGMENT_IDS) or set(fragment_ids) != GIBSON_FRAGMENT_IDS:
+        failure_markers.append("wrong_fragment_count")
         notes.append("Gibson-01 requires the linear backbone and PCR insert exactly once.")
 
-    normalized_mix = _normalize_choice(master_mix_name)
-    mix_ok = any(normalized_mix == a or a in normalized_mix or normalized_mix in a for a in accepted_mixes)
-    if not mix_ok:
-        status = "wrong_master_mix"
+    canonical_mix = canonicalize_gibson_master_mix(master_mix_name)
+    if canonical_mix is None:
+        failure_markers.append("wrong_master_mix")
         notes.append(
-            "Master mix '{}' is not a recognised Gibson master mix (T5 exonuclease + Phusion polymerase + Taq ligase).".format(
+            "Master mix '{}' is not a supported Gibson-compatible isothermal assembly mix.".format(
                 master_mix_name
             )
         )
 
-    efficiency_multiplier = 1.0
-    if abs(float(temperature_c) - optimal_temp) > 2.0:
-        notes.append("Incubation temperature deviated from the 50 C Gibson optimum.")
-        efficiency_multiplier *= 0.4
-    if int(duration_minutes) < min_duration:
+    if temperature != GIBSON_TEMPERATURE_C:
+        failure_markers.append("wrong_temperature")
+        notes.append("Gibson-01 requires the cited 50 C isothermal incubation.")
+    if not GIBSON_MIN_DURATION_MINUTES <= duration <= GIBSON_MAX_DURATION_MINUTES:
+        failure_markers.append("wrong_duration")
         notes.append(
-            "Incubation duration {:d} min is below the recommended minimum {:d} min.".format(
-                int(duration_minutes), min_duration
+            "Gibson-01 requires a {:d}-{:d} minute incubation for this two-fragment reaction.".format(
+                GIBSON_MIN_DURATION_MINUTES,
+                GIBSON_MAX_DURATION_MINUTES,
             )
         )
-        efficiency_multiplier *= 0.5
-    if int(overlap_length_bp) < min_overlap:
+    if overlap != GIBSON_OVERLAP_LENGTH_BP:
+        failure_markers.append("wrong_overlap_length")
         notes.append(
-            "Overlap length {:d} bp is below the recommended minimum {:d} bp.".format(
-                int(overlap_length_bp), min_overlap
+            "Submitted overlap length {:d} bp does not match the supplied {:d} bp homology overlaps.".format(
+                overlap,
+                GIBSON_OVERLAP_LENGTH_BP,
             )
         )
-        efficiency_multiplier *= 0.3
 
+    status = failure_markers[0] if failure_markers else "assembled"
     if status == "assembled":
-        effective_efficiency = base_efficiency * efficiency_multiplier
+        effective_efficiency = base_efficiency
     else:
         effective_efficiency = base_efficiency * 0.08
 
     effective_efficiency = max(0.0, min(1.0, float(effective_efficiency)))
-    expected_transformant_yield = 500.0 * efficiency_multiplier if status == "assembled" else 40.0
+    expected_transformant_yield = 500.0 if status == "assembled" else 40.0
 
     gibson_id = state.next_gibson_id()
     output_fragment_id = None
@@ -1911,9 +1920,9 @@ def gibson_assembly(
         gibson_id=gibson_id,
         fragment_ids=list(fragment_ids),
         master_mix_name=master_mix_name,
-        temperature_c=float(temperature_c),
-        duration_minutes=int(duration_minutes),
-        overlap_length_bp=int(overlap_length_bp),
+        temperature_c=temperature,
+        duration_minutes=duration,
+        overlap_length_bp=overlap,
         status=status,
         effective_assembly_efficiency=float(effective_efficiency),
         expected_transformant_yield=float(expected_transformant_yield),
@@ -1927,13 +1936,15 @@ def gibson_assembly(
         "fragment_ids": list(fragment_ids),
         "fragment_count": len(fragment_ids),
         "master_mix_name": master_mix_name,
-        "master_mix_normalized": normalized_mix,
-        "temperature_c": float(temperature_c),
-        "duration_minutes": int(duration_minutes),
-        "overlap_length_bp": int(overlap_length_bp),
+        "master_mix_normalized": normalize_gibson_master_mix(master_mix_name),
+        "master_mix_canonical": canonical_mix,
+        "temperature_c": temperature,
+        "duration_minutes": duration,
+        "overlap_length_bp": overlap,
         "output_fragment_id": output_fragment_id,
         "effective_assembly_efficiency": float(effective_efficiency),
         "expected_transformant_yield": float(expected_transformant_yield),
+        "failure_reasons": failure_markers,
         "notes": list(notes),
     }
     state.log_event("gibson_assembly", payload)
@@ -1969,43 +1980,59 @@ def transform_gibson(
     """Transform a Gibson-assembled construct into competent E. coli."""
     resolved_id = _resolve_gibson_id(state, gibson_id)
     gibson = state.gibson_reactions[resolved_id]
+    heat_shock = _require_positive_integer(heat_shock_seconds, "heat_shock_seconds")
+    recovery = _require_nonnegative_integer(recovery_minutes, "recovery_minutes")
+    ice_incubation = _require_nonnegative_integer(
+        ice_incubation_minutes,
+        "ice_incubation_minutes",
+    )
+    outgrowth = str(outgrowth_media).strip()
+    if not outgrowth:
+        raise ValueError("outgrowth_media must be non-empty.")
 
     expected_yield = float(gibson.expected_transformant_yield)
-    if int(heat_shock_seconds) != int(
+    if heat_shock != int(
         state.parameters.get("heat_shock_duration_seconds")["parameters"]["optimal"]
     ):
         expected_yield *= 0.5
-    if outgrowth_media.upper() != "SOC":
+    if outgrowth.upper() not in {"SOC", "LB"}:
+        expected_yield = 0.0
+    elif outgrowth.upper() != "SOC":
         expected_yield *= 0.5
     if not shaking:
         expected_yield *= 0.7
 
+    status = "transformed" if outgrowth.upper() in {"SOC", "LB"} else "invalid_outgrowth_media"
+
     culture_id = state.next_culture_id()
     notes = list(gibson.notes)
+    if status != "transformed":
+        notes.append("Outgrowth medium must be SOC or LB for the Gibson-01 transformation.")
     culture = TransformationCulture(
         culture_id=culture_id,
         plasmid_mass_pg=float(expected_yield * 1000.0),
         base_efficiency_cfu_per_ug=state.base_efficiency_cfu_per_ug,
         adjusted_efficiency_cfu_per_ug=state.base_efficiency_cfu_per_ug,
-        recovery_minutes=int(recovery_minutes),
-        outgrowth_media=outgrowth_media,
+        recovery_minutes=recovery,
+        outgrowth_media=outgrowth,
         shaking=bool(shaking),
-        heat_shock_seconds=int(heat_shock_seconds),
-        ice_incubation_minutes=int(ice_incubation_minutes),
+        heat_shock_seconds=heat_shock,
+        ice_incubation_minutes=ice_incubation,
         expected_total_transformants=expected_yield,
         notes=notes,
     )
     state.cultures[culture_id] = culture
     payload = {
-        "status": "transformed",
+        "status": status,
         "culture_id": culture_id,
         "gibson_id": resolved_id,
         "gibson_status": gibson.status,
+        "output_fragment_id": gibson.output_fragment_id,
         "effective_assembly_efficiency": float(gibson.effective_assembly_efficiency),
         "expected_transformants": float(expected_yield),
-        "heat_shock_seconds": int(heat_shock_seconds),
-        "recovery_minutes": int(recovery_minutes),
-        "outgrowth_media": outgrowth_media,
+        "heat_shock_seconds": heat_shock,
+        "recovery_minutes": recovery,
+        "outgrowth_media": outgrowth,
         "notes": notes,
     }
     state.log_event("transform_gibson", payload)

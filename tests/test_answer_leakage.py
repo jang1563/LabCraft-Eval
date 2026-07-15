@@ -18,7 +18,11 @@ from src.solvers import (
 from src.tasks.clone_01 import build_clone_01_prompt, build_clone_01_sample
 from src.tasks.express_01 import build_express_01_prompt, build_express_01_sample
 from src.tasks.followup_01 import build_followup_01_prompt
-from src.tasks.gibson_01 import build_gibson_01_prompt, build_gibson_01_sample
+from src.tasks.gibson_01 import (
+    GIBSON_01_GROUND_TRUTH,
+    build_gibson_01_prompt,
+    build_gibson_01_sample,
+)
 from src.tasks.golden_gate_01 import (
     GOLDEN_GATE_01_GROUND_TRUTH,
     build_golden_gate_01_prompt,
@@ -111,6 +115,18 @@ def test_golden_gate_given_fragment_count_is_not_scored_as_a_decision():
     assert "four-fragment" in build_golden_gate_01_prompt().casefold()
     assert "uses_all_four_fragments" not in decision_ids
     assert "Interpretation: <success|failure>" in build_golden_gate_01_prompt()
+
+
+def test_gibson_given_substrate_fields_are_not_scored_as_decisions():
+    payload = json.loads(GIBSON_01_GROUND_TRUTH.read_text())
+    decision_ids = {point["id"] for point in payload["decision_points"]}
+
+    prompt = build_gibson_01_prompt()
+    assert "two-fragment" in prompt.casefold()
+    assert "homology overhang" in prompt.casefold()
+    assert "gibson_uses_two_fragments" not in decision_ids
+    assert "gibson_overlap_at_least_20" not in decision_ids
+    assert "Interpretation: <success|failure>" in prompt
 
 
 def test_given_ni_nta_method_is_not_scored_as_a_decision():

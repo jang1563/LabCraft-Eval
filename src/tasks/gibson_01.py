@@ -36,7 +36,7 @@ Duration: <int> min
 Fragment count: <int>
 Overlap length: <int> bp
 Transformants observed: <int>
-Interpretation: <sentence mentioning 'assembly' or 'assembled'>
+Interpretation: <success|failure>
 
 Constraints:
 - Use only the available lab tools and reference tools.

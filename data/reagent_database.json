@@ -1296,9 +1296,83 @@
     ]
   },
   {
+    "name": "Gibson Assembly Master Mix",
+    "aliases": [
+      "Gibson Assembly Master Mix (2X)"
+    ],
+    "type": "assembly master mix",
+    "category": "isothermal DNA assembly",
+    "working_concentration": "1X final from the supplied 2X master mix",
+    "stock_concentration": "2X master mix",
+    "storage_temperature_c": "-20",
+    "storage_conditions": "Store at -20 C and follow the current product-specific handling instructions.",
+    "working_temperature_c": 50,
+    "two_to_three_fragment_incubation_minutes": {
+      "standard": 15,
+      "documented_extension": 60
+    },
+    "task_supported_component_formulation": "ISO buffer + T5 exonuclease + Phusion polymerase + Taq DNA ligase",
+    "task_supported_component_formulation_aliases": [
+      "ISO buffer + T5 exo + Phusion + Taq ligase",
+      "ISO buffer + T5 exo + Phusion DNA polymerase + Taq ligase",
+      "ISO buffer + T5 exonuclease + Phusion DNA polymerase + Taq DNA ligase"
+    ],
+    "preparation_notes": "For 2-3 fragments, incubate at 50 C for 15 minutes; the E5510 protocol documents extension to 60 minutes. Gibson-01 fixes the observed substrate overlap at 20 bp. The commercial product name and the original published component formulation are supported as distinct canonical paths.",
+    "shelf_life": "Use the current product expiration date and storage instructions.",
+    "incompatible_with": [
+      "generic or substring-only master-mix names that do not identify a supported Gibson-compatible formulation"
+    ],
+    "safety_notes": "Standard molecular-biology reagent; follow the vendor safety data and institutional laboratory procedures.",
+    "common_uses": [
+      "scarless isothermal assembly of overlapping DNA fragments",
+      "two- and three-fragment cloning"
+    ],
+    "source_title": "Gibson Assembly Protocol (E5510)",
+    "source_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
+    "original_method_source_doi": "10.1038/nmeth.1318"
+  },
+  {
+    "name": "NEBuilder HiFi DNA Assembly Master Mix",
+    "aliases": [
+      "NEBuilder HiFi",
+      "NEBuilder HiFi DNA Assembly",
+      "NEBuilder HiFi DNA Assembly Master Mix (2X)",
+      "NEBuilder HiFi Assembly Master Mix"
+    ],
+    "type": "assembly master mix",
+    "category": "isothermal DNA assembly",
+    "working_concentration": "1X final from the supplied 2X master mix",
+    "stock_concentration": "2X master mix",
+    "storage_temperature_c": "-20",
+    "storage_conditions": "Store at -20 C and follow the current product-specific handling instructions.",
+    "working_temperature_c": 50,
+    "two_to_three_fragment_incubation_minutes": 15,
+    "recommended_overlap_length_bp_two_to_three_fragments": "15-20",
+    "product_codes": [
+      "E2621",
+      "E5520",
+      "E2623"
+    ],
+    "preparation_notes": "For 2-3 fragments, use the official 50 C, 15-minute workflow. The E2621/E5520 manual describes 15-20 bp overlaps for 2-3 fragments. This is a distinct product family from Gibson Assembly E5510; its commercial enzyme identities should not be inferred from the original Gibson formulation.",
+    "shelf_life": "Use the current product expiration date and storage instructions.",
+    "incompatible_with": [
+      "generic labels such as HiFi or HiFi Assembly that do not uniquely identify the product"
+    ],
+    "safety_notes": "Standard molecular-biology reagent; follow the vendor safety data and institutional laboratory procedures.",
+    "common_uses": [
+      "scarless isothermal assembly of overlapping DNA fragments",
+      "two- and three-fragment cloning"
+    ],
+    "source_title": "NEBuilder HiFi DNA Assembly Reaction Protocol",
+    "source_url": "https://www.neb.com/en-us/protocols/nebuilder-hifi-dna-assembly-reaction-protocol",
+    "manual_url": "https://www.neb.com/en/-/media/nebus/files/manuals/manuale2621_e5520.pdf"
+  },
+  {
     "name": "Ampicillin",
     "type": "supplement",
     "category": "antibiotic selection",
+    "source_title": "NEB 5-alpha Competent E. coli (High Efficiency) (C2987)",
+    "source_url": "https://www.neb.com/en-us/products/c2987-neb-5-alpha-competent-e-coli-high-efficiency",
     "working_concentration": "100 \u00b5g/mL",
     "stock_concentration": "100 mg/mL in water (1000x)",
     "storage_temperature_c": "-20",

@@ -8,12 +8,22 @@ from pathlib import Path
 
 import pytest
 
+from src.environment.operations import (
+    count_colonies,
+    gibson_assembly,
+    list_gibson_substrates,
+    plate,
+    prepare_media,
+    transform_gibson,
+)
+from src.environment.state import create_lab_state
 from src.trajectory_scorer import (
     score_clone_task_success,
     score_clone_trajectory,
     score_express_trajectory,
     score_followup_task_success,
     score_followup_trajectory,
+    score_gibson_task_success,
     score_gibson_trajectory,
     score_golden_gate_task_success,
     score_golden_gate_trajectory,
@@ -1868,19 +1878,57 @@ def _good_gibson_transcript():
         "type": "tool_call",
         "tool_name": "gibson_assembly",
         "arguments": {
-            "gibson_id": "gibson_001",
             "fragment_ids": ["gibson_backbone_linear", "gibson_insert_pcr"],
-            "fragment_count": 2,
             "master_mix_name": "Gibson Assembly Master Mix",
-            "master_mix_normalized": "gibson assembly master mix",
             "temperature_c": 50.0,
             "duration_minutes": 15,
             "overlap_length_bp": 20,
-            "output_fragment_id": "fragment_020",
-            "status": "assembled",
-            "effective_assembly_efficiency": 0.80,
-            "expected_transformant_yield": 500.0,
         },
+        "content": json.dumps(
+            {
+                "gibson_id": "gibson_001",
+                "fragment_ids": ["gibson_backbone_linear", "gibson_insert_pcr"],
+                "fragment_count": 2,
+                "master_mix_name": "Gibson Assembly Master Mix",
+                "master_mix_normalized": "gibson assembly master mix",
+                "master_mix_canonical": "Gibson Assembly Master Mix",
+                "temperature_c": 50.0,
+                "duration_minutes": 15,
+                "overlap_length_bp": 20,
+                "output_fragment_id": "fragment_020",
+                "status": "assembled",
+                "effective_assembly_efficiency": 0.80,
+                "expected_transformant_yield": 500.0,
+            }
+        ),
+    }
+    transform_call = {
+        "type": "tool_call",
+        "tool_name": "transform_gibson",
+        "arguments": {
+            "gibson_id": "gibson_001",
+            "heat_shock_seconds": 30,
+            "recovery_minutes": 60,
+            "outgrowth_media": "SOC",
+            "shaking": True,
+            "ice_incubation_minutes": 30,
+        },
+        "content": json.dumps(
+            {
+                "gibson_id": "gibson_001",
+                "culture_id": "culture_001",
+                "gibson_status": "assembled",
+                "output_fragment_id": "fragment_020",
+                "status": "transformed",
+                "effective_assembly_efficiency": 0.80,
+                "expected_transformant_yield": 500.0,
+                "heat_shock_seconds": 30,
+                "recovery_minutes": 60,
+                "outgrowth_media": "SOC",
+                "shaking": True,
+                "ice_incubation_minutes": 30,
+            }
+        ),
     }
     prepare = {
         "type": "tool_call",
@@ -1891,15 +1939,24 @@ def _good_gibson_transcript():
             "antibiotic_concentration_ug_ml": 100,
             "plate_count": 1,
         },
-    }
-    transform_call = {
-        "type": "tool_call",
-        "tool_name": "transform_gibson",
-        "arguments": {
-            "gibson_id": "gibson_001",
-            "culture_id": "culture_001",
-            "status": "transformed",
-        },
+        "content": json.dumps(
+            {
+                "status": "prepared",
+                "media_id": "media_001",
+                "medium": "LB agar",
+                "antibiotic": "ampicillin",
+                "antibiotic_concentration_ug_ml": 100,
+                "plate_count": 1,
+                "plates": [
+                    {
+                        "plate_id": "plate_001",
+                        "medium": "LB agar",
+                        "antibiotic": "ampicillin",
+                        "antibiotic_concentration_ug_ml": 100,
+                    }
+                ],
+            }
+        ),
     }
     plate_call = {
         "type": "tool_call",
@@ -1910,20 +1967,49 @@ def _good_gibson_transcript():
             "dilution_factor": 1.0,
             "volume_ul": 100,
         },
+        "content": json.dumps(
+            {
+                "plating_id": "plating_001",
+                "culture_id": "culture_001",
+                "plate_id": "plate_001",
+                "dilution_factor": 1.0,
+                "volume_ul": 100,
+                "status": "plated",
+                "countable_range_colonies": {"min": 25, "max": 250},
+                "warnings": [],
+            }
+        ),
     }
     count = {
         "type": "tool_call",
         "tool_name": "count_colonies",
-        "arguments": {
-            "plating_id": "plating_001",
-            "observed_colonies": 250,
-            "status": "plated",
-        },
+        "arguments": {"plating_id": "plating_001"},
+        "content": json.dumps(
+            {
+                "plating_id": "plating_001",
+                "observed_colonies": 120,
+                "status": "plated",
+                "dilution_factor": 1.0,
+                "volume_ul": 100,
+                "countable_range_colonies": {"min": 25, "max": 250},
+                "warnings": [],
+            }
+        ),
     }
-    return [gibson_call, prepare, transform_call, plate_call, count]
+    return [gibson_call, transform_call, prepare, plate_call, count]
 
 
-def _good_gibson_answer() -> str:
+def _gibson_observation(call):
+    return json.loads(call["content"])
+
+
+def _update_gibson_observation(call, **updates):
+    observation = _gibson_observation(call)
+    observation.update(updates)
+    call["content"] = json.dumps(observation)
+
+
+def _good_gibson_answer(*, transformants=120) -> str:
     return (
         "Assembly method: Gibson\n"
         "Master mix: Gibson Assembly Master Mix\n"
@@ -1931,9 +2017,14 @@ def _good_gibson_answer() -> str:
         "Duration: 15 min\n"
         "Fragment count: 2\n"
         "Overlap length: 20 bp\n"
-        "Transformants observed: 250\n"
-        "Interpretation: Gibson assembly completed successfully."
+        f"Transformants observed: {transformants}\n"
+        "Interpretation: success"
     )
+
+
+def _score_gibson_task(transcript, final_answer=None):
+    calls = transcript
+    return score_gibson_task_success(final_answer or _good_gibson_answer(), calls)
 
 
 def test_good_gibson_trajectory_scores_high():
@@ -1947,10 +2038,73 @@ def test_good_gibson_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
+def test_gibson_real_simulator_payload_completes_the_scorer_contract():
+    state = create_lab_state(sample_id="gibson-scorer-integration", seed=1)
+    substrates = list_gibson_substrates(state=state)
+    assembly_arguments = {
+        "fragment_ids": ["gibson_backbone_linear", "gibson_insert_pcr"],
+        "master_mix_name": "Gibson Assembly Master Mix",
+        "temperature_c": 50.0,
+        "duration_minutes": 15,
+        "overlap_length_bp": 20,
+    }
+    assembly = gibson_assembly(state=state, **assembly_arguments)
+    transform_arguments = {
+        "gibson_id": assembly["gibson_id"],
+        "heat_shock_seconds": 30,
+        "recovery_minutes": 60,
+        "outgrowth_media": "SOC",
+        "shaking": True,
+        "ice_incubation_minutes": 30,
+    }
+    transformed = transform_gibson(state=state, **transform_arguments)
+    prepare_arguments = {
+        "medium": "LB agar",
+        "antibiotic": "ampicillin",
+        "antibiotic_concentration_ug_ml": 100,
+        "plate_count": 1,
+    }
+    prepared = prepare_media(state=state, **prepare_arguments)
+    plate_arguments = {
+        "culture_id": transformed["culture_id"],
+        "plate_id": prepared["plates"][0]["plate_id"],
+        "dilution_factor": 1.0,
+        "volume_ul": 100.0,
+    }
+    plated = plate(state=state, **plate_arguments)
+    count_arguments = {"plating_id": plated["plating_id"]}
+    counted = count_colonies(state=state, **count_arguments)
+
+    transcript = [
+        {
+            "type": "tool_call",
+            "tool_name": name,
+            "arguments": arguments,
+            "content": json.dumps(observation),
+        }
+        for name, arguments, observation in (
+            ("list_gibson_substrates", {}, substrates),
+            ("gibson_assembly", assembly_arguments, assembly),
+            ("transform_gibson", transform_arguments, transformed),
+            ("prepare_media", prepare_arguments, prepared),
+            ("plate", plate_arguments, plated),
+            ("count_colonies", count_arguments, counted),
+        )
+    ]
+    answer = _good_gibson_answer(transformants=counted["observed_colonies"])
+
+    assert score_gibson_task_success(answer, transcript) == 1.0
+
+
 def test_gibson_wrong_master_mix_triggers_troubleshooting_requirement():
     transcript = _good_gibson_transcript()
-    transcript[0]["arguments"]["master_mix_normalized"] = "t4 dna ligase buffer"
-    transcript[0]["arguments"]["status"] = "wrong_master_mix"
+    _update_gibson_observation(
+        transcript[0],
+        master_mix_name="T4 DNA ligase buffer",
+        master_mix_normalized="t4 dna ligase buffer",
+        status="wrong_master_mix",
+        output_fragment_id=None,
+    )
     scores = score_gibson_trajectory(
         final_answer=_good_gibson_answer(),
         transcript=transcript,
@@ -1958,6 +2112,366 @@ def test_gibson_wrong_master_mix_triggers_troubleshooting_requirement():
     )
     assert scores["troubleshooting"] < 1.0
     assert scores["task_success"] == 0.0
+
+
+def test_gibson_troubleshooting_scores_every_triggered_failure_reason():
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(
+        transcript[0],
+        master_mix_name="water",
+        master_mix_canonical=None,
+        temperature_c=48.0,
+        duration_minutes=14,
+        overlap_length_bp=19,
+        status="wrong_master_mix",
+        output_fragment_id=None,
+        failure_reasons=[
+            "wrong_master_mix",
+            "wrong_temperature",
+            "wrong_duration",
+            "wrong_overlap_length",
+        ],
+    )
+    answer = (
+        f"{_good_gibson_answer()}\n"
+        "The master mix name is unsupported; use Gibson Assembly Master Mix, "
+        "NEBuilder HiFi DNA Assembly Master Mix, or the exact ISO buffer + T5 "
+        "exonuclease + Phusion polymerase + Taq DNA ligase formulation."
+    )
+    scores = score_gibson_trajectory(
+        final_answer=answer,
+        transcript=transcript,
+        ground_truth_path=str(GIBSON_GROUND_TRUTH_PATH),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["troubleshooting"] == pytest.approx(0.25)
+
+
+@pytest.mark.parametrize(
+    ("missing_index", "reported_transformants"),
+    (
+        (0, 120),
+        (1, 120),
+        (2, 120),
+        (3, 120),
+        (4, 0),
+    ),
+    ids=("assembly", "transform", "prepared-plate", "plating", "count"),
+)
+def test_gibson_rejects_incomplete_causal_paths(missing_index, reported_transformants):
+    transcript = _good_gibson_transcript()
+    transcript.pop(missing_index)
+    answer = _good_gibson_answer(transformants=reported_transformants)
+    assert _score_gibson_task(transcript, answer) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("call_index", "field", "unrelated_id"),
+    (
+        (1, "gibson_id", "gibson_unrelated"),
+        (1, "output_fragment_id", "fragment_unrelated"),
+        (3, "culture_id", "culture_unrelated"),
+        (3, "plate_id", "plate_unrelated"),
+        (4, "plating_id", "plating_unrelated"),
+    ),
+    ids=(
+        "transform-to-assembly",
+        "transform-to-output",
+        "plate-to-culture",
+        "plate-to-media",
+        "count-to-plating",
+    ),
+)
+def test_gibson_rejects_unlinked_causal_paths(call_index, field, unrelated_id):
+    transcript = _good_gibson_transcript()
+    transcript[call_index]["arguments"][field] = unrelated_id
+    _update_gibson_observation(transcript[call_index], **{field: unrelated_id})
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_rejects_reversed_causal_path():
+    transcript = list(reversed(_good_gibson_transcript()))
+    assert _score_gibson_task(transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("call_index", "status"),
+    (
+        (1, "error"),
+        (1, "selection_failed"),
+        (2, "error"),
+        (3, "selection_failed"),
+        (4, "selection_failed"),
+        (4, "count_out_of_range"),
+    ),
+    ids=(
+        "transform-error",
+        "transform-selection-failed",
+        "prepare-error",
+        "plate-selection-failed",
+        "count-selection-failed",
+        "count-out-of-range",
+    ),
+)
+def test_gibson_rejects_error_statuses_in_causal_path(call_index, status):
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[call_index], status=status)
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_rejects_transform_of_failed_assembly():
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[1], gibson_status="wrong_master_mix")
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_uses_result_id_over_transform_input_alias():
+    transcript = _good_gibson_transcript()
+    transcript[1]["arguments"]["gibson_id"] = "1"
+    assert _score_gibson_task(transcript) == 1.0
+
+
+def test_gibson_result_failure_overrides_forged_success_arguments():
+    transcript = _good_gibson_transcript()
+    transcript[0]["arguments"].update(
+        {
+            "status": "assembled",
+            "gibson_id": "gibson_001",
+            "output_fragment_id": "fragment_forged",
+        }
+    )
+    _update_gibson_observation(
+        transcript[0],
+        status="wrong_master_mix",
+        output_fragment_id=None,
+    )
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_prepare_result_error_overrides_valid_input_arguments():
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[2], status="error", plates=[])
+    assert _score_gibson_task(transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    "updates",
+    (
+        {"fragment_ids": ["gibson_backbone_linear", "gibson_backbone_linear"]},
+        {"fragment_count": 3},
+        {"master_mix_name": "water", "master_mix_normalized": "water"},
+        {"temperature_c": 0.0},
+        {"duration_minutes": 0},
+        {"overlap_length_bp": 80},
+        {"output_fragment_id": None},
+    ),
+    ids=(
+        "duplicate-fragment-ids",
+        "wrong-fragment-count",
+        "wrong-master-mix",
+        "wrong-temperature",
+        "wrong-duration",
+        "wrong-overlap",
+        "missing-output-product",
+    ),
+)
+def test_gibson_rejects_invalid_assembly_result_contract(updates):
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[0], **updates)
+    assert _score_gibson_task(transcript) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    (
+        ("Assembly method: Gibson", "Assembly method: Golden Gate"),
+        ("Master mix: Gibson Assembly Master Mix", "Master mix: water"),
+        ("Temperature: 50 C", "Temperature: 0 C"),
+        ("Duration: 15 min", "Duration: 999 min"),
+        ("Fragment count: 2", "Fragment count: 3"),
+        ("Overlap length: 20 bp", "Overlap length: 80 bp"),
+        ("Transformants observed: 120", "Transformants observed: 121"),
+        (
+            "Interpretation: success",
+            "Interpretation: No assembly succeeded; the reaction failed.",
+        ),
+    ),
+    ids=(
+        "method",
+        "master-mix",
+        "temperature",
+        "duration",
+        "fragment-count",
+        "overlap",
+        "transformants",
+        "negated-interpretation",
+    ),
+)
+def test_gibson_report_must_bind_to_completed_path(old, new):
+    answer = _good_gibson_answer().replace(old, new)
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 0.0
+
+
+def test_gibson_report_requires_assembly_method_field():
+    answer = _good_gibson_answer().replace("Assembly method: Gibson\n", "")
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 0.0
+
+
+def test_gibson_report_rejects_fractional_colony_count():
+    answer = _good_gibson_answer().replace(
+        "Transformants observed: 120", "Transformants observed: 120.5"
+    )
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 0.0
+
+
+@pytest.mark.parametrize(
+    "duplicate_line",
+    (
+        "Assembly method: Golden Gate",
+        "Master mix: water",
+        "Temperature: 0 C",
+        "Duration: 999 min",
+        "Fragment count: 3",
+        "Overlap length: 80 bp",
+        "Transformants observed: 121",
+        "Interpretation: No assembly succeeded; the reaction failed.",
+    ),
+)
+def test_gibson_report_rejects_contradictory_duplicate_fields(duplicate_line):
+    answer = f"{_good_gibson_answer()}\n{duplicate_line}"
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 0.0
+
+
+@pytest.mark.parametrize("observed_colonies", (0, 24, 251, 500))
+def test_gibson_rejects_out_of_range_colony_counts(observed_colonies):
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(
+        transcript[4], observed_colonies=observed_colonies, status="count_out_of_range"
+    )
+    answer = _good_gibson_answer(transformants=observed_colonies)
+    assert _score_gibson_task(transcript, answer) == 0.0
+
+
+@pytest.mark.parametrize("observed_colonies", (25, 250))
+def test_gibson_accepts_inclusive_colony_count_boundaries(observed_colonies):
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[4], observed_colonies=observed_colonies)
+    answer = _good_gibson_answer(transformants=observed_colonies)
+    assert _score_gibson_task(transcript, answer) == 1.0
+
+
+@pytest.mark.parametrize("call_index", (3, 4), ids=("plating", "count"))
+def test_gibson_requires_canonical_countable_range_metadata(call_index):
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(
+        transcript[call_index], countable_range_colonies={"min": 1, "max": 999}
+    )
+    assert _score_gibson_task(transcript) == 0.0
+
+
+@pytest.mark.parametrize("call_index", (3, 4), ids=("plating", "count"))
+def test_gibson_requires_countable_range_metadata(call_index):
+    transcript = _good_gibson_transcript()
+    observation = _gibson_observation(transcript[call_index])
+    observation.pop("countable_range_colonies")
+    transcript[call_index]["content"] = json.dumps(observation)
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_rejects_fractional_observed_colony_count():
+    transcript = _good_gibson_transcript()
+    _update_gibson_observation(transcript[4], observed_colonies=120.4)
+    assert _score_gibson_task(transcript) == 0.0
+
+
+def test_gibson_completed_path_survives_later_failed_retry():
+    transcript = _good_gibson_transcript()
+    failed_retry = copy.deepcopy(transcript[0])
+    failed_retry["arguments"]["master_mix_name"] = "water"
+    _update_gibson_observation(
+        failed_retry,
+        gibson_id="gibson_002",
+        master_mix_name="water",
+        master_mix_normalized="water",
+        status="wrong_master_mix",
+        output_fragment_id=None,
+    )
+    transcript.append(failed_retry)
+    assert _score_gibson_task(transcript) == 1.0
+
+
+def test_gibson_unrelated_later_count_does_not_contaminate_completed_path():
+    transcript = _good_gibson_transcript()
+    unrelated_count = copy.deepcopy(transcript[4])
+    unrelated_count["arguments"]["plating_id"] = "plating_unrelated"
+    _update_gibson_observation(
+        unrelated_count,
+        plating_id="plating_unrelated",
+        observed_colonies=500,
+        status="count_out_of_range",
+    )
+    transcript.append(unrelated_count)
+    assert _score_gibson_task(transcript) == 1.0
+    assert _score_gibson_task(transcript, _good_gibson_answer(transformants=500)) == 0.0
+
+
+def test_gibson_report_does_not_hybridize_with_untransformed_retry():
+    transcript = _good_gibson_transcript()
+    untransformed_retry = copy.deepcopy(transcript[0])
+    untransformed_retry["arguments"].update(
+        {
+            "master_mix_name": "NEBuilder HiFi",
+            "duration_minutes": 30,
+        }
+    )
+    _update_gibson_observation(
+        untransformed_retry,
+        gibson_id="gibson_002",
+        master_mix_name="NEBuilder HiFi",
+        master_mix_normalized="nebuilder hifi",
+        master_mix_canonical="NEBuilder HiFi DNA Assembly Master Mix",
+        duration_minutes=30,
+        output_fragment_id="fragment_021",
+    )
+    transcript.append(untransformed_retry)
+
+    answer = (
+        _good_gibson_answer()
+        .replace("Master mix: Gibson Assembly Master Mix", "Master mix: NEBuilder HiFi")
+        .replace("Duration: 15 min", "Duration: 30 min")
+    )
+    assert _score_gibson_task(transcript, answer) == 0.0
+    assert _score_gibson_task(transcript) == 1.0
+
+
+@pytest.mark.parametrize("bad_prepare_first", (False, True), ids=("good-then-bad", "bad-then-good"))
+def test_gibson_ampicillin_decision_audits_all_attempts_order_independently(bad_prepare_first):
+    transcript = _good_gibson_transcript()
+    bad_prepare = copy.deepcopy(transcript[2])
+    bad_prepare["arguments"]["antibiotic_concentration_ug_ml"] = 50
+    _update_gibson_observation(
+        bad_prepare,
+        media_id="media_bad",
+        antibiotic_concentration_ug_ml=50,
+        plates=[
+            {
+                "plate_id": "plate_bad",
+                "medium": "LB agar",
+                "antibiotic": "ampicillin",
+                "antibiotic_concentration_ug_ml": 50,
+            }
+        ],
+    )
+    insert_at = 2 if bad_prepare_first else 3
+    transcript.insert(insert_at, bad_prepare)
+    scores = score_gibson_trajectory(
+        final_answer=_good_gibson_answer(),
+        transcript=transcript,
+        ground_truth_path=str(GIBSON_GROUND_TRUTH_PATH),
+    )
+    assert scores["task_success"] == 1.0
+    assert scores["decision_scores"]["gibson_ampicillin_selection_100"] == 0.0
 
 
 def _good_miniprep_transcript():

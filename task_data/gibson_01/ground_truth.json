@@ -2,18 +2,21 @@
   "task_id": "gibson_01",
   "decision_points": [
     {
-      "id": "gibson_temperature_50",
-      "description": "Isothermal incubation at 50 C (Gibson optimum).",
+      "id": "gibson_supported_master_mix",
+      "description": "Uses one of the three supported canonical Gibson-compatible assembly paths.",
       "minimum_tier_required": "Silver",
       "matcher": {
         "tool_name": "gibson_assembly",
-        "argument": "temperature_c",
+        "argument": "master_mix_canonical",
         "occurrence": "all"
       },
       "acceptable_values": {
-        "type": "range",
-        "min": 48.0,
-        "max": 52.0
+        "type": "one_of",
+        "values": [
+          "Gibson Assembly Master Mix",
+          "NEBuilder HiFi DNA Assembly Master Mix",
+          "ISO buffer + T5 exonuclease + Phusion polymerase + Taq DNA ligase"
+        ]
       },
       "scoring_rule": "binary",
       "citations": [
@@ -25,13 +28,54 @@
           "doi": "10.1038/nmeth.1318",
           "canonical_url": "https://doi.org/10.1038/nmeth.1318",
           "tier": "Silver",
-          "tier_justification": "Gibson 2009 establishes 50 C as optimal."
+          "tier_justification": "Primary paper defines the original ISO-buffer formulation with T5 exonuclease, Phusion polymerase, and Taq DNA ligase."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "Gibson Assembly Protocol (E5510)",
+          "canonical_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Official vendor protocol names Gibson Assembly Master Mix."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBuilder HiFi DNA Assembly Reaction Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebuilder-hifi-dna-assembly-reaction-protocol",
+          "tier": "Bronze",
+          "tier_justification": "Official vendor protocol names NEBuilder HiFi DNA Assembly Master Mix."
         }
       ]
     },
     {
-      "id": "gibson_duration_min_15",
-      "description": "Incubation duration at least 15 min (NEB recommendation for 2-3 fragments).",
+      "id": "gibson_temperature_50",
+      "description": "Runs the task reaction at the cited 50 C isothermal temperature.",
+      "minimum_tier_required": "Silver",
+      "matcher": {
+        "tool_name": "gibson_assembly",
+        "argument": "temperature_c",
+        "occurrence": "all"
+      },
+      "acceptable_values": {
+        "type": "exact",
+        "value": 50
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "authors": "Gibson DG, Young L, Chuang RY, Venter JC, Hutchison CA, Smith HO",
+          "title": "Enzymatic assembly of DNA molecules up to several hundred kilobases",
+          "journal": "Nature Methods",
+          "year": 2009,
+          "doi": "10.1038/nmeth.1318",
+          "canonical_url": "https://doi.org/10.1038/nmeth.1318",
+          "tier": "Silver",
+          "tier_justification": "Primary paper establishes the one-step isothermal reaction at 50 C."
+        }
+      ]
+    },
+    {
+      "id": "gibson_duration_15_60",
+      "description": "Incubates the fixed two-fragment reaction for 15-60 minutes.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "gibson_assembly",
@@ -41,76 +85,22 @@
       "acceptable_values": {
         "type": "range",
         "min": 15,
-        "max": 240
+        "max": 60
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "NEBuilder HiFi DNA Assembly Master Mix Protocol",
-          "canonical_url": "https://www.neb.com/en-us/protocols/2014/11/26/gibson-assembly-protocol-e5510",
+          "authors": "New England Biolabs",
+          "title": "Gibson Assembly Protocol (E5510)",
+          "canonical_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
           "tier": "Bronze",
-          "tier_justification": "NEB protocol recommends 15 min at 50 C for 2-3 fragments."
-        }
-      ]
-    },
-    {
-      "id": "gibson_overlap_at_least_20",
-      "description": "Homology overlap length at least 20 bp.",
-      "minimum_tier_required": "Silver",
-      "matcher": {
-        "tool_name": "gibson_assembly",
-        "argument": "overlap_length_bp",
-        "occurrence": "all"
-      },
-      "acceptable_values": {
-        "type": "range",
-        "min": 20,
-        "max": 80
-      },
-      "scoring_rule": "binary",
-      "citations": [
-        {
-          "authors": "Gibson DG, Young L, Chuang RY, Venter JC, Hutchison CA, Smith HO",
-          "title": "Enzymatic assembly of DNA molecules up to several hundred kilobases",
-          "journal": "Nature Methods",
-          "year": 2009,
-          "doi": "10.1038/nmeth.1318",
-          "canonical_url": "https://doi.org/10.1038/nmeth.1318",
-          "tier": "Silver",
-          "tier_justification": "Gibson 2009 reports efficient assembly with 20-40 bp overlaps."
-        }
-      ]
-    },
-    {
-      "id": "gibson_uses_two_fragments",
-      "description": "Exactly two fragments (backbone + insert) are submitted.",
-      "minimum_tier_required": "Silver",
-      "matcher": {
-        "tool_name": "gibson_assembly",
-        "argument": "fragment_count",
-        "occurrence": "all"
-      },
-      "acceptable_values": {
-        "type": "exact",
-        "value": 2
-      },
-      "scoring_rule": "binary",
-      "citations": [
-        {
-          "authors": "Gibson DG, Young L, Chuang RY, Venter JC, Hutchison CA, Smith HO",
-          "title": "Enzymatic assembly of DNA molecules up to several hundred kilobases",
-          "journal": "Nature Methods",
-          "year": 2009,
-          "doi": "10.1038/nmeth.1318",
-          "canonical_url": "https://doi.org/10.1038/nmeth.1318",
-          "tier": "Silver",
-          "tier_justification": "Gibson-01 is a 2-fragment assembly as validated in the original paper."
+          "tier_justification": "Official Gibson E5510 protocol specifies 15 minutes for 2-3 fragments and documents extension to 60 minutes."
         }
       ]
     },
     {
       "id": "gibson_ampicillin_selection_100",
-      "description": "Selection plates use the vendor-recommended 100 ug/mL ampicillin.",
+      "description": "Every prepared ampicillin selection plate uses 100 ug/mL.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "prepare_media",
@@ -118,7 +108,7 @@
         "filters": {
           "antibiotic": "ampicillin"
         },
-        "occurrence": "first"
+        "occurrence": "all"
       },
       "acceptable_values": {
         "type": "exact",
@@ -127,20 +117,39 @@
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "NEB 5-alpha Competent E. coli",
+          "authors": "New England Biolabs",
+          "title": "NEB 5-alpha Competent E. coli (High Efficiency) (C2987)",
           "canonical_url": "https://www.neb.com/en-us/products/c2987-neb-5-alpha-competent-e-coli-high-efficiency",
           "tier": "Bronze",
-          "tier_justification": "NEB product page specifying 100 ug/mL ampicillin."
+          "tier_justification": "Official vendor product page lists ampicillin at 100 ug/mL for selection."
         }
       ]
     }
   ],
   "failure_diagnosis_map": {
-    "wrong_master_mix": {
-      "canonical_diagnosis": "An unrecognised master mix was used; Gibson requires a mix containing T5 exonuclease, a high-fidelity polymerase (Phusion), and a thermostable ligase (Taq).",
+    "wrong_fragment_count": {
+      "canonical_diagnosis": "The Gibson-01 substrate contract requires exactly the supplied linear backbone and PCR insert, each once; correct the fragment list rather than changing a disclosed fragment-count parameter.",
       "acceptable_variants": [
-        "The chosen master mix does not contain the Gibson enzyme trio.",
-        "Gibson needs T5 exonuclease + Phusion polymerase + Taq ligase; the chosen mix is not compatible."
+        "Use the supplied backbone and insert exactly once each.",
+        "The fragment list must contain exactly the Gibson backbone and PCR insert."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "New England Biolabs",
+          "title": "Gibson Assembly Protocol (E5510)",
+          "canonical_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Official Gibson protocol supports a 2-3-fragment workflow; Gibson-01 fixes that workflow to one supplied backbone and one supplied insert."
+        }
+      ]
+    },
+    "wrong_master_mix": {
+      "canonical_diagnosis": "The master mix name is unsupported; use Gibson Assembly Master Mix, NEBuilder HiFi DNA Assembly Master Mix, or the exact ISO buffer + T5 exonuclease + Phusion polymerase + Taq DNA ligase formulation.",
+      "acceptable_variants": [
+        "Use an exact supported Gibson-compatible master mix name.",
+        "Generic HiFi labels are insufficient; select Gibson Assembly Master Mix, NEBuilder HiFi DNA Assembly Master Mix, or the full ISO-buffer enzyme formulation."
       ],
       "judge_strategy": "substring_any",
       "minimum_tier_required": "Silver",
@@ -153,13 +162,84 @@
           "doi": "10.1038/nmeth.1318",
           "canonical_url": "https://doi.org/10.1038/nmeth.1318",
           "tier": "Silver",
-          "tier_justification": "Gibson 2009 defines the enzyme trio required for the assembly."
+          "tier_justification": "Primary paper defines the exact original T5 exonuclease, Phusion polymerase, and Taq DNA ligase formulation."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "Gibson Assembly Protocol (E5510)",
+          "canonical_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Official vendor protocol names the Gibson Assembly Master Mix product."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBuilder HiFi DNA Assembly Reaction Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebuilder-hifi-dna-assembly-reaction-protocol",
+          "tier": "Bronze",
+          "tier_justification": "Official vendor protocol names the distinct NEBuilder HiFi DNA Assembly Master Mix product."
+        }
+      ]
+    },
+    "wrong_temperature": {
+      "canonical_diagnosis": "This reaction must be run at 50 C; change the Gibson incubation temperature to 50 C.",
+      "acceptable_variants": [
+        "Set the Gibson reaction temperature to 50 C.",
+        "The assembly failed because the incubation temperature was not 50 C."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Silver",
+      "citations": [
+        {
+          "authors": "Gibson DG, Young L, Chuang RY, Venter JC, Hutchison CA, Smith HO",
+          "title": "Enzymatic assembly of DNA molecules up to several hundred kilobases",
+          "journal": "Nature Methods",
+          "year": 2009,
+          "doi": "10.1038/nmeth.1318",
+          "canonical_url": "https://doi.org/10.1038/nmeth.1318",
+          "tier": "Silver",
+          "tier_justification": "Primary paper establishes the one-step isothermal reaction at 50 C."
+        }
+      ]
+    },
+    "wrong_duration": {
+      "canonical_diagnosis": "Use 15-60 minutes for this two-fragment reaction; shorter or longer values violate the Gibson-01 contract.",
+      "acceptable_variants": [
+        "Incubate this two-fragment Gibson reaction for 15 to 60 minutes.",
+        "The duration must be between 15 and 60 minutes."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "New England Biolabs",
+          "title": "Gibson Assembly Protocol (E5510)",
+          "canonical_url": "https://www.neb.com/en/protocols/gibson-assembly-protocol-e5510?pdf=true",
+          "tier": "Bronze",
+          "tier_justification": "Official Gibson E5510 protocol specifies 15 minutes for 2-3 fragments and documents extension to 60 minutes."
+        }
+      ]
+    },
+    "wrong_overlap_length": {
+      "canonical_diagnosis": "The supplied fragments have fixed 20 bp homology overlaps, so overlap_length_bp must be 20; it is an observed substrate property, not a free optimization choice.",
+      "acceptable_variants": [
+        "Match the supplied 20 bp homology overlaps exactly.",
+        "The task fragments already have 20 bp overlaps, so use overlap_length_bp 20."
+      ],
+      "judge_strategy": "substring_any",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBuilder HiFi DNA Assembly Cloning Kit Manual (E2621/E5520)",
+          "canonical_url": "https://www.neb.com/en/-/media/nebus/files/manuals/manuale2621_e5520.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official NEBuilder manual describes 15-20 bp overlaps for 2-3 fragments; the benchmark fixes its observed substrate overlap at the supported 20 bp endpoint."
         }
       ]
     }
   },
   "efficiency_reference": {
-    "optimal_tool_calls": 6,
+    "optimal_tool_calls": 8,
     "max_reasonable_tool_calls": 14,
     "reagent_budget": {
       "gibson_reactions": 1,

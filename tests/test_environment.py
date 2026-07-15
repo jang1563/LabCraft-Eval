@@ -9,6 +9,7 @@ import pytest
 
 from pathlib import Path
 
+from src.environment.gibson_contract import canonicalize_gibson_master_mix
 from src.environment.operations import (
     count_colonies,
     fit_growth_curve,
@@ -1297,8 +1298,13 @@ def test_gibson_parameter_bundle_exposes_required_values():
     bundle = load_gibson_parameters(GIBSON_PARAMETERS_PATH)
     assert bundle.value("optimal_temperature_c") == pytest.approx(50.0)
     assert bundle.integer("minimum_duration_minutes_two_fragments") == 15
-    assert bundle.integer("minimum_overlap_length_bp") == 20
-    assert any("NEBuilder" in m or "Gibson" in m for m in bundle.choices("accepted_master_mixes"))
+    assert bundle.integer("maximum_duration_minutes_two_fragments") == 60
+    assert bundle.integer("task_overlap_length_bp") == 20
+    assert bundle.integer("fragment_count") == 2
+    assert all(
+        canonicalize_gibson_master_mix(mix) is not None
+        for mix in bundle.choices("accepted_master_mixes")
+    )
 
 
 def test_list_gibson_substrates_returns_two_fragments():
@@ -1322,6 +1328,135 @@ def test_gibson_assembly_happy_path():
     )
     assert result["status"] == "assembled"
     assert result["output_fragment_id"] is not None
+
+
+@pytest.mark.parametrize(
+    "master_mix_name",
+    (
+        "Gibson Assembly Master Mix",
+        "Gibson® Assembly Master Mix",
+        "NEBuilder HiFi",
+        "NEBuilder HiFi DNA Assembly Master Mix",
+        "NEBuilder HiFi DNA Assembly Master Mix (2X)",
+        "NEBuilder® HiFi DNA Assembly Master Mix",
+        "ISO buffer + T5 exo + Phusion + Taq ligase",
+        "ISO buffer + T5 exo + Phusion DNA polymerase + Taq ligase",
+        "ISO buffer + T5 exonuclease + Phusion polymerase + Taq DNA ligase",
+        "ISO buffer + T5 exonuclease + Phusion DNA polymerase + Taq DNA ligase",
+    ),
+)
+def test_gibson_accepts_only_canonical_master_mix_aliases(master_mix_name):
+    state = create_lab_state(sample_id="gibson-valid-mix", seed=1)
+    list_gibson_substrates(state=state)
+    result = gibson_assembly(
+        state=state,
+        fragment_ids=["gibson_backbone_linear", "gibson_insert_pcr"],
+        master_mix_name=master_mix_name,
+        temperature_c=50.0,
+        duration_minutes=15,
+        overlap_length_bp=20,
+    )
+    assert result["status"] == "assembled"
+    assert result["output_fragment_id"] is not None
+
+
+@pytest.mark.parametrize(
+    "master_mix_name",
+    (
+        "",
+        "a",
+        "mix",
+        "HiFi",
+        "HiFi Assembly",
+        "T5 exo",
+        "not Gibson Assembly Master Mix",
+        "water plus NEBuilder HiFi but no enzymes",
+    ),
+)
+def test_gibson_rejects_partial_or_adversarial_master_mix_substrings(master_mix_name):
+    state = create_lab_state(sample_id="gibson-adversarial-mix", seed=1)
+    list_gibson_substrates(state=state)
+    result = gibson_assembly(
+        state=state,
+        fragment_ids=["gibson_backbone_linear", "gibson_insert_pcr"],
+        master_mix_name=master_mix_name,
+        temperature_c=50.0,
+        duration_minutes=15,
+        overlap_length_bp=20,
+    )
+    assert result["status"] == "wrong_master_mix"
+    assert result["output_fragment_id"] is None
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {"temperature_c": 0.0},
+        {"temperature_c": -273.0},
+        {"duration_minutes": 0},
+        {"duration_minutes": -1},
+        {"overlap_length_bp": 0},
+        {"overlap_length_bp": -20},
+    ),
+    ids=(
+        "zero-temperature",
+        "negative-temperature",
+        "zero-duration",
+        "negative-duration",
+        "zero-overlap",
+        "negative-overlap",
+    ),
+)
+def test_gibson_rejects_nonpositive_physical_inputs(overrides):
+    state = create_lab_state(sample_id="gibson-nonpositive", seed=1)
+    list_gibson_substrates(state=state)
+    arguments = {
+        "fragment_ids": ["gibson_backbone_linear", "gibson_insert_pcr"],
+        "master_mix_name": "Gibson Assembly Master Mix",
+        "temperature_c": 50.0,
+        "duration_minutes": 15,
+        "overlap_length_bp": 20,
+    }
+    arguments.update(overrides)
+    with pytest.raises(ValueError):
+        gibson_assembly(state=state, **arguments)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {"temperature_c": 1.0},
+        {"temperature_c": 48.0},
+        {"temperature_c": 52.0},
+        {"duration_minutes": 14},
+        {"duration_minutes": 61},
+        {"overlap_length_bp": 19},
+        {"overlap_length_bp": 80},
+    ),
+    ids=(
+        "wrong-positive-temperature",
+        "low-temperature-boundary",
+        "high-temperature-boundary",
+        "short-duration-boundary",
+        "long-duration-boundary",
+        "short-overlap-boundary",
+        "wrong-supplied-overlap",
+    ),
+)
+def test_gibson_invalid_contract_never_produces_assembled_output(overrides):
+    state = create_lab_state(sample_id="gibson-invalid-contract", seed=1)
+    list_gibson_substrates(state=state)
+    arguments = {
+        "fragment_ids": ["gibson_backbone_linear", "gibson_insert_pcr"],
+        "master_mix_name": "Gibson Assembly Master Mix",
+        "temperature_c": 50.0,
+        "duration_minutes": 15,
+        "overlap_length_bp": 20,
+    }
+    arguments.update(overrides)
+    result = gibson_assembly(state=state, **arguments)
+    assert result["status"] != "assembled"
+    assert result["output_fragment_id"] is None
 
 
 def test_gibson_wrong_master_mix_is_flagged():
@@ -1353,6 +1488,59 @@ def test_gibson_duplicate_fragment_is_flagged_even_with_two_inputs():
     assert result["output_fragment_id"] is None
 
 
+def _assembled_gibson_for_transform_validation(sample_id):
+    state = create_lab_state(sample_id=sample_id, seed=42)
+    list_gibson_substrates(state=state)
+    assembly = gibson_assembly(
+        state=state,
+        fragment_ids=["gibson_backbone_linear", "gibson_insert_pcr"],
+        master_mix_name="Gibson Assembly Master Mix",
+        temperature_c=50.0,
+        duration_minutes=15,
+        overlap_length_bp=20,
+    )
+    assert assembly["status"] == "assembled"
+    return state, assembly
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    (
+        {"heat_shock_seconds": 0},
+        {"heat_shock_seconds": -1},
+        {"recovery_minutes": -1},
+        {"ice_incubation_minutes": -1},
+        {"outgrowth_media": ""},
+        {"outgrowth_media": "   "},
+    ),
+    ids=(
+        "zero-heat-shock",
+        "negative-heat-shock",
+        "negative-recovery",
+        "negative-ice-incubation",
+        "empty-outgrowth",
+        "whitespace-outgrowth",
+    ),
+)
+def test_transform_gibson_rejects_invalid_inputs(overrides):
+    state, assembly = _assembled_gibson_for_transform_validation("gibson-invalid-transform")
+    with pytest.raises(ValueError):
+        transform_gibson(state=state, gibson_id=assembly["gibson_id"], **overrides)
+
+
+def test_transform_gibson_fails_closed_for_unsupported_outgrowth():
+    state, assembly = _assembled_gibson_for_transform_validation(
+        "gibson-unsupported-outgrowth"
+    )
+    result = transform_gibson(
+        state=state,
+        gibson_id=assembly["gibson_id"],
+        outgrowth_media="water",
+    )
+    assert result["status"] == "invalid_outgrowth_media"
+    assert result["expected_transformants"] == 0.0
+
+
 def test_transform_gibson_produces_culture():
     state = create_lab_state(sample_id="gibson-transform", seed=42)
     list_gibson_substrates(state=state)
@@ -1362,7 +1550,7 @@ def test_transform_gibson_produces_culture():
         master_mix_name="NEBuilder HiFi",
         temperature_c=50.0,
         duration_minutes=30,
-        overlap_length_bp=25,
+        overlap_length_bp=20,
     )
     tx = transform_gibson(state=state, gibson_id=result["gibson_id"])
     assert tx["status"] == "transformed"
