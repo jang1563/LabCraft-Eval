@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01`, `gibson_01`, `miniprep_01`, and `express_01` contract-validated, P1 at 16/20 cells |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained and all five newer wet-lab tasks contract-validated, P1 complete at 20/20 cells |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -68,6 +68,15 @@ wet-lab competence and not broad biology capability.
   valid, but its markdown, extra prose, and trailing text were correctly denied
   task-success credit by the strict report parser. P1 is now 16/20 accepted cells
   and 4/5 tasks.
+- The hardened `purify_01` array at clean revision
+  `3b460a25292ad41b817c0091ab829e89832bb732` passed all four strict cells and
+  independent scientific, semantic, and postflight audit. Every model retrieved
+  the exact seeded QIAGEN Ni-NTA Superflow workflow and produced one accepted,
+  causal purification result. Sol, Luna, and Sonnet returned exact matching
+  16-line reports. Haiku's experiment was valid, but its prefatory sentence was
+  joined directly to the first report field and was correctly denied task-success
+  credit by the strict parser. P1 is complete at 20/20 accepted cells and 5/5
+  tasks.
 - The retained five-task snapshot sentinels validate compatibility and scorer
   contracts. They are not a public score-bearing release and do not support
   comparative model ranking.
@@ -90,18 +99,18 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 
 ## Exact Next Gate
 
-Run seed 0 for the registered `current_balanced` matrix on these five newer
-flagship wet-lab tasks:
+Begin the bounded **P2a scorer-validity foundation** before adding task breadth:
 
-1. `golden_gate_01` — complete at `f7d5ba5`
-2. `gibson_01` — complete at `fb6b6dd`
-3. `miniprep_01` — complete at `ff47e8a`
-4. `express_01` — complete at `be47012`
-5. `purify_01` — next
+1. define an explicit task-level scorer contract and version manifest for the
+   five P1 wet-lab tasks;
+2. add expert-labelled valid/invalid trajectory fixtures for alternative-valid,
+   forged, partial, orphan, contradictory, and retry paths;
+3. freeze a deterministic scorer-regression gate before starting the reasoning,
+   recovery, and counterfactual task families.
 
-Use the existing immutable-checkout HPC path and strict cell validator. Run one
-task at a time, inspect any failure before scaling, preserve source logs, and
-exclude diagnostic retries from promoted aggregates.
+Keep the completed P1 bundles append-only and outside comparative ranking
+claims. Reuse the immutable-checkout path for any live compatibility sentinel,
+and exclude diagnostic retries from promoted aggregates.
 
 ## Promotion Criteria
 
@@ -132,10 +141,10 @@ compatibility/scorer-contract evidence.
 
 - **P0 — locally complete; public sync pending:** public truth repair and
   consistent release/evidence labels are committed locally but not pushed.
-- **P1 — in progress:** 16/20 cells accepted; `golden_gate_01`, `gibson_01`,
-  `miniprep_01`, and `express_01` are contract-validated and `purify_01` is
-  next.
-- **P2 — planned:** reasoning, recovery, and counterfactual task depth plus
-  modular/versioned scorer validation.
+- **P1 — complete:** 20/20 strict cells accepted and all five newer wet-lab
+  tasks contract-validated; one-seed evidence remains compatibility/scorer
+  evidence rather than a ranking.
+- **P2 — next:** establish modular/versioned scorer validity, then add
+  reasoning, recovery, and counterfactual task depth.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and
   publication package after evidence gates pass.

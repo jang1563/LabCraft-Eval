@@ -458,12 +458,64 @@ This accepts `express_01` as the fourth completed P1 task: 16/20 cells and 4/5
 tasks are contract-validated. These remain one-seed compatibility and
 scorer-contract results, not comparative model-ranking evidence.
 
+## Purification P1 sentinel verification
+
+Revision `3b460a25292ad41b817c0091ab829e89832bb732` was transferred as a
+SHA-256-verified complete bundle to a new detached checkout. Cayuga preflight
+passed 984 tests, Ruff, registry validation, wheel build, isolated installation,
+and package smoke under Python 3.13.7, Inspect 0.3.245, OpenAI 2.45.0, and
+Anthropic 0.116.0. Its stderr contained only the pip upgrade notice.
+
+The serial four-cell array used RUN_ID
+`2026_07_15_p1_purify_seed0_3b460a2`, seed 0, and the registered
+`current_balanced` profile (`max_tokens=16384`, `reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `openai/gpt-5.6-luna` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-sonnet-5` | 7 | 3 | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | 7 | 3 | 2 | 0.000 | 1.000 | 1.000 | 1.000 | 0.600 |
+
+All four cells exited `0:0` and passed the built-in and independently repeated
+strict validators. Independent postflight found exactly four schema-1.2.0
+manifests and four native logs, the exact clean commit and runtime source, seed
+0, Inspect 0.3.245, requested/resolved model identity, the registered profile,
+and no error or exhausted limit. The model-registry SHA-256 remained
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`,
+and all four evaluation stderr files were empty.
+
+Semantic audit confirmed that every model first retrieved
+`purification_lysate_his6_mbp_gfp_001` and then made exactly one
+`run_nta_purification` call. Every simulator result used the accepted seeded
+His6-MBP-GFP lysate, exact expression/construct provenance, a fixed 4 mL
+Ni-NTA Superflow bed, the declared native buffer, one source use, 18.4 mg input,
+15.64 mg recovered in 10.0 mL at 1.56 mg/mL, 95% purity, and the expected
+apparent-band token. All models used 20 mM wash and 250 mM elution. Sol and
+Sonnet chose 20 mM load at 1.0 mL/min; Luna chose 10 mM at 1.0 mL/min; Haiku
+chose 10 mM at 0.5 mL/min.
+
+Sol, Luna, and Sonnet copied their causal outputs into exact unique 16-line
+reports and received full credit. Haiku also completed the correct single
+experiment, but prefixed the first `Lysate ID` field with an explanatory
+sentence without a separating newline. The strict report parser correctly
+assigned task success zero without erasing its valid decision,
+troubleshooting, and exactly-once evidence. This is a substantive model-level
+formatting failure, not a scorer or infrastructure defect.
+
+This accepts `purify_01` as the fifth completed P1 task: all 20/20 cells and 5/5
+tasks are contract-validated. These remain one-seed compatibility and
+scorer-contract results, not comparative model-ranking evidence.
+
 ## Scale decision
 
 All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
-now 16/20 accepted cells after the remediated `golden_gate_01`, `gibson_01`,
-and the hardened `miniprep_01` and `express_01` gates. Earlier pre-remediation
-bundles remain diagnostic-only. Human-baseline and multi-seed work remain
-intentionally skipped. The next bounded gate is `purify_01` on the same
-four-model, seed-zero protocol. Frozen historical results and every cancelled,
-diagnostic, or pre-remediation bundle remain excluded from promoted aggregates.
+complete at 20/20 accepted cells after the remediated `golden_gate_01` and
+`gibson_01` plus the hardened `miniprep_01`, `express_01`, and `purify_01`
+gates. Earlier pre-remediation bundles remain diagnostic-only. Human-baseline
+and multi-seed work remain intentionally skipped. The next bounded gate is the
+P2a scorer-validity foundation: explicit scorer versions, expert-labelled
+valid/invalid trajectory fixtures, and a deterministic regression gate before
+new reasoning, recovery, and counterfactual task families. Frozen historical
+results and every cancelled, diagnostic, or pre-remediation bundle remain
+excluded from promoted aggregates.
