@@ -342,7 +342,7 @@ Current implemented task inventory:
 | `golden_gate_01` | Type IIS Golden Gate assembly | One-pot 4-fragment BsaI/T4 ligase assembly with 37 °C / 16 °C cycling, transform |
 | `gibson_01` | Isothermal Gibson overlap assembly | 2-fragment master-mix assembly at 50 °C for 15 min, transform |
 | `miniprep_01` | High-copy QIAprep plasmid prep | P1/P2/N3 silica-spin miniprep from a seeded overnight culture; report concentration, A260/A280, and yield |
-| `express_01` | Recombinant protein expression | Induce benign His-tagged MBP-GFP expression in a T7 host and report soluble yield |
+| `express_01` | Recombinant protein expression | Express one seeded benign T7lac His6-MBP-GFP construct, prepare native lysate, and report the causal soluble yield |
 | `purify_01` | Ni-NTA affinity purification | Purify a benign His-tagged MBP-GFP fusion and report concentration, band, and purity |
 | `followup_01` | Growth follow-up decision under ambiguous intervention data | Resolve whether a chloramphenicol slowdown is real or an undersampling artifact using the minimum follow-up experiment |
 | `perturb_followup_01` | Perturbation follow-up | Resolve one ambiguous discovery hit with a single orthogonal assay |

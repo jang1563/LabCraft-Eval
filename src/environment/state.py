@@ -237,11 +237,28 @@ class MiniprepSample:
 
 
 @dataclass
+class ExpressionConstruct:
+    """Seeded benign expression construct available to an Express-01 sample."""
+
+    construct_id: str
+    plasmid_name: str
+    promoter: str
+    target_protein_name: str
+    expected_molecular_weight_kda: float
+    affinity_tag: str
+    is_benign: bool
+    culture_volume_ml: float
+    usage_count: int = 0
+
+
+@dataclass
 class ProteinExpression:
-    """Benign recombinant protein expression run (IPTG induction in BL21 family)."""
+    """Causal recombinant-protein expression and lysate-preparation run."""
 
     expression_id: str
+    construct_id: str
     host_strain: str
+    host_strain_canonical: Optional[str]
     protein_name: str
     expected_molecular_weight_kda: float
     iptg_concentration_mm: float
@@ -251,8 +268,13 @@ class ProteinExpression:
     lysis_buffer_ph: float
     culture_volume_ml: float
     status: str
+    expression_accepted: bool
+    failure_reasons: List[str]
+    induction_schedule_profile: Optional[str]
     soluble_yield_mg_per_l: float
     insoluble_fraction: float
+    total_soluble_mg: float
+    lysate_prepared: bool
     notes: List[str] = field(default_factory=list)
 
 
@@ -297,6 +319,7 @@ class LabState:
     gibson_reactions: Dict[str, GibsonReaction] = field(default_factory=dict)
     miniprep_cultures: Dict[str, MiniprepCulture] = field(default_factory=dict)
     miniprep_samples: Dict[str, MiniprepSample] = field(default_factory=dict)
+    expression_constructs: Dict[str, ExpressionConstruct] = field(default_factory=dict)
     protein_expressions: Dict[str, ProteinExpression] = field(default_factory=dict)
     nta_purifications: Dict[str, NtaPurification] = field(default_factory=dict)
     event_log: List[Dict[str, Any]] = field(default_factory=list)

@@ -13,6 +13,7 @@ from src.environment.operations import (
     gibson_assembly,
     golden_gate_assembly,
     incubate,
+    initialize_expression_construct,
     initialize_miniprep_source_culture,
     inspect_screening_plate,
     inoculate_growth,
@@ -462,29 +463,34 @@ def initialize_miniprep_sample() -> None:
 
 
 async def run_protein_expression_call(
+    construct_id: str,
     host_strain: str,
     iptg_concentration_mm: float,
     induction_od600: float,
     induction_temperature_c: float,
     induction_hours: float,
     lysis_buffer_ph: float,
-    culture_volume_ml: float = 500.0,
 ) -> str:
     state = _current_state()
     try:
         payload = run_protein_expression(
             state=state,
+            construct_id=construct_id,
             host_strain=host_strain,
             iptg_concentration_mm=iptg_concentration_mm,
             induction_od600=induction_od600,
             induction_temperature_c=induction_temperature_c,
             induction_hours=induction_hours,
             lysis_buffer_ph=lysis_buffer_ph,
-            culture_volume_ml=culture_volume_ml,
         )
     except (KeyError, ValueError) as exc:
         return _tool_error_observation("run_protein_expression", exc)
     return render_observation(payload)
+
+
+def initialize_expression_sample() -> None:
+    """Seed the causal Express-01 construct in the active sample state."""
+    initialize_expression_construct(_current_state())
 
 
 async def run_nta_purification_call(
@@ -1212,33 +1218,33 @@ def run_protein_expression_tool():
         """Run a single IPTG-induced recombinant protein expression."""
 
         async def execute(
+            construct_id: str,
             host_strain: str,
             iptg_concentration_mm: float,
             induction_od600: float,
             induction_temperature_c: float,
             induction_hours: float,
             lysis_buffer_ph: float,
-            culture_volume_ml: float = 500.0,
         ) -> str:
             """Run a protein expression experiment end-to-end.
 
             Args:
+                construct_id: Seeded benign T7lac expression construct identifier.
                 host_strain: E. coli host selected for recombinant expression.
                 iptg_concentration_mm: IPTG induction concentration in mM.
                 induction_od600: OD600 at induction.
                 induction_temperature_c: Induction temperature in Celsius.
                 induction_hours: Induction duration in hours.
                 lysis_buffer_ph: Lysis buffer pH.
-                culture_volume_ml: Culture volume in mL (default 500).
             """
             return await run_protein_expression_call(
+                construct_id=construct_id,
                 host_strain=host_strain,
                 iptg_concentration_mm=iptg_concentration_mm,
                 induction_od600=induction_od600,
                 induction_temperature_c=induction_temperature_c,
                 induction_hours=induction_hours,
                 lysis_buffer_ph=lysis_buffer_ph,
-                culture_volume_ml=culture_volume_ml,
             )
 
         return execute

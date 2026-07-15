@@ -8,6 +8,13 @@ from pathlib import Path
 
 import pytest
 
+from src.environment.expression_contract import (
+    EXPRESSION_CONSTRUCT_ID,
+    EXPRESSION_FAILURE_HOST,
+    EXPRESSION_FAILURE_IPTG,
+    EXPRESSION_FAILURE_SCHEDULE,
+    EXPRESSION_SUCCESS_STATUS,
+)
 from src.environment.miniprep_contract import (
     MINIPREP_FAILURE_OVERLYSIS,
     MINIPREP_FAILURE_WRONG_BUFFER,
@@ -17,11 +24,13 @@ from src.environment.miniprep_contract import (
 from src.environment.operations import (
     count_colonies,
     gibson_assembly,
+    initialize_expression_construct,
     initialize_miniprep_source_culture,
     list_gibson_substrates,
     plate,
     perform_miniprep,
     prepare_media,
+    run_protein_expression,
     transform_gibson,
 )
 from src.environment.state import create_lab_state
@@ -3049,72 +3058,150 @@ def test_miniprep_no_tool_oracle_answer_scores_zero():
     assert scores["overall"] == 0.0
 
 
-def _good_express_transcript():
+def _good_express_arguments(**updates):
+    arguments = {
+        "construct_id": EXPRESSION_CONSTRUCT_ID,
+        "host_strain": "BL21(DE3)",
+        "iptg_concentration_mm": 1.0,
+        "induction_od600": 0.6,
+        "induction_temperature_c": 18.0,
+        "induction_hours": 16.0,
+        "lysis_buffer_ph": 8.0,
+    }
+    arguments.update(updates)
+    return arguments
+
+
+def _good_express_observation(**updates):
+    observation = {
+        "status": EXPRESSION_SUCCESS_STATUS,
+        "expression_accepted": True,
+        "failure_reasons": [],
+        "expression_id": "expression_001",
+        "construct_id": EXPRESSION_CONSTRUCT_ID,
+        "construct_usage_count": 1,
+        "plasmid_name": "pET-T7lac-His6-MBP-GFP benchmark construct",
+        "promoter": "T7lac",
+        "affinity_tag": "His6",
+        "is_benign": True,
+        "host_strain": "BL21(DE3)",
+        "host_strain_normalized": "bl21de3",
+        "host_strain_canonical": "BL21(DE3)",
+        "protein_name": "His6-MBP-GFP fusion",
+        "expected_molecular_weight_kda": 72.0,
+        "iptg_concentration_mm": 1.0,
+        "induction_od600": 0.6,
+        "induction_temperature_c": 18.0,
+        "induction_hours": 16.0,
+        "induction_schedule_profile": "low_temperature_extended",
+        "lysis_buffer_ph": 8.0,
+        "culture_volume_ml": 500.0,
+        "soluble_yield_mg_per_l": 36.8,
+        "insoluble_fraction": 0.08,
+        "total_soluble_mg": 18.4,
+        "lysate_prepared": True,
+        "notes": [],
+    }
+    observation.update(updates)
+    return observation
+
+
+def _express_call_pair(*, arguments=None, observation=None, call_id="call_expression"):
+    if arguments is None:
+        arguments = _good_express_arguments()
+    if observation is None:
+        observation = _good_express_observation()
     return [
         {
-            "type": "tool_call",
-            "tool_name": "run_protein_expression",
-            "arguments": {
-                "expression_id": "expression_001",
-                "host_strain": "BL21(DE3)",
-                "host_strain_normalized": "bl21(de3)",
-                "protein_name": "MBP-GFP fusion",
-                "expected_molecular_weight_kda": 72.0,
-                "iptg_concentration_mm": 1.0,
-                "induction_od600": 0.6,
-                "induction_temperature_c": 18,
-                "induction_hours": 16,
-                "lysis_buffer_ph": 8.0,
-                "culture_volume_ml": 500.0,
-                "soluble_yield_mg_per_l": 36.8,
-                "insoluble_fraction": 0.08,
-                "total_soluble_mg": 18.4,
-                "status": "induced",
-            },
-        }
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": call_id,
+                    "function": "run_protein_expression",
+                    "arguments": copy.deepcopy(arguments),
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": call_id,
+            "function": "run_protein_expression",
+            "content": json.dumps(observation),
+        },
     ]
+
+
+def _good_express_transcript():
+    return _express_call_pair()
 
 
 def _good_express_answer() -> str:
     return (
+        "Construct ID: expression_construct_his6_mbp_gfp_001\n"
+        "Expression ID: expression_001\n"
         "Host strain: BL21(DE3)\n"
         "IPTG concentration: 1.0 mM\n"
         "Induction OD600: 0.6\n"
         "Induction temperature: 18 C\n"
         "Induction duration: 16 h\n"
         "Lysis buffer pH: 8.0\n"
-        "Expected soluble yield: 36.8 mg/L\n"
-        "Interpretation: success"
+        "Observed soluble yield: 36.8 mg/L\n"
+        "Interpretation: success\n"
+        "Diagnosis: none"
+    )
+
+
+def _score_express(answer, transcript):
+    return score_express_trajectory(
+        final_answer=answer,
+        transcript=transcript,
+        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
     )
 
 
 def test_good_express_trajectory_scores_high():
-    scores = score_express_trajectory(
-        final_answer=_good_express_answer(),
-        transcript=_good_express_transcript(),
-        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
-    )
+    scores = _score_express(_good_express_answer(), _good_express_transcript())
+
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
-    assert scores["overall"] >= 0.9
+    assert scores["troubleshooting"] == 1.0
+    assert scores["efficiency"] == 1.0
+    assert scores["overall"] == pytest.approx(1.0)
+
+
+def test_real_expression_output_in_paired_transcript_scores_high():
+    state = create_lab_state(sample_id="express-real-output", seed=1)
+    initialize_expression_construct(state)
+    arguments = _good_express_arguments()
+    observation = run_protein_expression(state=state, **arguments)
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_quality"] == 1.0
 
 
 def test_express_rejects_each_inconsistent_or_nonsensical_report_field():
     replacements = {
+        "Construct ID:": "Construct ID: unknown_construct",
+        "Expression ID:": "Expression ID: expression_999",
         "Host strain:": "Host strain: DH5alpha",
         "IPTG concentration:": "IPTG concentration: 99 mM",
         "Induction OD600:": "Induction OD600: 9.9",
         "Induction temperature:": "Induction temperature: 99 C",
         "Induction duration:": "Induction duration: 99 h",
         "Lysis buffer pH:": "Lysis buffer pH: 1.0",
-        "Expected soluble yield:": "Expected soluble yield: 999 mg/L",
+        "Observed soluble yield:": "Observed soluble yield: 999 mg/L",
         "Interpretation:": "Interpretation: Expression failed.",
+        "Diagnosis:": "Diagnosis: unsupported induction schedule",
     }
     for prefix, replacement in replacements.items():
-        scores = score_express_trajectory(
-            final_answer=_replace_report_line(_good_express_answer(), prefix, replacement),
-            transcript=_good_express_transcript(),
-            ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+        scores = _score_express(
+            _replace_report_line(_good_express_answer(), prefix, replacement),
+            _good_express_transcript(),
         )
         assert scores["task_success"] == 0.0, prefix
 
@@ -3125,12 +3212,32 @@ def test_express_accepts_equivalent_host_punctuation_and_spacing():
         "Host strain:",
         "Host strain: BL21 (DE3)",
     )
-    scores = score_express_trajectory(
-        final_answer=answer,
-        transcript=_good_express_transcript(),
-        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+
+    assert _score_express(answer, _good_express_transcript())["task_success"] == 1.0
+
+
+def test_express_accepts_source_supported_20c_extended_schedule():
+    arguments = _good_express_arguments(
+        induction_temperature_c=20.0,
+        induction_hours=16.0,
     )
+    observation = _good_express_observation(
+        induction_temperature_c=20.0,
+        induction_hours=16.0,
+    )
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "Induction temperature:",
+        "Induction temperature: 20 C",
+    )
+
+    scores = _score_express(
+        answer,
+        _express_call_pair(arguments=arguments, observation=observation),
+    )
+
     assert scores["task_success"] == 1.0
+    assert scores["decision_scores"]["uses_supported_induction_schedule"] == 1.0
 
 
 def test_express_rejects_success_label_with_contradictory_interpretation():
@@ -3139,25 +3246,280 @@ def test_express_rejects_success_label_with_contradictory_interpretation():
         "Interpretation:",
         "Interpretation: success; protein expression did not work.",
     )
-    scores = score_express_trajectory(
-        final_answer=answer,
-        transcript=_good_express_transcript(),
-        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+
+    assert _score_express(answer, _good_express_transcript())["task_success"] == 0.0
+
+
+@pytest.mark.parametrize(
+    "duplicate",
+    (
+        "Construct ID: another_construct",
+        "Expression ID: expression_999",
+        "Host strain: DH5alpha",
+        "IPTG concentration: 99 mM",
+        "Induction OD600: 9.9",
+        "Induction temperature: 99 C",
+        "Induction duration: 99 h",
+        "Lysis buffer pH: 1.0",
+        "Observed soluble yield: 999 mg/L",
+        "Interpretation: failure",
+        "Diagnosis: wrong host",
+        "arbitrary trailing text",
+    ),
+)
+def test_express_rejects_duplicate_or_extra_report_lines(duplicate):
+    scores = _score_express(
+        _good_express_answer() + "\n" + duplicate,
+        _good_express_transcript(),
     )
+
     assert scores["task_success"] == 0.0
 
 
-def test_express_wrong_host_triggers_troubleshooting():
-    transcript = _good_express_transcript()
-    transcript[0]["arguments"]["host_strain_normalized"] = "dh5alpha"
-    transcript[0]["arguments"]["status"] = "wrong_host_strain"
-    scores = score_express_trajectory(
-        final_answer=_good_express_answer(),
-        transcript=transcript,
-        ground_truth_path=str(EXPRESS_GROUND_TRUTH_PATH),
+def test_express_request_only_fabricated_result_scores_zero():
+    fabricated = _good_express_arguments(**_good_express_observation())
+    transcript = [
+        {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "call_expression",
+                    "function": "run_protein_expression",
+                    "arguments": fabricated,
+                }
+            ],
+        }
+    ]
+
+    scores = _score_express(_good_express_answer(), transcript)
+
+    assert scores["overall"] == 0.0
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+
+
+def test_express_orphan_output_scores_zero():
+    transcript = [
+        {
+            "role": "tool",
+            "tool_call_id": "orphan_expression",
+            "function": "run_protein_expression",
+            "content": json.dumps(_good_express_observation()),
+        }
+    ]
+
+    assert _score_express(_good_express_answer(), transcript)["overall"] == 0.0
+
+
+def test_express_partial_output_cannot_fall_back_to_request_arguments():
+    partial_output = {
+        "status": EXPRESSION_SUCCESS_STATUS,
+        "expression_id": "expression_001",
+        "construct_id": EXPRESSION_CONSTRUCT_ID,
+        "soluble_yield_mg_per_l": 36.8,
+    }
+    forged_arguments = _good_express_arguments(**_good_express_observation())
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(arguments=forged_arguments, observation=partial_output),
     )
-    assert scores["troubleshooting"] < 1.0
+
+    assert scores["overall"] == 0.0
+
+
+def test_express_tool_error_output_scores_zero():
+    error_output = {
+        "status": "error",
+        "tool_name": "run_protein_expression",
+        "error": "invalid numeric input",
+    }
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(observation=error_output),
+    )
+
+    assert scores["overall"] == 0.0
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+
+
+def test_express_failure_output_overrides_forged_success_arguments():
+    forged_arguments = _good_express_arguments(**_good_express_observation())
+    failed_output = _good_express_observation(
+        status=EXPRESSION_FAILURE_HOST,
+        expression_accepted=False,
+        failure_reasons=[EXPRESSION_FAILURE_HOST],
+        host_strain="DH5alpha",
+        host_strain_normalized="dh5alpha",
+        host_strain_canonical=None,
+        soluble_yield_mg_per_l=0.0,
+        insoluble_fraction=0.0,
+        total_soluble_mg=0.0,
+        lysate_prepared=False,
+        notes=["Host is not an allowlisted DE3 T7 expression strain."],
+    )
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(arguments=forged_arguments, observation=failed_output),
+    )
+
+    assert scores["task_success"] == 0.0
     assert scores["decision_scores"]["uses_t7_expression_host"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("expression_accepted", True),
+        ("failure_reasons", []),
+        ("status", EXPRESSION_SUCCESS_STATUS),
+        ("soluble_yield_mg_per_l", 1.0),
+        ("total_soluble_mg", 0.5),
+        ("lysate_prepared", True),
+        ("notes", []),
+    ),
+)
+def test_express_rejects_internally_inconsistent_failure_output(field, value):
+    failed_output = _good_express_observation(
+        status=EXPRESSION_FAILURE_HOST,
+        expression_accepted=False,
+        failure_reasons=[EXPRESSION_FAILURE_HOST],
+        host_strain="DH5alpha",
+        host_strain_normalized="dh5alpha",
+        host_strain_canonical=None,
+        soluble_yield_mg_per_l=0.0,
+        insoluble_fraction=0.0,
+        total_soluble_mg=0.0,
+        lysate_prepared=False,
+        notes=["Host is not an allowlisted DE3 T7 expression strain."],
+    )
+    failed_output[field] = value
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(observation=failed_output),
+    )
+
+    assert scores["overall"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("construct_id", "unknown_construct"),
+        ("construct_usage_count", 2),
+        ("promoter", "Ptac"),
+        ("is_benign", False),
+        ("iptg_concentration_mm", True),
+        ("host_strain_canonical", "DH5alpha"),
+        ("induction_schedule_profile", "37c_standard"),
+        ("culture_volume_ml", 499.0),
+        ("soluble_yield_mg_per_l", 999.0),
+        ("total_soluble_mg", 999.0),
+        ("lysate_prepared", False),
+    ),
+)
+def test_express_rejects_internally_inconsistent_success_output(field, value):
+    observation = _good_express_observation(**{field: value})
+
+    scores = _score_express(
+        _good_express_answer(),
+        _express_call_pair(observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+
+
+def test_express_multiple_failures_require_diagnosis_of_every_reason():
+    failures = [EXPRESSION_FAILURE_IPTG, EXPRESSION_FAILURE_SCHEDULE]
+    observation = _good_express_observation(
+        status=failures[0],
+        expression_accepted=False,
+        failure_reasons=failures,
+        iptg_concentration_mm=1.5,
+        induction_temperature_c=18.0,
+        induction_hours=1.0,
+        induction_schedule_profile=None,
+        soluble_yield_mg_per_l=0.0,
+        insoluble_fraction=0.0,
+        total_soluble_mg=0.0,
+        lysate_prepared=False,
+        notes=["IPTG outside range.", "Unsupported coupled schedule."],
+    )
+    arguments = _good_express_arguments(
+        iptg_concentration_mm=1.5,
+        induction_hours=1.0,
+    )
+    answer = _replace_report_line(
+        _good_express_answer(),
+        "IPTG concentration:",
+        "IPTG concentration: 1.5 mM",
+    )
+    answer = _replace_report_line(
+        answer,
+        "Induction duration:",
+        "Induction duration: 1 h",
+    )
+    answer = _replace_report_line(
+        answer,
+        "Observed soluble yield:",
+        "Observed soluble yield: 0 mg/L",
+    )
+    answer = _replace_report_line(answer, "Interpretation:", "Interpretation: failure")
+    answer = _replace_report_line(
+        answer,
+        "Diagnosis:",
+        "Diagnosis: IPTG is outside the supported range; the induction temperature and duration do not match a supported coupled schedule profile.",
+    )
+
+    scores = _score_express(
+        answer,
+        _express_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["troubleshooting"] == 1.0
+
+
+def test_express_reference_lookup_does_not_reduce_experimental_efficiency():
+    transcript = [
+        {
+            "type": "tool_call",
+            "tool_name": "lookup_reagent",
+            "arguments": {"reagent_name": "T7 expression"},
+            "content": '{"status":"found"}',
+        },
+        *_good_express_transcript(),
+    ]
+
+    scores = _score_express(_good_express_answer(), transcript)
+
+    assert scores["efficiency"] == 1.0
+    assert scores["overall"] == pytest.approx(1.0)
+
+
+def test_express_retry_cannot_hybridize_or_receive_partial_credit():
+    transcript = [
+        *_good_express_transcript(),
+        *_express_call_pair(call_id="call_expression_retry"),
+    ]
+
+    scores = _score_express(_good_express_answer(), transcript)
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+    assert scores["overall"] == 0.0
 
 
 def _good_purify_transcript():

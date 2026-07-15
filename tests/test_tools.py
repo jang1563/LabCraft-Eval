@@ -49,6 +49,47 @@ class TestSearchDatabase:
         assert contract["elution_volume_ul"] == {"min": 50, "max": 100, "standard": 50}
 
     @pytest.mark.parametrize(
+        "query",
+        (
+            "protein expression",
+            "T7 expression",
+            "IPTG induction",
+            "BL21(DE3)",
+            "His6-MBP-GFP",
+            "expression_construct_his6_mbp_gfp_001",
+        ),
+    )
+    def test_expression_queries_rank_the_t7_workflow_first(self, query):
+        db_path = _DATA_DIR / "reagent_database.json"
+        results = _search_database(db_path, query)
+
+        assert results
+        workflow = results[0]
+        assert workflow["name"] == "T7 His6-MBP-GFP Expression Workflow"
+        contract = workflow["protocol_contract"]
+        assert contract["construct_id"] == "expression_construct_his6_mbp_gfp_001"
+        assert contract["iptg_concentration_mm"] == {"min": 0.5, "max": 1.0}
+        assert contract["induction_od600"] == {"min": 0.5, "max": 0.8}
+        assert contract["native_lysis_ph"] == {"min": 7.5, "max": 8.0}
+        assert {
+            profile["name"]: profile["insoluble_fraction_calibration"]
+            for profile in contract["induction_schedule_profiles"]
+        } == {
+            "low_temperature_extended": 0.08,
+            "room_temperature_intermediate": 0.12,
+            "30c_moderate": 0.18,
+            "37c_standard": 0.25,
+        }
+        assert contract["benchmark_calibrations"]["out_of_contract_attempt"] == {
+            "observed_yield_mg_per_l": 0,
+            "lysate_prepared": False,
+            "note": (
+                "Deterministic benchmark state transition only; not a physical "
+                "zero-yield claim."
+            ),
+        }
+
+    @pytest.mark.parametrize(
         ("query", "expected_name"),
         (
             ("BsaI", "BsaI-HFv2"),

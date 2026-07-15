@@ -3,19 +3,35 @@
   "decision_points": [
     {
       "id": "uses_t7_expression_host",
-      "description": "Host strain is a T7 RNA polymerase-carrying E. coli (BL21(DE3) or close derivative).",
-      "minimum_tier_required": "Silver",
+      "description": "Host is an allowlisted (DE3) E. coli strain that supplies T7 RNA polymerase for the seeded T7lac construct.",
+      "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_protein_expression",
-        "argument": "host_strain_normalized",
+        "argument": "host_strain_canonical",
         "occurrence": "all"
       },
       "acceptable_values": {
         "type": "one_of",
-        "values": ["bl21(de3)", "bl21(de3) plyss", "rosetta(de3)", "c41(de3)", "c43(de3)"]
+        "values": [
+          "BL21(DE3)",
+          "BL21 Star(DE3)",
+          "BL21(DE3) pLysS",
+          "BL21 Star(DE3) pLysS",
+          "Rosetta(DE3)",
+          "C41(DE3)",
+          "C43(DE3)"
+        ]
       },
       "scoring_rule": "binary",
       "citations": [
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET system manual explaining that DE3 strains supply IPTG-inducible T7 RNA polymerase for T7lac expression."
+        },
         {
           "authors": "Rosano GL, Ceccarelli EA",
           "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
@@ -24,14 +40,14 @@
           "doi": "10.3389/fmicb.2014.00172",
           "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed review establishing BL21(DE3) and derivatives as canonical T7 expression hosts."
+          "tier_justification": "Peer-reviewed review describing BL21(DE3) and specialized DE3 expression hosts."
         }
       ]
     },
     {
-      "id": "iptg_in_acceptable_range",
-      "description": "IPTG concentration is within the 0.1-1 mM canonical induction range.",
-      "minimum_tier_required": "Silver",
+      "id": "iptg_in_supported_pet_range",
+      "description": "IPTG concentration is within the official 0.5-1.0 mM pET expression range used by this benchmark.",
+      "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_protein_expression",
         "argument": "iptg_concentration_mm",
@@ -39,27 +55,25 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 0.1,
+        "min": 0.5,
         "max": 1.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 establishes 0.1-1 mM as the canonical IPTG induction range."
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual specifies 0.5-1.0 mM IPTG for pilot and preparative expression."
         }
       ]
     },
     {
       "id": "induction_od600_mid_log",
-      "description": "Induction OD600 is in the 0.4-0.8 mid-log window.",
-      "minimum_tier_required": "Silver",
+      "description": "Induction OD600 is within the official 0.5-0.8 mid-log pET pilot-expression window.",
+      "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_protein_expression",
         "argument": "induction_od600",
@@ -67,35 +81,38 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 0.4,
+        "min": 0.5,
         "max": 0.8
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 recommends inducing at mid-log (OD600 0.4-0.8)."
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual defines OD600 0.5-0.8 as mid-log for induction."
         }
       ]
     },
     {
-      "id": "induction_temperature_standard",
-      "description": "Induction temperature is in the standard set of {18, 25, 30, 37} C.",
-      "minimum_tier_required": "Silver",
+      "id": "uses_supported_induction_schedule",
+      "description": "Temperature and duration jointly map to a supported low-temperature, room-temperature, 30 C, or 37 C expression profile.",
+      "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_protein_expression",
-        "argument": "induction_temperature_c",
+        "argument": "induction_schedule_profile",
         "occurrence": "all"
       },
       "acceptable_values": {
         "type": "one_of",
-        "values": [18.0, 25.0, 30.0, 37.0, 18, 25, 30, 37]
+        "values": [
+          "low_temperature_extended",
+          "room_temperature_intermediate",
+          "30c_moderate",
+          "37c_standard"
+        ]
       },
       "scoring_rule": "binary",
       "citations": [
@@ -107,13 +124,28 @@
           "doi": "10.3389/fmicb.2014.00172",
           "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
           "tier": "Silver",
-          "tier_justification": "Rosano 2014 recommends 37 C short induction or 18-25 C overnight induction."
+          "tier_justification": "Peer-reviewed review supports 15-25 C induction when reducing aggregation and emphasizes temperature-dependent production rate."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBExpress MBP Fusion and Purification System Quick Start Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebexpress-mbp-fusion-and-purification-system-quick-start-protocol-neb-e8201",
+          "tier": "Bronze",
+          "tier_justification": "Official MBP-fusion protocol provides coupled temperature-duration alternatives; used as schedule-shape evidence rather than as a T7 promoter claim."
+        },
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual specifies 37 C expression with hourly sampling over 4-6 hours."
         }
       ]
     },
     {
-      "id": "lysis_ph_ni_nta_compatible",
-      "description": "Lysis buffer pH is in the 7.0-8.0 Ni-NTA-compatible window.",
+      "id": "lysis_ph_native_ni_nta_compatible",
+      "description": "Native lysis-buffer pH is within the 7.5-8.0 benchmark window supported by Ni-NTA binding guidance.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_protein_expression",
@@ -122,86 +154,134 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 7.0,
+        "min": 7.5,
         "max": 8.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist handbook recommends pH 7.0-8.0 for Ni-NTA-compatible lysis buffers."
+          "tier_justification": "Official handbook uses pH 8.0 native lysis buffer and states that pH 7.5 is essential for efficient 6xHis binding to Ni-NTA."
         }
       ]
     }
   ],
   "failure_diagnosis_map": {
     "wrong_host_strain": {
-      "canonical_diagnosis": "Host strain lacks T7 RNA polymerase; pET / T7-driven IPTG induction requires BL21(DE3) or a (DE3) derivative.",
+      "canonical_diagnosis": "The host is not an allowlisted DE3 T7 expression strain for the seeded T7lac construct.",
       "acceptable_variants": [
-        "Only T7-RNAP carrying hosts such as BL21(DE3) can drive the pET-based induction used here.",
-        "The chosen strain is not a lambda DE3 lysogen; IPTG induction cannot proceed."
+        "A DE3 host that supplies T7 RNA polymerase is required.",
+        "The selected strain cannot provide IPTG-inducible T7 RNA polymerase."
       ],
-      "judge_strategy": "substring_any",
-      "minimum_tier_required": "Silver",
-      "citations": [
-        {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 on T7-RNAP requirement."
-        }
-      ]
-    },
-    "wrong_induction_temperature": {
-      "canonical_diagnosis": "Induction temperature was outside the accepted 18 / 25 / 30 / 37 C set; expression is inefficient.",
-      "acceptable_variants": [
-        "Induce at 37 C short, or 18-25 C overnight; neither window was used.",
-        "The chosen induction temperature does not match any standard IPTG induction protocol."
-      ],
-      "judge_strategy": "substring_any",
-      "minimum_tier_required": "Silver",
-      "citations": [
-        {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 on standard induction temperatures."
-        }
-      ]
-    },
-    "wrong_lysis_ph": {
-      "canonical_diagnosis": "Lysis buffer pH was outside the 7.0-8.0 Ni-NTA-compatible window.",
-      "acceptable_variants": [
-        "Ni-NTA binding requires pH 7-8; the chosen lysis pH is incompatible.",
-        "Lysis pH outside 7-8 will compromise Ni-NTA His-tag capture."
-      ],
-      "judge_strategy": "substring_any",
+      "judge_strategy": "substring_any_or_semantic_groups",
       "minimum_tier_required": "Bronze",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN Ni-NTA pH guidance."
+          "tier_justification": "Official pET manual documents the T7 RNA polymerase requirement and the DE3 expression host."
+        }
+      ]
+    },
+    "iptg_concentration_out_of_range": {
+      "canonical_diagnosis": "IPTG concentration is outside the supported 0.5-1.0 mM pET range.",
+      "acceptable_variants": [
+        "The inducer concentration is outside the benchmark pET window.",
+        "Use 0.5-1.0 mM IPTG for this construct."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual specifies the 0.5-1.0 mM IPTG range."
+        }
+      ]
+    },
+    "induction_od600_out_of_range": {
+      "canonical_diagnosis": "Induction OD600 is outside the supported 0.5-0.8 mid-log window.",
+      "acceptable_variants": [
+        "The culture was not induced within the benchmark mid-log OD600 window.",
+        "Induce at OD600 0.5-0.8 for this pET workflow."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual identifies OD600 0.5-0.8 as mid-log."
+        }
+      ]
+    },
+    "unsupported_induction_schedule": {
+      "canonical_diagnosis": "The induction temperature and duration do not match a supported coupled schedule profile.",
+      "acceptable_variants": [
+        "The temperature-time pair is unsupported; select a validated coupled induction profile.",
+        "Induction temperature cannot be evaluated independently of induction duration."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "Rosano GL, Ceccarelli EA",
+          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
+          "journal": "Frontiers in Microbiology",
+          "year": 2014,
+          "doi": "10.3389/fmicb.2014.00172",
+          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
+          "tier": "Silver",
+          "tier_justification": "Peer-reviewed review explains the production-rate and solubility consequences of induction temperature."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBExpress MBP Fusion and Purification System Quick Start Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebexpress-mbp-fusion-and-purification-system-quick-start-protocol-neb-e8201",
+          "tier": "Bronze",
+          "tier_justification": "Official MBP protocol presents temperature and duration as coupled alternatives."
+        }
+      ]
+    },
+    "lysis_buffer_ph_out_of_range": {
+      "canonical_diagnosis": "Lysis-buffer pH is outside the supported 7.5-8.0 native Ni-NTA window.",
+      "acceptable_variants": [
+        "The lysis pH is incompatible with efficient native His6 binding to Ni-NTA.",
+        "Use native lysis buffer at pH 7.5-8.0 for this downstream Ni-NTA workflow."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook uses pH 8.0 native lysis buffer and identifies pH 7.5 as essential for efficient His-tag binding."
         }
       ]
     }
   },
   "efficiency_reference": {
     "optimal_tool_calls": 1,
-    "max_reasonable_tool_calls": 5,
+    "max_reasonable_tool_calls": 1,
     "reagent_budget": {
       "expression_runs": 1
-    }
+    },
+    "counted_calls": "run_protein_expression only; optional reference and safety lookups are not experimental retries"
   }
 }

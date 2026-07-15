@@ -39,6 +39,13 @@ recorded rather than silently rewriting history.
   from source-backed thresholds, reject ambiguous column labels and malformed
   inputs, trust paired tool output over request arguments, require a unique
   structured report, and score every reported failure reason.
+- Make `express_01` causal and fail closed: seed one benign T7lac His6-MBP-GFP
+  construct, remove culture volume from the agent decision surface, validate
+  finite inputs and exact host aliases, couple induction temperature to
+  duration, distinguish external protocol thresholds from the synthetic yield
+  calibration, require one complete paired tool result and an exact 11-field
+  report, score every failure reason, and exclude reference lookups from the
+  experimental-action budget.
 
 ## 0.1.2 - 2026-07-12
 

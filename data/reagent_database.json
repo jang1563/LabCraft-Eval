@@ -1876,5 +1876,120 @@
         "accessed": "2026-07-15"
       }
     ]
+  },
+  {
+    "name": "T7 His6-MBP-GFP Expression Workflow",
+    "aliases": [
+      "protein expression",
+      "T7 expression",
+      "pET expression",
+      "IPTG induction",
+      "BL21(DE3)",
+      "His6-MBP-GFP",
+      "MBP-GFP",
+      "expression_construct_his6_mbp_gfp_001"
+    ],
+    "type": "workflow reference",
+    "category": "benign recombinant protein expression",
+    "working_concentration": "Benchmark pET/T7lac workflow: 0.5-1.0 mM IPTG at OD600 0.5-0.8",
+    "stock_concentration": null,
+    "storage_temperature_c": "not applicable",
+    "storage_conditions": "Use the seeded simulator construct; consult current manufacturer documentation for physical reagents.",
+    "preparation_notes": "This entry is the exact task contract for the seeded synthetic benign benchmark fixture, not a claimed commercial plasmid. Choose a listed DE3 T7 expression host and one listed coupled schedule, then prepare native lysate at pH 7.5-8.0 for downstream Ni-NTA. The 40 mg/L pre-solubility value and every schedule-specific insoluble fraction are synthetic deterministic simulator calibrations, not empirical fixture performance or universal biological values. An out-of-contract attempt returns zero observed yield and no lysate as a benchmark state transition, not as a physical zero-yield claim.",
+    "shelf_life": "not applicable",
+    "incompatible_with": [
+      "non-DE3 hosts that do not supply T7 RNA polymerase",
+      "uncoupled temperature-duration choices outside supported profiles",
+      "lysis pH outside the native Ni-NTA benchmark window"
+    ],
+    "safety_notes": "The task fixture is limited to a benign reporter fusion. Standard BSL-1 E. coli and laboratory chemical handling practices apply.",
+    "common_uses": [
+      "benign reporter-protein expression",
+      "T7lac induction benchmarking",
+      "native lysate preparation for Ni-NTA purification"
+    ],
+    "protocol_contract": {
+      "construct_id": "expression_construct_his6_mbp_gfp_001",
+      "construct_description": "synthetic pET-style T7lac His6-MBP-GFP benchmark fixture (~72 kDa)",
+      "fixed_culture_volume_ml": 500,
+      "accepted_host_strains": [
+        "BL21(DE3)",
+        "BL21 Star(DE3)",
+        "BL21(DE3) pLysS",
+        "BL21 Star(DE3) pLysS",
+        "Rosetta(DE3)",
+        "C41(DE3)",
+        "C43(DE3)"
+      ],
+      "iptg_concentration_mm": {
+        "min": 0.5,
+        "max": 1.0
+      },
+      "induction_od600": {
+        "min": 0.5,
+        "max": 0.8
+      },
+      "induction_schedule_profiles": [
+        {
+          "name": "low_temperature_extended",
+          "temperature_c": [15, 25],
+          "duration_h": [12, 20],
+          "insoluble_fraction_calibration": 0.08
+        },
+        {
+          "name": "room_temperature_intermediate",
+          "temperature_c": [20, 25],
+          "duration_h": [6, 8],
+          "insoluble_fraction_calibration": 0.12
+        },
+        {
+          "name": "30c_moderate",
+          "temperature_c": [29, 31],
+          "duration_h": [4, 6],
+          "insoluble_fraction_calibration": 0.18
+        },
+        {
+          "name": "37c_standard",
+          "temperature_c": [36, 38],
+          "duration_h": [4, 6],
+          "insoluble_fraction_calibration": 0.25
+        }
+      ],
+      "native_lysis_ph": {
+        "min": 7.5,
+        "max": 8.0
+      },
+      "benchmark_calibrations": {
+        "total_target_yield_mg_per_l_before_solubility": 40,
+        "yield_note": "Synthetic deterministic calibration within a documented broad high-expression scale; not a construct-specific empirical claim.",
+        "out_of_contract_attempt": {
+          "observed_yield_mg_per_l": 0,
+          "lysate_prepared": false,
+          "note": "Deterministic benchmark state transition only; not a physical zero-yield claim."
+        }
+      }
+    },
+    "source_citations": [
+      {
+        "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+        "url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+        "accessed": "2026-07-15"
+      },
+      {
+        "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
+        "url": "https://doi.org/10.3389/fmicb.2014.00172",
+        "accessed": "2026-07-15"
+      },
+      {
+        "title": "The QIAexpressionist, Fifth Edition",
+        "url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+        "accessed": "2026-07-15"
+      },
+      {
+        "title": "NEBExpress MBP Fusion and Purification System Quick Start Protocol",
+        "url": "https://www.neb.com/en-us/protocols/nebexpress-mbp-fusion-and-purification-system-quick-start-protocol-neb-e8201",
+        "accessed": "2026-07-15"
+      }
+    ]
   }
 ]

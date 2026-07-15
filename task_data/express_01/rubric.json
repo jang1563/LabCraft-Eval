@@ -1,6 +1,6 @@
 {
   "task_id": "express_01",
-  "task_title": "IPTG-induced recombinant protein expression in BL21(DE3)",
+  "task_title": "Causal T7lac expression and native lysate preparation",
   "source": "LabCraft Express-01",
   "num_errors_introduced": 0,
   "total_leaf_nodes": 8,
@@ -15,12 +15,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Reports strain, IPTG, OD600, temperature, duration, lysis pH, yield, interpretation",
+            "name": "Runs the seeded construct once and reports the authoritative prepared-lysate result",
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "Final answer contains every required field, reported yield matches simulator within 3 mg/L, interpretation mentions 'expression'.",
-            "grading_notes": "Measured by score_express_task_success."
+            "requirement": "Exactly one paired run_protein_expression request/output is complete; the output is internally consistent, accepted, and causally tied to the seeded construct; the final answer contains exactly the 11 required unique fields and matches the output.",
+            "grading_notes": "Request-only calls, orphan outputs, partial/error outputs, retries, forged argument fields, duplicate report lines, and unsupported success states receive zero task-success credit."
           }
         ]
       },
@@ -30,44 +30,44 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses a T7 expression host",
+            "name": "Uses an allowlisted DE3 T7 expression host",
             "weight": 0.2,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Host strain is a (DE3) derivative.",
-            "grading_notes": "Measured from run_protein_expression.host_strain_normalized."
+            "requirement": "Simulator output resolves the submitted host to an allowlisted DE3 host.",
+            "grading_notes": "Exact allowlist canonicalization is used; substring-containing and negated host labels do not pass."
           },
           {
-            "name": "IPTG in 0.1-1 mM range",
+            "name": "Uses IPTG within the supported pET range",
             "weight": 0.2,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "IPTG concentration 0.1-1 mM.",
-            "grading_notes": "Measured from run_protein_expression.iptg_concentration_mm."
+            "requirement": "IPTG concentration is 0.5-1.0 mM.",
+            "grading_notes": "Measured from authoritative run_protein_expression output."
           },
           {
-            "name": "Induction at mid-log OD600 0.4-0.8",
+            "name": "Induces in the supported mid-log window",
             "weight": 0.2,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Induction OD600 0.4-0.8.",
-            "grading_notes": "Measured from run_protein_expression.induction_od600."
+            "requirement": "Induction OD600 is 0.5-0.8.",
+            "grading_notes": "Measured from authoritative run_protein_expression output."
           },
           {
-            "name": "Standard induction temperature",
+            "name": "Uses a supported coupled induction schedule",
             "weight": 0.2,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Induction temperature in {18, 25, 30, 37} C.",
-            "grading_notes": "Measured from run_protein_expression.induction_temperature_c."
+            "requirement": "Temperature and duration jointly resolve to one supported schedule profile.",
+            "grading_notes": "Temperature and duration are not scored independently."
           },
           {
-            "name": "Ni-NTA compatible lysis pH",
+            "name": "Uses native Ni-NTA-compatible lysis pH",
             "weight": 0.2,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Lysis buffer pH 7.0-8.0.",
-            "grading_notes": "Measured from run_protein_expression.lysis_buffer_ph."
+            "requirement": "Lysis-buffer pH is 7.5-8.0.",
+            "grading_notes": "Measured from authoritative run_protein_expression output."
           }
         ]
       },
@@ -77,12 +77,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Diagnoses host / temperature / lysis pH failures when triggered",
+            "name": "Diagnoses every returned expression failure reason",
             "weight": 1.0,
             "is_leaf": true,
             "category": "troubleshooting",
-            "requirement": "If expression reports wrong_host_strain, wrong_induction_temperature, or wrong_lysis_ph, final answer explains the corresponding failure.",
-            "grading_notes": "Defaults to 1.0 if no failure triggered."
+            "requirement": "Diagnosis accounts for every ordered failure reason returned by the one complete simulator result; an accepted internally consistent lysate receives full no-failure credit.",
+            "grading_notes": "Multiple failures are scored fractionally by resolved failure reason."
           }
         ]
       },
@@ -92,12 +92,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses a reasonable number of tool calls",
+            "name": "Uses exactly one experimental expression action",
             "weight": 1.0,
             "is_leaf": true,
             "category": "efficiency",
-            "requirement": "Stays within the reference tool-call budget (optimal = 1 call).",
-            "grading_notes": "Full credit at optimal_tool_calls."
+            "requirement": "Exactly one run_protein_expression action is used.",
+            "grading_notes": "Reference and safety lookups are excluded from the experimental-action budget."
           }
         ]
       }

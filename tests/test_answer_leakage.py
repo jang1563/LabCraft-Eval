@@ -167,10 +167,19 @@ def test_given_ni_nta_method_is_not_scored_as_a_decision():
     assert "uses_ni_nta_resin" not in decision_ids
 
 
-def test_expression_prompt_does_not_supply_t7_host_decision():
+def test_expression_prompt_supplies_required_system_context_without_host_or_bounds():
     prompt = build_express_01_prompt().casefold()
-    assert "t7 expression host" not in prompt
-    assert "ni-nta downstream" not in prompt
+    assert "expression_construct_his6_mbp_gfp_001" in prompt
+    assert "t7lac" in prompt
+    assert "ni-nta" in prompt
+    assert "lookup_reagent" in prompt
+    assert "exact seeded benchmark" in prompt
+    assert "synthetic" in prompt
+    assert "general scientific knowledge" not in prompt
+    assert "bl21" not in prompt
+    assert "0.5-1.0" not in prompt
+    assert "0.5-0.8" not in prompt
+    assert "7.5-8.0" not in prompt
 
 
 def test_growth_prompts_do_not_supply_scored_parameter_bounds():
@@ -380,6 +389,7 @@ def test_solver_assistant_prompts_do_not_supply_protocol_answers(monkeypatch, so
         (
             run_protein_expression_tool,
             (
+                "construct_id",
                 "host_strain",
                 "iptg_concentration_mm",
                 "induction_od600",
@@ -412,6 +422,10 @@ def test_tool_schemas_require_evaluated_protocol_choices(tool_builder, evaluated
     assert "canonical" not in documentation.lower()
     assert "recommended" not in documentation.lower()
     assert "optimal" not in documentation.lower()
+
+
+def test_expression_tool_keeps_culture_volume_fixed_outside_agent_surface():
+    assert "culture_volume_ml" not in inspect.signature(run_protein_expression_tool()).parameters
 
 
 def test_transform_and_pcr_tool_docs_do_not_name_scored_answers():

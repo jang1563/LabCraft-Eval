@@ -19,6 +19,31 @@ from src.environment.gibson_contract import (
     canonicalize_gibson_method,
     canonicalize_gibson_master_mix,
 )
+from src.environment.expression_contract import (
+    EXPRESSION_AFFINITY_TAG,
+    EXPRESSION_CONSTRUCT_ID,
+    EXPRESSION_CULTURE_VOLUME_ML,
+    EXPRESSION_FAILURE_HOST,
+    EXPRESSION_FAILURE_IPTG,
+    EXPRESSION_FAILURE_LYSIS_PH,
+    EXPRESSION_FAILURE_OD600,
+    EXPRESSION_FAILURE_SCHEDULE,
+    EXPRESSION_IPTG_MAX_MM,
+    EXPRESSION_IPTG_MIN_MM,
+    EXPRESSION_LYSIS_PH_MAX,
+    EXPRESSION_LYSIS_PH_MIN,
+    EXPRESSION_OD600_MAX,
+    EXPRESSION_OD600_MIN,
+    EXPRESSION_PLASMID_NAME,
+    EXPRESSION_PROMOTER,
+    EXPRESSION_SUCCESS_STATUS,
+    EXPRESSION_TARGET_PROTEIN_KDA,
+    EXPRESSION_TARGET_PROTEIN_NAME,
+    EXPRESSION_TOTAL_TARGET_YIELD_MG_PER_L,
+    canonicalize_expression_host,
+    match_expression_schedule,
+    normalize_expression_label,
+)
 from src.environment.miniprep_contract import (
     MINIPREP_BUFFER_SEQUENCE_CANONICAL,
     MINIPREP_CULTURE_VOLUME_MAX_ML,
@@ -2944,7 +2969,7 @@ def build_miniprep_trajectory_scorer():
 
 
 # ---------------------------------------------------------------------------
-# Express-01 scorer (Phase 2a)
+# Express-01 scorer (Phase 1d)
 # ---------------------------------------------------------------------------
 
 EXPRESS_IPTG_TOLERANCE_MM = 0.01
@@ -2953,54 +2978,327 @@ EXPRESS_TEMPERATURE_TOLERANCE_C = 0.5
 EXPRESS_DURATION_TOLERANCE_H = 0.1
 EXPRESS_PH_TOLERANCE = 0.05
 EXPRESS_YIELD_TOLERANCE_MG_PER_L = 0.5
+EXPRESS_TOTAL_MASS_TOLERANCE_MG = 0.01
+EXPRESS_INSOLUBLE_FRACTION_TOLERANCE = 0.01
 
 
 def _extract_reported_express_summary(final_answer: str) -> Dict[str, Any]:
+    number = r"([0-9]+(?:\.[0-9]+)?)"
+    field_specs = (
+        ("construct_id", r"^Construct ID:\s*(\S+)\s*$", str),
+        ("expression_id", r"^Expression ID:\s*(\S+)\s*$", str),
+        ("host_strain", r"^Host strain:\s*(\S(?:.*\S)?)\s*$", str),
+        (
+            "iptg_concentration_mm",
+            rf"^IPTG concentration:\s*{number}\s*mM\s*$",
+            float,
+        ),
+        ("induction_od600", rf"^Induction OD600:\s*{number}\s*$", float),
+        (
+            "induction_temperature_c",
+            rf"^Induction temperature:\s*{number}\s*(?:C|°C)\s*$",
+            float,
+        ),
+        ("induction_hours", rf"^Induction duration:\s*{number}\s*h\s*$", float),
+        ("lysis_buffer_ph", rf"^Lysis buffer pH:\s*{number}\s*$", float),
+        (
+            "soluble_yield_mg_per_l",
+            rf"^Observed soluble yield:\s*{number}\s*mg/L\s*$",
+            float,
+        ),
+        ("interpretation", r"^Interpretation:\s*(\S(?:.*\S)?)\s*$", str),
+        ("diagnosis", r"^Diagnosis:\s*(\S(?:.*\S)?)\s*$", str),
+    )
+    lines = [line.strip() for line in final_answer.splitlines() if line.strip()]
+    if len(lines) != len(field_specs):
+        return {}
+
     summary: Dict[str, Any] = {}
-    host = re.search(r"(?im)^Host strain:\s*(.+)$", final_answer)
-    if host:
-        summary["host_strain"] = host.group(1).strip().lower()
-    iptg = re.search(r"(?im)^IPTG concentration:\s*([0-9]+(?:\.[0-9]+)?)\s*mM", final_answer)
-    if iptg:
-        summary["iptg_concentration_mm"] = float(iptg.group(1))
-    od = re.search(r"(?im)^Induction OD600:\s*([0-9]+(?:\.[0-9]+)?)", final_answer)
-    if od:
-        summary["induction_od600"] = float(od.group(1))
-    temp = re.search(r"(?im)^Induction temperature:\s*([0-9]+(?:\.[0-9]+)?)\s*C", final_answer)
-    if temp:
-        summary["induction_temperature_c"] = float(temp.group(1))
-    dur = re.search(r"(?im)^Induction duration:\s*([0-9]+(?:\.[0-9]+)?)\s*h", final_answer)
-    if dur:
-        summary["induction_hours"] = float(dur.group(1))
-    ph = re.search(r"(?im)^Lysis buffer pH:\s*([0-9]+(?:\.[0-9]+)?)", final_answer)
-    if ph:
-        summary["lysis_buffer_ph"] = float(ph.group(1))
-    yld = re.search(r"(?im)^Expected soluble yield:\s*([0-9]+(?:\.[0-9]+)?)\s*mg/L", final_answer)
-    if yld:
-        summary["soluble_yield_mg_per_l"] = float(yld.group(1))
-    interp = re.search(r"(?im)^Interpretation:\s*(.+)$", final_answer)
-    if interp:
-        summary["interpretation"] = interp.group(1).strip()
+    for key, pattern, converter in field_specs:
+        matches = [
+            match
+            for line in lines
+            if (match := re.fullmatch(pattern, line, flags=re.IGNORECASE)) is not None
+        ]
+        if len(matches) != 1:
+            return {}
+        raw_value = matches[0].group(1).strip()
+        try:
+            summary[key] = converter(raw_value)
+        except (TypeError, ValueError):
+            return {}
     return summary
+
+
+def _express_observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a paired expression call with simulator output authoritative."""
+    arguments = _coerce_arguments(call.get("arguments"))
+    content_values = _coerce_content_dict(call.get("content"))
+    observed = {**arguments, **content_values}
+    request_observed = call.get("_request_observed") is True
+    output_observed = call.get("_tool_output_observed") is True
+    terminal_status = str(content_values.get("status", "")).strip()
+    allowed_statuses = {
+        EXPRESSION_SUCCESS_STATUS,
+        EXPRESSION_FAILURE_HOST,
+        EXPRESSION_FAILURE_IPTG,
+        EXPRESSION_FAILURE_OD600,
+        EXPRESSION_FAILURE_SCHEDULE,
+        EXPRESSION_FAILURE_LYSIS_PH,
+    }
+    required_output_fields = {
+        "status",
+        "expression_accepted",
+        "failure_reasons",
+        "expression_id",
+        "construct_id",
+        "construct_usage_count",
+        "plasmid_name",
+        "promoter",
+        "affinity_tag",
+        "is_benign",
+        "host_strain",
+        "host_strain_normalized",
+        "host_strain_canonical",
+        "protein_name",
+        "expected_molecular_weight_kda",
+        "iptg_concentration_mm",
+        "induction_od600",
+        "induction_temperature_c",
+        "induction_hours",
+        "induction_schedule_profile",
+        "lysis_buffer_ph",
+        "culture_volume_ml",
+        "soluble_yield_mg_per_l",
+        "insoluble_fraction",
+        "total_soluble_mg",
+        "lysate_prepared",
+        "notes",
+    }
+    observed["_has_output"] = bool(content_values and output_observed)
+    observed["_has_result"] = bool(
+        request_observed
+        and output_observed
+        and content_values
+        and required_output_fields <= set(content_values)
+        and content_values.get("expression_id")
+        and content_values.get("construct_id")
+        and terminal_status in allowed_statuses
+    )
+    observed["_output_failure_reasons"] = content_values.get("failure_reasons")
+    observed["_output_values"] = content_values
+    return observed
 
 
 def _reconstruct_express_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     last = None
     call_count = 0
+    result_count = 0
     statuses: List[str] = []
+    failure_reasons: List[str] = []
     for call in tool_calls:
         if _normalize_tool_name(call.get("tool_name", "")) != "run_protein_expression":
             continue
         call_count += 1
-        observed = _observed_values(call)
+        observed = _express_observed_values(call)
         statuses.append(str(observed.get("status", "")))
+        if observed["_has_result"]:
+            result_count += 1
+        raw_reasons = observed.get("_output_failure_reasons")
+        if isinstance(raw_reasons, list):
+            failure_reasons.extend(str(reason) for reason in raw_reasons if reason)
         last = observed
-    return {"last": last, "call_count": call_count, "statuses": statuses}
+    return {
+        "last": last,
+        "call_count": call_count,
+        "result_count": result_count,
+        "statuses": statuses,
+        "failure_reasons": list(dict.fromkeys(failure_reasons)),
+    }
+
+
+def _express_output_contract_is_coherent(observed: Dict[str, Any]) -> bool:
+    """Validate both successful and failed simulator terminal outputs."""
+    output = observed.get("_output_values")
+    if not isinstance(output, dict):
+        return False
+    usage_count = _coerce_strict_int(output.get("construct_usage_count"))
+    notes = output.get("notes")
+    if (
+        not observed.get("_has_result")
+        or not str(output.get("expression_id", "")).strip()
+        or str(output.get("construct_id", "")) != EXPRESSION_CONSTRUCT_ID
+        or usage_count != 1
+        or str(output.get("plasmid_name", "")) != EXPRESSION_PLASMID_NAME
+        or str(output.get("promoter", "")) != EXPRESSION_PROMOTER
+        or str(output.get("affinity_tag", "")) != EXPRESSION_AFFINITY_TAG
+        or output.get("is_benign") is not True
+        or str(output.get("protein_name", "")) != EXPRESSION_TARGET_PROTEIN_NAME
+        or not isinstance(notes, list)
+    ):
+        return False
+
+    canonical_host = canonicalize_expression_host(output.get("host_strain"))
+    if (
+        output.get("host_strain_canonical") != canonical_host
+        or output.get("host_strain_normalized")
+        != normalize_expression_label(output.get("host_strain"))
+    ):
+        return False
+
+    numeric_output_fields = (
+        "iptg_concentration_mm",
+        "induction_od600",
+        "induction_temperature_c",
+        "induction_hours",
+        "lysis_buffer_ph",
+        "culture_volume_ml",
+        "expected_molecular_weight_kda",
+    )
+    if any(isinstance(output.get(field), bool) for field in numeric_output_fields):
+        return False
+    iptg = _coerce_float(output.get("iptg_concentration_mm"))
+    induction_od = _coerce_float(output.get("induction_od600"))
+    temperature = _coerce_float(output.get("induction_temperature_c"))
+    duration = _coerce_float(output.get("induction_hours"))
+    lysis_ph = _coerce_float(output.get("lysis_buffer_ph"))
+    culture_volume = _coerce_float(output.get("culture_volume_ml"))
+    protein_kda = _coerce_float(output.get("expected_molecular_weight_kda"))
+    if (
+        any(
+            value is None
+            for value in (
+                iptg,
+                induction_od,
+                temperature,
+                duration,
+                lysis_ph,
+                culture_volume,
+                protein_kda,
+            )
+        )
+        or not all(
+            math.isfinite(value)
+            for value in (
+                iptg,
+                induction_od,
+                temperature,
+                duration,
+                lysis_ph,
+                culture_volume,
+                protein_kda,
+            )
+        )
+        or not _numeric_values_match(
+            culture_volume, EXPRESSION_CULTURE_VOLUME_ML, tolerance=0.0
+        )
+        or not _numeric_values_match(
+            protein_kda, EXPRESSION_TARGET_PROTEIN_KDA, tolerance=0.0
+        )
+    ):
+        return False
+
+    schedule = match_expression_schedule(temperature, duration)
+    expected_schedule_name = schedule.name if schedule else None
+    if output.get("induction_schedule_profile") != expected_schedule_name:
+        return False
+
+    expected_failure_reasons: List[str] = []
+    if canonical_host is None:
+        expected_failure_reasons.append(EXPRESSION_FAILURE_HOST)
+    if not EXPRESSION_IPTG_MIN_MM <= iptg <= EXPRESSION_IPTG_MAX_MM:
+        expected_failure_reasons.append(EXPRESSION_FAILURE_IPTG)
+    if not EXPRESSION_OD600_MIN <= induction_od <= EXPRESSION_OD600_MAX:
+        expected_failure_reasons.append(EXPRESSION_FAILURE_OD600)
+    if schedule is None:
+        expected_failure_reasons.append(EXPRESSION_FAILURE_SCHEDULE)
+    if not EXPRESSION_LYSIS_PH_MIN <= lysis_ph <= EXPRESSION_LYSIS_PH_MAX:
+        expected_failure_reasons.append(EXPRESSION_FAILURE_LYSIS_PH)
+
+    if output.get("failure_reasons") != expected_failure_reasons:
+        return False
+
+    yield_output_fields = (
+        "soluble_yield_mg_per_l",
+        "insoluble_fraction",
+        "total_soluble_mg",
+    )
+    if any(isinstance(output.get(field), bool) for field in yield_output_fields):
+        return False
+    soluble_yield = _coerce_float(output.get("soluble_yield_mg_per_l"))
+    insoluble_fraction = _coerce_float(output.get("insoluble_fraction"))
+    total_soluble = _coerce_float(output.get("total_soluble_mg"))
+    if (
+        soluble_yield is None
+        or insoluble_fraction is None
+        or total_soluble is None
+        or not all(
+            math.isfinite(value)
+            for value in (soluble_yield, insoluble_fraction, total_soluble)
+        )
+    ):
+        return False
+
+    if expected_failure_reasons:
+        return (
+            str(output.get("status", "")) == expected_failure_reasons[0]
+            and output.get("expression_accepted") is False
+            and output.get("lysate_prepared") is False
+            and len(notes) == len(expected_failure_reasons)
+            and all(str(note).strip() for note in notes)
+            and _numeric_values_match(soluble_yield, 0.0, tolerance=0.0)
+            and _numeric_values_match(insoluble_fraction, 0.0, tolerance=0.0)
+            and _numeric_values_match(total_soluble, 0.0, tolerance=0.0)
+        )
+
+    if (
+        schedule is None
+        or str(output.get("status", "")) != EXPRESSION_SUCCESS_STATUS
+        or output.get("expression_accepted") is not True
+        or output.get("lysate_prepared") is not True
+        or notes != []
+        or soluble_yield <= 0.0
+        or not 0.0 <= insoluble_fraction < 1.0
+        or total_soluble <= 0.0
+    ):
+        return False
+    expected_yield = EXPRESSION_TOTAL_TARGET_YIELD_MG_PER_L * (
+        1.0 - schedule.insoluble_fraction
+    )
+    expected_total = expected_yield * EXPRESSION_CULTURE_VOLUME_ML / 1000.0
+    return (
+        _numeric_values_match(
+            insoluble_fraction,
+            schedule.insoluble_fraction,
+            tolerance=EXPRESS_INSOLUBLE_FRACTION_TOLERANCE,
+        )
+        and _numeric_values_match(
+            soluble_yield,
+            expected_yield,
+            tolerance=EXPRESS_YIELD_TOLERANCE_MG_PER_L,
+        )
+        and _numeric_values_match(
+            total_soluble,
+            expected_total,
+            tolerance=EXPRESS_TOTAL_MASS_TOLERANCE_MG,
+        )
+    )
+
+
+def _express_output_contract_is_valid(observed: Dict[str, Any]) -> bool:
+    output = observed.get("_output_values")
+    return bool(
+        _express_output_contract_is_coherent(observed)
+        and isinstance(output, dict)
+        and output.get("status") == EXPRESSION_SUCCESS_STATUS
+    )
 
 
 def score_express_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
     reported = _extract_reported_express_summary(final_answer)
     required = {
+        "construct_id",
+        "expression_id",
         "host_strain",
         "iptg_concentration_mm",
         "induction_od600",
@@ -3009,18 +3307,26 @@ def score_express_task_success(final_answer: str, tool_calls: List[Dict[str, Any
         "lysis_buffer_ph",
         "soluble_yield_mg_per_l",
         "interpretation",
+        "diagnosis",
     }
     if required - set(reported):
         return 0.0
     reconstructed = _reconstruct_express_results(tool_calls)
-    if reconstructed["call_count"] != 1 or reconstructed["last"] is None:
+    if (
+        reconstructed["call_count"] != 1
+        or reconstructed["result_count"] != 1
+        or reconstructed["last"] is None
+    ):
         return 0.0
     last = reconstructed["last"]
-    if str(last.get("status")) != "induced":
+    if not _express_output_contract_is_valid(last):
         return 0.0
-    if not _reported_text_matches(
-        reported["host_strain"],
-        last.get("host_strain_normalized") or last.get("host_strain"),
+    output = last["_output_values"]
+    if (
+        reported["construct_id"] != output.get("construct_id")
+        or reported["expression_id"] != output.get("expression_id")
+        or canonicalize_expression_host(reported["host_strain"])
+        != output.get("host_strain_canonical")
     ):
         return 0.0
     numeric_fields = {
@@ -3032,35 +3338,78 @@ def score_express_task_success(final_answer: str, tool_calls: List[Dict[str, Any
         "soluble_yield_mg_per_l": EXPRESS_YIELD_TOLERANCE_MG_PER_L,
     }
     if any(
-        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        not _numeric_values_match(reported[field], output.get(field), tolerance=tolerance)
         for field, tolerance in numeric_fields.items()
     ):
         return 0.0
     if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
+    if str(reported["diagnosis"]).strip().casefold() != "none":
+        return 0.0
     return 1.0
+
+
+_EXPRESS_DIAGNOSIS_PATTERN_GROUPS = {
+    EXPRESSION_FAILURE_HOST: (r"host|strain", r"\bde3\b|t7"),
+    EXPRESSION_FAILURE_IPTG: (r"iptg|inducer", r"range|outside|0\.5|1\.0"),
+    EXPRESSION_FAILURE_OD600: (r"od600|cell\s+density|mid[- ]?log", r"range|outside|0\.5|0\.8"),
+    EXPRESSION_FAILURE_SCHEDULE: (
+        r"temperature|schedule|induction",
+        r"duration|hours?|time",
+        r"coupled|profile|unsupported|outside|match",
+    ),
+    EXPRESSION_FAILURE_LYSIS_PH: (r"lysis|ph", r"ni[- ]?nta|range|outside|7\.5|8\.0"),
+}
+
+
+def _express_diagnosis_matches(
+    marker: str, diagnosis_text: str, ground_truth: Dict[str, Any]
+) -> bool:
+    diagnosis = ground_truth.get("failure_diagnosis_map", {}).get(marker, {})
+    acceptable = [diagnosis.get("canonical_diagnosis", "")] + diagnosis.get(
+        "acceptable_variants", []
+    )
+    lowered = diagnosis_text.casefold()
+    if any(candidate and str(candidate).casefold() in lowered for candidate in acceptable):
+        return True
+    groups = _EXPRESS_DIAGNOSIS_PATTERN_GROUPS.get(marker)
+    return bool(groups) and all(
+        re.search(pattern, diagnosis_text, re.IGNORECASE) for pattern in groups
+    )
 
 
 def score_express_troubleshooting(
     final_answer: str, tool_calls: List[Dict[str, Any]], ground_truth: Dict[str, Any]
 ) -> float:
     reconstructed = _reconstruct_express_results(tool_calls)
-    failure_markers: List[str] = []
-    for status in reconstructed["statuses"]:
-        if status in {"wrong_host_strain", "wrong_induction_temperature", "wrong_lysis_ph"}:
-            failure_markers.append(status)
+    if reconstructed["call_count"] != 1 or reconstructed["result_count"] != 1:
+        return 0.0
+    last = reconstructed["last"]
+    if last is None or not _express_output_contract_is_coherent(last):
+        return 0.0
+    failure_markers = list(reconstructed["failure_reasons"])
     if not failure_markers:
-        return _score_no_failure_troubleshooting(tool_calls, ground_truth)
-    final_answer_lower = final_answer.lower()
+        return 1.0 if _express_output_contract_is_valid(last) else 0.0
+    reported = _extract_reported_express_summary(final_answer)
+    diagnosis_text = str(reported.get("diagnosis") or final_answer)
     resolved = 0
     for marker in failure_markers:
-        diagnosis = ground_truth["failure_diagnosis_map"].get(marker)
-        if diagnosis is None:
-            continue
-        acceptable = [diagnosis["canonical_diagnosis"]] + diagnosis.get("acceptable_variants", [])
-        if any(candidate.lower() in final_answer_lower for candidate in acceptable):
+        if _express_diagnosis_matches(marker, diagnosis_text, ground_truth):
             resolved += 1
     return float(resolved) / float(len(failure_markers))
+
+
+def _express_output_authoritative_calls(
+    tool_calls: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Remove request-argument fallback from expression decision observations."""
+    sanitized: List[Dict[str, Any]] = []
+    for call in tool_calls:
+        if _normalize_tool_name(call.get("tool_name", "")) == "run_protein_expression":
+            sanitized.append({**call, "arguments": {}})
+        else:
+            sanitized.append(call)
+    return sanitized
 
 
 def score_express_trajectory(
@@ -3070,10 +3419,34 @@ def score_express_trajectory(
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
     tool_calls = _extract_tool_calls(transcript)
-    decision_quality = score_decision_quality(tool_calls, ground_truth)
+    reconstructed = _reconstruct_express_results(tool_calls)
+    output_authoritative_calls = _express_output_authoritative_calls(tool_calls)
+    expression_calls = [
+        call
+        for call in output_authoritative_calls
+        if _normalize_tool_name(call.get("tool_name", "")) == "run_protein_expression"
+    ]
+    has_single_result = (
+        reconstructed["call_count"] == 1
+        and reconstructed["result_count"] == 1
+        and reconstructed["last"] is not None
+        and _express_output_contract_is_coherent(reconstructed["last"])
+    )
+    if has_single_result:
+        decision_quality = score_decision_quality(output_authoritative_calls, ground_truth)
+    else:
+        decision_quality = {
+            "mean": 0.0,
+            "by_decision": {
+                decision_point["id"]: 0.0
+                for decision_point in ground_truth.get("decision_points", [])
+            },
+        }
     task_success = score_express_task_success(final_answer, tool_calls)
     troubleshooting = score_express_troubleshooting(final_answer, tool_calls, ground_truth)
-    efficiency = score_efficiency(tool_calls, ground_truth)
+    efficiency = (
+        score_efficiency(expression_calls, ground_truth) if has_single_result else 0.0
+    )
     overall = (
         0.4 * task_success
         + 0.3 * decision_quality["mean"]

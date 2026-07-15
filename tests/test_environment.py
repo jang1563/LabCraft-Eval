@@ -11,6 +11,16 @@ import pytest
 from pathlib import Path
 
 from src.environment.gibson_contract import canonicalize_gibson_master_mix
+from src.environment.expression_contract import (
+    EXPRESSION_CONSTRUCT_ID,
+    EXPRESSION_FAILURE_HOST,
+    EXPRESSION_FAILURE_IPTG,
+    EXPRESSION_FAILURE_LYSIS_PH,
+    EXPRESSION_FAILURE_OD600,
+    EXPRESSION_FAILURE_SCHEDULE,
+    EXPRESSION_SUCCESS_STATUS,
+    canonicalize_expression_host,
+)
 from src.environment.miniprep_contract import (
     MINIPREP_BUFFER_SEQUENCE_CANONICAL,
     MINIPREP_ELUTION_VOLUME_UL,
@@ -30,6 +40,7 @@ from src.environment.operations import (
     gibson_assembly,
     golden_gate_assembly,
     incubate,
+    initialize_expression_construct,
     inoculate_growth,
     inspect_screening_plate,
     initialize_miniprep_source_culture,
@@ -69,12 +80,14 @@ from src.tools.lab_tools import (
     incubate_call,
     inoculate_growth_call,
     inspect_screening_plate_call,
+    initialize_expression_sample,
     measure_od600_call,
     plate_call,
     prepare_media_call,
     run_colony_pcr_call,
     run_gel_call,
     run_pcr_call,
+    run_protein_expression_call,
     set_active_sample,
     transform_call,
 )
@@ -1853,52 +1866,205 @@ EXPRESSION_PARAMETERS_PATH = (
 def test_expression_parameter_bundle_exposes_required_values():
     bundle = load_expression_parameters(EXPRESSION_PARAMETERS_PATH)
     assert "BL21(DE3)" in bundle.choices("accepted_host_strains")
-    assert bundle.value("iptg_concentration_mm_optimal") == pytest.approx(1.0)
-    temps = [float(t) for t in bundle.choices("induction_temperatures_c")]
-    assert 18 in temps and 37 in temps
+    assert bundle.number_list("iptg_concentration_mm_acceptable_range") == [0.5, 1.0]
+    assert bundle.number_list("induction_od600_range") == [0.5, 0.8]
+    assert "low_temperature_extended" in bundle.choices("induction_schedule_profiles")
+    assert "37c_standard" in bundle.choices("induction_schedule_profiles")
+    assert bundle.value("culture_volume_ml") == pytest.approx(500.0)
+
+
+def _run_standard_expression(state, **updates):
+    initialize_expression_construct(state)
+    arguments = {
+        "construct_id": EXPRESSION_CONSTRUCT_ID,
+        "host_strain": "BL21(DE3)",
+        "iptg_concentration_mm": 1.0,
+        "induction_od600": 0.6,
+        "induction_temperature_c": 18.0,
+        "induction_hours": 16.0,
+        "lysis_buffer_ph": 8.0,
+    }
+    arguments.update(updates)
+    return run_protein_expression(state=state, **arguments)
+
+
+def test_initialize_expression_construct_seeds_causal_benign_fixture():
+    state = create_lab_state(sample_id="express-seed", seed=1)
+
+    construct = initialize_expression_construct(state)
+
+    assert construct.construct_id == EXPRESSION_CONSTRUCT_ID
+    assert construct.promoter == "T7lac"
+    assert construct.target_protein_name == "His6-MBP-GFP fusion"
+    assert construct.is_benign is True
+    assert construct.culture_volume_ml == pytest.approx(500.0)
+    assert construct.usage_count == 0
+    assert initialize_expression_construct(state) is construct
 
 
 def test_run_protein_expression_happy_path():
     state = create_lab_state(sample_id="express-happy", seed=1)
-    result = run_protein_expression(
-        state=state,
-        host_strain="BL21(DE3)",
-        iptg_concentration_mm=1.0,
-        induction_od600=0.6,
-        induction_temperature_c=18.0,
-        induction_hours=16.0,
-        lysis_buffer_ph=8.0,
-    )
-    assert result["status"] == "induced"
-    assert result["soluble_yield_mg_per_l"] > 20.0
+    result = _run_standard_expression(state)
+
+    assert result["status"] == EXPRESSION_SUCCESS_STATUS
+    assert result["expression_accepted"] is True
+    assert result["failure_reasons"] == []
+    assert result["construct_id"] == EXPRESSION_CONSTRUCT_ID
+    assert result["construct_usage_count"] == 1
+    assert result["induction_schedule_profile"] == "low_temperature_extended"
+    assert result["soluble_yield_mg_per_l"] == pytest.approx(36.8)
+    assert result["total_soluble_mg"] == pytest.approx(18.4)
+    assert result["lysate_prepared"] is True
+    assert result["notes"] == []
+    assert state.protein_expressions[result["expression_id"]].construct_id == EXPRESSION_CONSTRUCT_ID
 
 
 def test_run_protein_expression_wrong_host_flagged():
     state = create_lab_state(sample_id="express-wrong-host", seed=1)
-    result = run_protein_expression(
-        state=state,
-        host_strain="DH5alpha",
-        iptg_concentration_mm=1.0,
-        induction_od600=0.6,
+    result = _run_standard_expression(
+        state,
+        host_strain="not-BL21(DE3)-no-T7",
         induction_temperature_c=37.0,
         induction_hours=4.0,
-        lysis_buffer_ph=8.0,
     )
-    assert result["status"] == "wrong_host_strain"
+
+    assert result["status"] == EXPRESSION_FAILURE_HOST
+    assert result["failure_reasons"] == [EXPRESSION_FAILURE_HOST]
+    assert result["expression_accepted"] is False
+    assert result["soluble_yield_mg_per_l"] == 0.0
+    assert result["lysate_prepared"] is False
 
 
 def test_run_protein_expression_wrong_ph_flagged():
     state = create_lab_state(sample_id="express-wrong-ph", seed=1)
-    result = run_protein_expression(
-        state=state,
-        host_strain="BL21(DE3)",
-        iptg_concentration_mm=1.0,
-        induction_od600=0.6,
+    result = _run_standard_expression(
+        state,
         induction_temperature_c=37.0,
         induction_hours=4.0,
         lysis_buffer_ph=5.0,
     )
-    assert result["status"] in {"wrong_lysis_ph"}
+
+    assert result["status"] == EXPRESSION_FAILURE_LYSIS_PH
+    assert result["failure_reasons"] == [EXPRESSION_FAILURE_LYSIS_PH]
+
+
+@pytest.mark.parametrize(
+    ("label", "canonical"),
+    (
+        ("BL21 (DE3)", "BL21(DE3)"),
+        ("BL21 Star™(DE3)", "BL21 Star(DE3)"),
+        ("BL21(DE3)pLysS", "BL21(DE3) pLysS"),
+        ("Rosetta (DE3)", "Rosetta(DE3)"),
+    ),
+)
+def test_expression_host_canonicalizer_accepts_only_explicit_aliases(label, canonical):
+    assert canonicalize_expression_host(label) == canonical
+
+
+@pytest.mark.parametrize(
+    "label",
+    ("not BL21(DE3)", "BL21", "DE3", "BL21(DE3) and DH5alpha", ""),
+)
+def test_expression_host_canonicalizer_rejects_substring_and_ambiguous_labels(label):
+    assert canonicalize_expression_host(label) is None
+
+
+def test_run_protein_expression_records_all_failures_in_contract_order():
+    state = create_lab_state(sample_id="express-all-failures", seed=1)
+
+    result = _run_standard_expression(
+        state,
+        host_strain="DH5alpha",
+        iptg_concentration_mm=1.5,
+        induction_od600=2.0,
+        induction_temperature_c=18.0,
+        induction_hours=1.0,
+        lysis_buffer_ph=5.0,
+    )
+
+    assert result["failure_reasons"] == [
+        EXPRESSION_FAILURE_HOST,
+        EXPRESSION_FAILURE_IPTG,
+        EXPRESSION_FAILURE_OD600,
+        EXPRESSION_FAILURE_SCHEDULE,
+        EXPRESSION_FAILURE_LYSIS_PH,
+    ]
+    assert result["status"] == EXPRESSION_FAILURE_HOST
+    assert len(result["notes"]) == 5
+    assert result["soluble_yield_mg_per_l"] == 0.0
+
+
+def _expression_mutation_snapshot(state):
+    return {
+        "expression_counter": state.expression_counter,
+        "expressions": copy.deepcopy(state.protein_expressions),
+        "constructs": copy.deepcopy(state.expression_constructs),
+        "events": copy.deepcopy(state.event_log),
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("iptg_concentration_mm", float("nan")),
+        ("induction_od600", float("inf")),
+        ("induction_temperature_c", True),
+        ("induction_hours", "not-a-number"),
+        ("lysis_buffer_ph", float("-inf")),
+    ),
+)
+def test_run_protein_expression_rejects_malformed_scalars_without_mutation(field, value):
+    state = create_lab_state(sample_id="express-invalid-{}".format(field), seed=1)
+    initialize_expression_construct(state)
+    before = _expression_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _run_standard_expression(state, **{field: value})
+
+    assert _expression_mutation_snapshot(state) == before
+
+
+def test_run_protein_expression_requires_seeded_known_construct_without_mutation():
+    state = create_lab_state(sample_id="express-unknown-construct", seed=1)
+    before = _expression_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        run_protein_expression(
+            state=state,
+            construct_id="unknown_construct",
+            host_strain="BL21(DE3)",
+            iptg_concentration_mm=1.0,
+            induction_od600=0.6,
+            induction_temperature_c=18.0,
+            induction_hours=16.0,
+            lysis_buffer_ph=8.0,
+        )
+
+    assert _expression_mutation_snapshot(state) == before
+
+
+def test_expression_tool_wrapper_uses_seeded_active_sample():
+    sample_id = "express-wrapper"
+    set_active_sample(sample_id, seed=1)
+    initialize_expression_sample()
+
+    observation = asyncio.run(
+        run_protein_expression_call(
+            construct_id=EXPRESSION_CONSTRUCT_ID,
+            host_strain="BL21(DE3)",
+            iptg_concentration_mm=1.0,
+            induction_od600=0.6,
+            induction_temperature_c=18.0,
+            induction_hours=16.0,
+            lysis_buffer_ph=8.0,
+        )
+    )
+    result = json.loads(observation)
+
+    assert result["status"] == EXPRESSION_SUCCESS_STATUS
+    assert result["construct_id"] == EXPRESSION_CONSTRUCT_ID
+    assert result["expression_id"] == "expression_001"
+    cleanup_sample(sample_id)
 
 
 PURIFICATION_PARAMETERS_PATH = (

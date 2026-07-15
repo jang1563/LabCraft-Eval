@@ -3,16 +3,32 @@
   "parameters": [
     {
       "parameter_name": "accepted_host_strains",
-      "description": "E. coli strains carrying the T7 RNA polymerase required for pET-based IPTG induction.",
+      "description": "Exact canonical E. coli host allowlist for the seeded T7lac construct; superficial punctuation and spacing aliases are resolved in code.",
       "units": "strain names",
       "distribution": "deterministic",
       "parameters": {
-        "value": ["BL21(DE3)", "BL21(DE3) pLysS", "Rosetta(DE3)", "C41(DE3)", "C43(DE3)"]
+        "value": [
+          "BL21(DE3)",
+          "BL21 Star(DE3)",
+          "BL21(DE3) pLysS",
+          "BL21 Star(DE3) pLysS",
+          "Rosetta(DE3)",
+          "C41(DE3)",
+          "C43(DE3)"
+        ]
       },
-      "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "claim_type": "protocol_category",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual establishes DE3 T7 expression hosts and documents BL21 Star(DE3) variants."
+        },
         {
           "authors": "Rosano GL, Ceccarelli EA",
           "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
@@ -21,92 +37,69 @@
           "doi": "10.3389/fmicb.2014.00172",
           "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed review establishing BL21(DE3) and its derivatives as canonical T7 expression hosts."
-        }
-      ]
-    },
-    {
-      "parameter_name": "iptg_concentration_mm_optimal",
-      "description": "Canonical IPTG induction concentration for pET / T7 systems in BL21(DE3).",
-      "units": "millimolar",
-      "distribution": "deterministic",
-      "parameters": {
-        "value": 1.0
-      },
-      "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
-      "tier_satisfied": true,
-      "citations": [
-        {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 establishes 0.1 - 1 mM IPTG as the canonical induction range; 1 mM is the standard textbook value."
+          "tier_justification": "Peer-reviewed review describes specialized DE3 host variants including Rosetta, C41, and C43."
         }
       ]
     },
     {
       "parameter_name": "iptg_concentration_mm_acceptable_range",
-      "description": "Acceptable IPTG induction concentration range before yield falls off.",
+      "description": "Supported IPTG range for the benchmark's pET-style expression workflow.",
       "units": "millimolar",
       "distribution": "deterministic",
       "parameters": {
-        "value": [0.1, 1.0]
+        "value": [0.5, 1.0]
       },
       "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 defines 0.1-1 mM as the typical IPTG induction range."
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET manual specifies 0.5-1.0 mM IPTG for pilot and preparative expression."
         }
       ]
     },
     {
       "parameter_name": "induction_od600_range",
-      "description": "Acceptable OD600 window for IPTG induction of exponentially growing BL21(DE3).",
+      "description": "Supported mid-log OD600 induction window for the benchmark's pET workflow.",
       "units": "OD600",
       "distribution": "deterministic",
       "parameters": {
-        "value": [0.4, 0.8]
+        "value": [0.5, 0.8]
       },
       "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "authors": "Rosano GL, Ceccarelli EA",
-          "title": "Recombinant protein expression in Escherichia coli: advances and challenges",
-          "journal": "Frontiers in Microbiology",
-          "year": 2014,
-          "doi": "10.3389/fmicb.2014.00172",
-          "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
-          "tier": "Silver",
-          "tier_justification": "Rosano 2014 recommends inducing at mid-log phase, OD600 ~ 0.4 - 0.8."
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET pilot-expression procedure identifies OD600 0.5-0.8 as mid-log."
         }
       ]
     },
     {
-      "parameter_name": "induction_temperatures_c",
-      "description": "Induction temperatures accepted for recombinant protein expression.",
-      "units": "Celsius",
+      "parameter_name": "induction_schedule_profiles",
+      "description": "Supported coupled temperature-duration profiles: 15-25 C for 12-20 h, 20-25 C for 6-8 h, 29-31 C for 4-6 h, or 36-38 C for 4-6 h. The profiles are benchmark support windows, not universal optima.",
+      "units": "profile identifiers",
       "distribution": "deterministic",
       "parameters": {
-        "value": [18, 25, 30, 37]
+        "value": [
+          "low_temperature_extended",
+          "room_temperature_intermediate",
+          "30c_moderate",
+          "37c_standard"
+        ]
       },
-      "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
@@ -117,80 +110,106 @@
           "doi": "10.3389/fmicb.2014.00172",
           "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
           "tier": "Silver",
-          "tier_justification": "Rosano 2014: 37 C short induction and 18-25 C overnight induction are both standard; low temperature improves solubility of hard-to-fold proteins."
+          "tier_justification": "Peer-reviewed review supports 15-25 C production when reducing aggregation."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBExpress MBP Fusion and Purification System Quick Start Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebexpress-mbp-fusion-and-purification-system-quick-start-protocol-neb-e8201",
+          "tier": "Bronze",
+          "tier_justification": "Official MBP workflow supplies the coupled temperature-duration schedule shapes used for the MBP-fusion task configuration."
+        },
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET pilot-expression procedure samples 37 C induction for 4-6 hours."
         }
       ]
     },
     {
       "parameter_name": "lysis_buffer_ph_range",
-      "description": "Acceptable lysis buffer pH range for His-tagged protein lysis.",
+      "description": "Supported native lysis-buffer pH window for downstream Ni-NTA capture.",
       "units": "pH",
       "distribution": "deterministic",
       "parameters": {
-        "value": [7.0, 8.0]
+        "value": [7.5, 8.0]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN QIAexpressionist handbook recommends pH 7.0-8.0 for Ni-NTA-compatible lysis buffers."
+          "tier_justification": "Official handbook uses native lysis buffer at pH 8.0 and states that pH 7.5 is essential for efficient 6xHis binding to Ni-NTA."
         }
       ]
     },
     {
-      "parameter_name": "target_protein_name",
-      "description": "Benign model protein used for the Express-01 scenario.",
-      "units": "protein name",
+      "parameter_name": "culture_volume_ml",
+      "description": "Fixed simulator culture volume; this is task context and is not an agent decision.",
+      "units": "millilitres",
       "distribution": "deterministic",
       "parameters": {
-        "value": "MBP-GFP fusion"
+        "value": 500.0
       },
       "claim_type": "task_configuration",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "NEB pMAL Protein Fusion and Purification System",
-          "canonical_url": "https://www.neb.com/en-us/products/e8200-pmal-protein-fusion-and-purification-system",
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
           "tier": "Bronze",
-          "tier_justification": "NEB pMAL product page supporting MBP fusions as a standard benign expression target; GFP is used as the reporter fusion partner."
+          "tier_justification": "Official preparative pET workflow explicitly permits scale-up to a 500 mL culture."
         }
       ]
     },
     {
-      "parameter_name": "target_protein_kda",
-      "description": "Expected molecular weight of the MBP-GFP benign fusion.",
-      "units": "kilodaltons",
-      "distribution": "deterministic",
-      "parameters": {
-        "value": 72.0
-      },
-      "claim_type": "task_configuration",
-      "minimum_tier_required": "Bronze",
-      "tier_satisfied": true,
-      "citations": [
-        {
-          "title": "NEB pMAL Protein Fusion and Purification System",
-          "canonical_url": "https://www.neb.com/en-us/products/e8200-pmal-protein-fusion-and-purification-system",
-          "tier": "Bronze",
-          "tier_justification": "MBP ~ 42.5 kDa + GFP ~ 27 kDa + linker ~ 2 kDa = ~ 72 kDa for the MBP-GFP fusion per NEB pMAL product."
-        }
-      ]
-    },
-    {
-      "parameter_name": "optimal_soluble_yield_mg_per_l",
-      "description": "Expected soluble yield of the MBP-GFP fusion under optimal BL21(DE3) induction conditions.",
-      "units": "mg per litre of culture",
+      "parameter_name": "total_target_yield_mg_per_l_calibration",
+      "description": "Deterministic simulator calibration before the schedule-specific insoluble fraction is applied. It is not an empirical yield claim for all His6-MBP-GFP constructs.",
+      "units": "milligrams per litre",
       "distribution": "deterministic",
       "parameters": {
         "value": 40.0
       },
       "claim_type": "task_configuration",
-      "minimum_tier_required": "Silver",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook describes 10-50 mg/L as a high-expression scale for 6xHis-tagged proteins; 40 mg/L is transparently retained only as an in-range simulator calibration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "schedule_specific_insoluble_fraction_calibrations",
+      "description": "Synthetic deterministic fractions used to generate benchmark observations after a supported coupled schedule is selected. These are task configuration, not empirical solubility claims for the fixture or for physical expression protocols.",
+      "units": "fraction of target yield",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": {
+          "low_temperature_extended": 0.08,
+          "room_temperature_intermediate": 0.12,
+          "30c_moderate": 0.18,
+          "37c_standard": 0.25
+        }
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
@@ -201,7 +220,36 @@
           "doi": "10.3389/fmicb.2014.00172",
           "canonical_url": "https://doi.org/10.3389/fmicb.2014.00172",
           "tier": "Silver",
-          "tier_justification": "Rosano 2014 reports MBP fusions routinely express at tens of mg/L in BL21(DE3); 40 mg/L is a conservative optimal value."
+          "tier_justification": "Peer-reviewed review supports the qualitative relation between lower-temperature production and reduced aggregation; the exact four fractions remain explicitly synthetic task calibrations."
+        },
+        {
+          "authors": "New England Biolabs",
+          "title": "NEBExpress MBP Fusion and Purification System Quick Start Protocol",
+          "canonical_url": "https://www.neb.com/en-us/protocols/nebexpress-mbp-fusion-and-purification-system-quick-start-protocol-neb-e8201",
+          "tier": "Bronze",
+          "tier_justification": "Official MBP workflow motivates the coupled schedule ordering; it does not report the synthetic insoluble-fraction values."
+        }
+      ]
+    },
+    {
+      "parameter_name": "out_of_contract_attempt_behavior",
+      "description": "If any submitted condition is outside the seeded benchmark contract, the simulator returns a failed attempt with zero observed yield and no prepared lysate. This is a deterministic task boundary, not a claim that the same condition must produce zero protein in a physical experiment.",
+      "units": "simulator state transition",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": "failed_attempt_zero_observed_yield_no_lysate"
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "Thermo Fisher Scientific",
+          "title": "Champion pET Gateway Expression Kits with Lumio Technology User Manual",
+          "year": 2010,
+          "canonical_url": "https://documents.thermofisher.com/TFS-Assets/LSG/manuals/petlumiodest_man.pdf",
+          "tier": "Bronze",
+          "tier_justification": "Official pET workflow supplies scientific context for the supported contract; zero observed yield and no lysate are explicitly simulator-defined failure outputs rather than claims from the manual."
         }
       ]
     }

@@ -16,6 +16,31 @@ from .gibson_contract import (
     canonicalize_gibson_master_mix,
     normalize_gibson_master_mix,
 )
+from .expression_contract import (
+    EXPRESSION_AFFINITY_TAG,
+    EXPRESSION_CONSTRUCT_ID,
+    EXPRESSION_CULTURE_VOLUME_ML,
+    EXPRESSION_FAILURE_HOST,
+    EXPRESSION_FAILURE_IPTG,
+    EXPRESSION_FAILURE_LYSIS_PH,
+    EXPRESSION_FAILURE_OD600,
+    EXPRESSION_FAILURE_SCHEDULE,
+    EXPRESSION_IPTG_MAX_MM,
+    EXPRESSION_IPTG_MIN_MM,
+    EXPRESSION_LYSIS_PH_MAX,
+    EXPRESSION_LYSIS_PH_MIN,
+    EXPRESSION_OD600_MAX,
+    EXPRESSION_OD600_MIN,
+    EXPRESSION_PLASMID_NAME,
+    EXPRESSION_PROMOTER,
+    EXPRESSION_SUCCESS_STATUS,
+    EXPRESSION_TARGET_PROTEIN_KDA,
+    EXPRESSION_TARGET_PROTEIN_NAME,
+    EXPRESSION_TOTAL_TARGET_YIELD_MG_PER_L,
+    canonicalize_expression_host,
+    match_expression_schedule,
+    normalize_expression_label,
+)
 from .miniprep_contract import (
     MINIPREP_CULTURE_VOLUME_MAX_ML,
     MINIPREP_CULTURE_VOLUME_MIN_ML,
@@ -40,6 +65,7 @@ from .state import (
     AssemblyReaction,
     DigestReaction,
     DnaFragment,
+    ExpressionConstruct,
     GelRun,
     GibsonReaction,
     GrowthCulture,
@@ -59,7 +85,6 @@ from .state import (
 )
 from .stochastic import (
     load_cloning_parameters,
-    load_expression_parameters,
     load_gibson_parameters,
     load_golden_gate_parameters,
     load_growth_parameters,
@@ -84,8 +109,6 @@ _GIBSON_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parame
 _GIBSON_BUNDLE = None
 _MINIPREP_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parameters" / "miniprep.json"
 _MINIPREP_BUNDLE = None
-_EXPRESSION_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parameters" / "expression.json"
-_EXPRESSION_BUNDLE = None
 _PURIFICATION_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parameters" / "purification.json"
 _PURIFICATION_BUNDLE = None
 
@@ -182,13 +205,6 @@ def _miniprep_bundle():
     if _MINIPREP_BUNDLE is None:
         _MINIPREP_BUNDLE = load_miniprep_parameters(_MINIPREP_PARAMETERS_PATH)
     return _MINIPREP_BUNDLE
-
-
-def _expression_bundle():
-    global _EXPRESSION_BUNDLE
-    if _EXPRESSION_BUNDLE is None:
-        _EXPRESSION_BUNDLE = load_expression_parameters(_EXPRESSION_PARAMETERS_PATH)
-    return _EXPRESSION_BUNDLE
 
 
 def _purification_bundle():
@@ -2221,126 +2237,158 @@ def perform_miniprep(
     return payload
 
 
+def initialize_expression_construct(state: LabState) -> ExpressionConstruct:
+    """Seed the fixed benign T7lac construct used by Express-01."""
+    existing = state.expression_constructs.get(EXPRESSION_CONSTRUCT_ID)
+    if existing is not None:
+        return existing
+    construct = ExpressionConstruct(
+        construct_id=EXPRESSION_CONSTRUCT_ID,
+        plasmid_name=EXPRESSION_PLASMID_NAME,
+        promoter=EXPRESSION_PROMOTER,
+        target_protein_name=EXPRESSION_TARGET_PROTEIN_NAME,
+        expected_molecular_weight_kda=EXPRESSION_TARGET_PROTEIN_KDA,
+        affinity_tag=EXPRESSION_AFFINITY_TAG,
+        is_benign=True,
+        culture_volume_ml=EXPRESSION_CULTURE_VOLUME_ML,
+    )
+    state.expression_constructs[construct.construct_id] = construct
+    return construct
+
+
 def run_protein_expression(
     state: LabState,
+    construct_id: str,
     host_strain: str,
     iptg_concentration_mm: float,
     induction_od600: float,
     induction_temperature_c: float,
     induction_hours: float,
     lysis_buffer_ph: float,
-    culture_volume_ml: float = 500.0,
 ) -> Dict[str, object]:
-    """Simulate a single IPTG-induced recombinant protein expression run in BL21(DE3)."""
-    bundle = _expression_bundle()
-    accepted_strains = {_normalize_choice(s) for s in bundle.choices("accepted_host_strains")}
-    iptg_range = bundle.number_list("iptg_concentration_mm_acceptable_range")
-    induction_od_range = bundle.number_list("induction_od600_range")
-    accepted_temperatures = [float(t) for t in bundle.choices("induction_temperatures_c")]
-    ph_range = bundle.number_list("lysis_buffer_ph_range")
-    base_yield = bundle.value("optimal_soluble_yield_mg_per_l")
-    protein_name = bundle.text("target_protein_name")
-    protein_kda = bundle.value("target_protein_kda")
+    """Run one causal T7lac expression and native-lysate preparation attempt."""
+    source_id = str(construct_id or "").strip()
+    iptg = _require_finite_float(iptg_concentration_mm, "iptg_concentration_mm")
+    induction_od = _require_finite_float(induction_od600, "induction_od600")
+    induction_temperature = _require_finite_float(
+        induction_temperature_c, "induction_temperature_c"
+    )
+    induction_duration = _require_finite_float(induction_hours, "induction_hours")
+    lysis_ph = _require_finite_float(lysis_buffer_ph, "lysis_buffer_ph")
 
+    construct = state.expression_constructs.get(source_id)
+    if construct is None:
+        raise ValueError("Unknown expression construct_id '{}'.".format(source_id))
+    if not construct.is_benign:
+        raise ValueError("construct_id '{}' is not a benign task construct.".format(source_id))
+    if construct.promoter != EXPRESSION_PROMOTER:
+        raise ValueError("construct_id '{}' is not driven by T7lac.".format(source_id))
+
+    canonical_host = canonicalize_expression_host(host_strain)
+    schedule = match_expression_schedule(induction_temperature, induction_duration)
+    failure_reasons: List[str] = []
     notes: List[str] = []
-    status = "induced"
-    yield_multiplier = 1.0
-    insoluble_fraction = 0.15
 
-    normalized_strain = _normalize_choice(host_strain)
-    if not any(normalized_strain == a or normalized_strain in a or a in normalized_strain for a in accepted_strains):
-        status = "wrong_host_strain"
+    if canonical_host is None:
+        failure_reasons.append(EXPRESSION_FAILURE_HOST)
         notes.append(
-            "Host strain '{}' is not a T7 expression host. Use BL21(DE3) or a close derivative.".format(host_strain)
-        )
-        yield_multiplier *= 0.05
-
-    iptg_min, iptg_max = iptg_range
-    if float(iptg_concentration_mm) < iptg_min or float(iptg_concentration_mm) > iptg_max * 2:
-        notes.append(
-            "IPTG concentration {:.2f} mM is outside the {:.1f}-{:.1f} mM effective range.".format(
-                float(iptg_concentration_mm), iptg_min, iptg_max
+            "Host strain '{}' is not an allowlisted (DE3) T7 expression host.".format(
+                host_strain
             )
         )
-        yield_multiplier *= 0.3
-
-    od_min, od_max = induction_od_range
-    if float(induction_od600) < od_min or float(induction_od600) > od_max:
+    if not EXPRESSION_IPTG_MIN_MM <= iptg <= EXPRESSION_IPTG_MAX_MM:
+        failure_reasons.append(EXPRESSION_FAILURE_IPTG)
         notes.append(
-            "Induction OD600 {:.2f} is outside the {:.2f}-{:.2f} mid-log window.".format(
-                float(induction_od600), od_min, od_max
+            "IPTG concentration {:.2f} mM is outside the supported {:.1f}-{:.1f} mM pET range.".format(
+                iptg, EXPRESSION_IPTG_MIN_MM, EXPRESSION_IPTG_MAX_MM
             )
         )
-        yield_multiplier *= 0.5
-
-    if not any(abs(float(induction_temperature_c) - t) <= 1.0 for t in accepted_temperatures):
-        status = "wrong_induction_temperature"
+    if not EXPRESSION_OD600_MIN <= induction_od <= EXPRESSION_OD600_MAX:
+        failure_reasons.append(EXPRESSION_FAILURE_OD600)
         notes.append(
-            "Induction temperature {:.1f} C is not in the accepted set {}.".format(
-                float(induction_temperature_c), accepted_temperatures
+            "Induction OD600 {:.2f} is outside the supported {:.1f}-{:.1f} mid-log window.".format(
+                induction_od, EXPRESSION_OD600_MIN, EXPRESSION_OD600_MAX
             )
         )
-        yield_multiplier *= 0.4
-
-    # Low-temperature long induction improves solubility for tricky fusions.
-    if float(induction_temperature_c) <= 22.0 and float(induction_hours) >= 12.0:
-        insoluble_fraction = 0.08
-    elif float(induction_temperature_c) >= 30.0 and float(induction_hours) <= 5.0:
-        insoluble_fraction = 0.25
-    if float(induction_hours) < 1.0:
-        notes.append("Induction time is too short; yield will be poor.")
-        yield_multiplier *= 0.2
-    if float(induction_hours) > 24.0:
-        notes.append("Induction time over 24 h risks cell lysis and proteolysis.")
-        yield_multiplier *= 0.6
-
-    ph_min, ph_max = ph_range
-    if float(lysis_buffer_ph) < ph_min or float(lysis_buffer_ph) > ph_max:
-        status = "wrong_lysis_ph" if status == "induced" else status
+    if schedule is None:
+        failure_reasons.append(EXPRESSION_FAILURE_SCHEDULE)
         notes.append(
-            "Lysis buffer pH {:.2f} is outside the {:.1f}-{:.1f} Ni-NTA-compatible window.".format(
-                float(lysis_buffer_ph), ph_min, ph_max
+            "Induction at {:.1f} C for {:.1f} h does not match a supported coupled temperature-duration profile.".format(
+                induction_temperature, induction_duration
             )
         )
-        yield_multiplier *= 0.5
+    if not EXPRESSION_LYSIS_PH_MIN <= lysis_ph <= EXPRESSION_LYSIS_PH_MAX:
+        failure_reasons.append(EXPRESSION_FAILURE_LYSIS_PH)
+        notes.append(
+            "Lysis buffer pH {:.2f} is outside the supported {:.1f}-{:.1f} native Ni-NTA window.".format(
+                lysis_ph, EXPRESSION_LYSIS_PH_MIN, EXPRESSION_LYSIS_PH_MAX
+            )
+        )
 
-    soluble_yield = base_yield * yield_multiplier * (1.0 - insoluble_fraction)
-    soluble_yield = max(0.0, soluble_yield)
+    expression_accepted = not failure_reasons
+    status = EXPRESSION_SUCCESS_STATUS if expression_accepted else failure_reasons[0]
+    insoluble_fraction = schedule.insoluble_fraction if expression_accepted and schedule else 0.0
+    soluble_yield = (
+        EXPRESSION_TOTAL_TARGET_YIELD_MG_PER_L * (1.0 - insoluble_fraction)
+        if expression_accepted
+        else 0.0
+    )
+    total_soluble_mg = soluble_yield * construct.culture_volume_ml / 1000.0
+    lysate_prepared = expression_accepted
 
     expression_id = state.next_expression_id()
+    construct.usage_count += 1
     record = ProteinExpression(
         expression_id=expression_id,
-        host_strain=host_strain,
-        protein_name=protein_name,
-        expected_molecular_weight_kda=float(protein_kda),
-        iptg_concentration_mm=float(iptg_concentration_mm),
-        induction_od600=float(induction_od600),
-        induction_temperature_c=float(induction_temperature_c),
-        induction_hours=float(induction_hours),
-        lysis_buffer_ph=float(lysis_buffer_ph),
-        culture_volume_ml=float(culture_volume_ml),
+        construct_id=source_id,
+        host_strain=str(host_strain),
+        host_strain_canonical=canonical_host,
+        protein_name=construct.target_protein_name,
+        expected_molecular_weight_kda=construct.expected_molecular_weight_kda,
+        iptg_concentration_mm=iptg,
+        induction_od600=induction_od,
+        induction_temperature_c=induction_temperature,
+        induction_hours=induction_duration,
+        lysis_buffer_ph=lysis_ph,
+        culture_volume_ml=construct.culture_volume_ml,
         status=status,
-        soluble_yield_mg_per_l=float(soluble_yield),
-        insoluble_fraction=float(insoluble_fraction),
+        expression_accepted=expression_accepted,
+        failure_reasons=list(failure_reasons),
+        induction_schedule_profile=schedule.name if schedule else None,
+        soluble_yield_mg_per_l=soluble_yield,
+        insoluble_fraction=insoluble_fraction,
+        total_soluble_mg=total_soluble_mg,
+        lysate_prepared=lysate_prepared,
         notes=list(notes),
     )
     state.protein_expressions[expression_id] = record
     payload = {
         "status": status,
+        "expression_accepted": expression_accepted,
+        "failure_reasons": list(failure_reasons),
         "expression_id": expression_id,
-        "host_strain": host_strain,
-        "host_strain_normalized": normalized_strain,
-        "protein_name": protein_name,
-        "expected_molecular_weight_kda": float(protein_kda),
-        "iptg_concentration_mm": float(iptg_concentration_mm),
-        "induction_od600": float(induction_od600),
-        "induction_temperature_c": float(induction_temperature_c),
-        "induction_hours": float(induction_hours),
-        "lysis_buffer_ph": float(lysis_buffer_ph),
-        "culture_volume_ml": float(culture_volume_ml),
-        "soluble_yield_mg_per_l": round(float(soluble_yield), 2),
-        "insoluble_fraction": round(float(insoluble_fraction), 2),
-        "total_soluble_mg": round(float(soluble_yield) * float(culture_volume_ml) / 1000.0, 2),
+        "construct_id": source_id,
+        "construct_usage_count": construct.usage_count,
+        "plasmid_name": construct.plasmid_name,
+        "promoter": construct.promoter,
+        "affinity_tag": construct.affinity_tag,
+        "is_benign": construct.is_benign,
+        "host_strain": str(host_strain),
+        "host_strain_normalized": normalize_expression_label(host_strain),
+        "host_strain_canonical": canonical_host,
+        "protein_name": construct.target_protein_name,
+        "expected_molecular_weight_kda": construct.expected_molecular_weight_kda,
+        "iptg_concentration_mm": iptg,
+        "induction_od600": induction_od,
+        "induction_temperature_c": induction_temperature,
+        "induction_hours": induction_duration,
+        "induction_schedule_profile": schedule.name if schedule else None,
+        "lysis_buffer_ph": lysis_ph,
+        "culture_volume_ml": construct.culture_volume_ml,
+        "soluble_yield_mg_per_l": round(soluble_yield, 2),
+        "insoluble_fraction": round(insoluble_fraction, 2),
+        "total_soluble_mg": round(total_soluble_mg, 2),
+        "lysate_prepared": lysate_prepared,
         "notes": list(notes),
     }
     state.log_event("run_protein_expression", payload)

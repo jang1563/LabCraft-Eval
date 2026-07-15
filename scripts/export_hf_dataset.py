@@ -107,7 +107,10 @@ TASK_METADATA = {
     },
     "express_01": {
         "domain": "Recombinant protein expression",
-        "objective": "Induce a benign His-tagged MBP-GFP fusion and report soluble yield.",
+        "objective": (
+            "Express one seeded benign T7lac His6-MBP-GFP construct, prepare "
+            "native lysate, and report the causal soluble yield."
+        ),
     },
     "purify_01": {
         "domain": "Ni-NTA affinity purification",
