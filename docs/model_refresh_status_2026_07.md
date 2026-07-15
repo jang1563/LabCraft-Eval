@@ -249,14 +249,56 @@ buffer, and the 60 C / five-minute terminal digest, requires a causal successful
 assembly-to-countable-colony path within the canonical 25-250 range, binds every
 reported field to that path, uses a fail-closed success token, and budgets two
 reference calls. Because these changes are agent-visible and score-defining, a
-fresh four-model clean-revision rerun is mandatory.
+a fresh four-model clean-revision rerun was mandatory; that rerun is recorded
+below.
+
+## Remediated newer-task P1 sentinel verification
+
+Revision `f7d5ba5062b69a3b33968d656272626c1870114c` was transferred as a
+complete git bundle to a fresh detached checkout. The clean Cayuga preflight
+passed 597 tests, Ruff, shell syntax, registry validation, wheel
+build, isolated installation, and package smoke under Inspect 0.3.245.
+
+The serial four-cell array used RUN_ID
+`2026_07_15_p1_golden_gate_remediated_seed0_f7d5ba5`, seed 0, and the
+registered `current_balanced` generation profile (`max_tokens=16384`,
+`reasoning_effort=medium`):
+
+| Model | Messages | Assistant turns | Tool calls | Task | Decision | Troubleshooting | Efficiency | Overall |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `openai/gpt-5.6-sol` | 21 | 7 | 12 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `openai/gpt-5.6-luna` | 20 | 8 | 10 | 1.000 | 1.000 | 1.000 | 0.500 | 0.950 |
+| `anthropic/claude-sonnet-5` | 17 | 7 | 8 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| `anthropic/claude-haiku-4-5-20251001` | 18 | 8 | 8 | 0.000 | 1.000 | 1.000 | 1.000 | 0.600 |
+
+All four cells completed with scheduler exit `0:0` and passed the built-in and
+independently repeated strict validators. Independent postflight found exactly
+four schema-1.2.0 manifests and four native logs, the exact clean commit and
+runtime source, seed 0, Inspect 0.3.245, requested/resolved model identity, the
+registered generation profile, and no error or exhausted limit. The registry
+SHA-256 remained
+`41913bf3abee56660dd7b455dc19f9f57d0939304d2a412cea1161837bd2667e`,
+and all four evaluation stderr files were empty.
+
+Semantic audit confirmed one causal, report-matched path for Sol, Luna, and
+Sonnet: exact BsaI-family assembly conditions, a produced construct,
+transformation, a prepared 100 ug/mL ampicillin plate, an undiluted 100 uL
+plating, and 30 countable colonies. Haiku instead plated a 1:10 dilution,
+observed three colonies with `status=count_out_of_range`, did not correct or
+replate, and submitted `Interpretation: success`. Its task-success zero is
+therefore a substantive failure under the repaired contract, not a parser or
+scorer false negative.
+
+This accepts `golden_gate_01` as the first completed P1 task: 4/20 cells and
+1/5 tasks are contract-validated. These remain one-seed compatibility and
+scorer-contract results, not comparative model-ranking evidence.
 
 ## Scale decision
 
-All five snapshot tasks retain strict one-seed sentinel coverage. P1 remains
-0/20 accepted cells because the initial `golden_gate_01` bundle is a
-pre-remediation diagnostic. Human-baseline and multi-seed work remain
-intentionally skipped. The next bounded gate is a fresh `golden_gate_01`
-four-model, seed-zero rerun at the clean remediation revision. Frozen
-historical results and every cancelled, diagnostic, or pre-remediation bundle
-remain excluded from promoted aggregates.
+All five snapshot tasks retain strict one-seed sentinel coverage, and P1 is
+now 4/20 accepted cells after the remediated `golden_gate_01` gate. The initial
+Golden Gate bundle remains a pre-remediation diagnostic. Human-baseline and
+multi-seed work remain intentionally skipped. The next bounded gate is
+`gibson_01` on the same four-model, seed-zero protocol. Frozen historical
+results and every cancelled, diagnostic, or pre-remediation bundle remain
+excluded from promoted aggregates.

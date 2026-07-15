@@ -16,7 +16,7 @@ wet-lab competence and not broad biology capability.
 
 | Role | Track | Status |
 | --- | --- | --- |
-| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot contract validated by one-seed sentinels, `golden_gate_01` remediation rerun next |
+| **Flagship** | Wet-lab execution and recovery: five frozen snapshot tasks, five newer wet-lab tasks, and `followup_01` | Active; snapshot sentinels retained, `golden_gate_01` contract-validated, P1 at 4/20 cells |
 | **Companion** | Discovery Decision Track: `perturb_followup_01`, `target_prioritize_01`, `target_validate_01` | Runnable; historical public evidence remains provisional |
 | **Experimental / separate** | Safety Case Track: `safety_case_01` | Runnable; separate scorer and public surface, never merged into flagship scores |
 
@@ -34,8 +34,13 @@ wet-lab competence and not broad biology capability.
 - The first `golden_gate_01` P1 array completed four of four technical cells at
   clean revision `b20382a7c473bd73e9707e288fa7fd8b4a3732a1`, but semantic
   audit reproduced scorer false positives and reference-contract defects. The
-  bundle is diagnostic-only; P1 remains 0/20 accepted cells pending a clean
-  remediation rerun.
+  bundle remains diagnostic-only and excluded from accepted evidence.
+- The remediated `golden_gate_01` array at clean revision
+  `f7d5ba5062b69a3b33968d656272626c1870114c` passed all four strict cells and
+  independent semantic/postflight audit. P1 is now 4/20 accepted cells. One
+  Haiku trajectory correctly scored task success 0 after it failed to recover
+  from a three-colony, out-of-range plate; this is retained as substantive
+  compatibility evidence, not treated as infrastructure failure.
 - The retained five-task snapshot sentinels validate compatibility and scorer
   contracts. They are not a public score-bearing release and do not support
   comparative model ranking.
@@ -61,8 +66,8 @@ Release contract: [docs/release_checklist.md](docs/release_checklist.md)
 Run seed 0 for the registered `current_balanced` matrix on these five newer
 flagship wet-lab tasks:
 
-1. `golden_gate_01` remediation rerun
-2. `gibson_01`
+1. `golden_gate_01` — complete at `f7d5ba5`
+2. `gibson_01` — next
 3. `miniprep_01`
 4. `express_01`
 5. `purify_01`
@@ -100,8 +105,8 @@ compatibility/scorer-contract evidence.
 
 - **P0 — locally complete; public sync pending:** public truth repair and
   consistent release/evidence labels are committed locally but not pushed.
-- **P1 — in progress:** 0/20 cells accepted; the initial `golden_gate_01`
-  bundle is diagnostic and the remediated clean rerun is next.
+- **P1 — in progress:** 4/20 cells accepted; `golden_gate_01` is
+  contract-validated and `gibson_01` is next.
 - **P2 — planned:** reasoning, recovery, and counterfactual task depth plus
   modular/versioned scorer validation.
 - **P3 — deferred:** clean current scored release, leaderboard promotion, and

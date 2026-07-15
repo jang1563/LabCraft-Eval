@@ -42,7 +42,7 @@ The public experience should satisfy two tests:
 | Priority | Status | Objective | Exit criteria |
 | --- | --- | --- | --- |
 | **P0: Public truth repair** | **Locally complete; public sync pending** | Make every public entry point accurately distinguish the v0.1.2 metadata release, historical provisional scores, and current compatibility evidence. | Quickstart is manifest-first and safe for metadata-only snapshots; historical leaderboard evidence is visibly labelled; README, safety scope, report, citation metadata, and continuation docs agree. |
-| **P1: v0.2 contract gate** | **In progress — remediation; 0/20 accepted** | Validate the five newer flagship wet-lab tasks with the registered four-model core matrix and seed 0. | Every one of the 20 cells passes the strict validator with clean revision, exact requested/resolved model identity, registered generation profile, expected runtime source, current manifest schema, and no exhausted limits. Results remain compatibility/scorer-contract evidence, not a ranking. |
+| **P1: v0.2 contract gate** | **In progress — 4/20 accepted** | Validate the five newer flagship wet-lab tasks with the registered four-model core matrix and seed 0. | Every one of the 20 cells passes the strict validator with clean revision, exact requested/resolved model identity, registered generation profile, expected runtime source, current manifest schema, and no exhausted limits. Results remain compatibility/scorer-contract evidence, not a ranking. |
 | **P2: Scientific depth and scorer validity** | **Planned** | Add tasks that discriminate execution, diagnosis, recovery, and counterfactual reasoning; reduce scorer brittleness. | At least one reasoning, one recovery, and one counterfactual task family; task-level scorer modules with explicit versions; expert-labelled valid/invalid trajectory fixtures; alternative-valid-path and wrong-path ablations; a declared held-out or rotating evaluation policy. |
 | **P3: Current scored release and publication package** | **Deferred** | Promote a clean, independently auditable current-contract result bundle and package the benchmark for paper-level review. | Public raw `.eval` logs, manifest-backed result rows, exact code/model/generation provenance, reproducible aggregation, uncertainty appropriate to the repeat design, the promoted release added to the existing leaderboard selector, and a technical report that cites only promoted evidence. Human-baseline and multi-seed work must be explicitly reopened before comparative or paper-grade ranking claims. |
 
@@ -50,8 +50,9 @@ The public experience should satisfy two tests:
 
 Use seed 0 and the registered `current_balanced` matrix on:
 
-- [ ] `golden_gate_01` — pre-remediation diagnostic at `b20382a`; clean rerun next
-- [ ] `gibson_01`
+- [x] `golden_gate_01` — 4/4 strict cells at `f7d5ba5`; pre-remediation
+  `b20382a` remains diagnostic-only
+- [ ] `gibson_01` — next
 - [ ] `miniprep_01`
 - [ ] `express_01`
 - [ ] `purify_01`
