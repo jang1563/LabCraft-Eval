@@ -16,6 +16,26 @@ from .gibson_contract import (
     canonicalize_gibson_master_mix,
     normalize_gibson_master_mix,
 )
+from .miniprep_contract import (
+    MINIPREP_CULTURE_VOLUME_MAX_ML,
+    MINIPREP_CULTURE_VOLUME_MIN_ML,
+    MINIPREP_ELUTION_VOLUME_MAX_UL,
+    MINIPREP_ELUTION_VOLUME_UL,
+    MINIPREP_FAILURE_CULTURE_VOLUME,
+    MINIPREP_FAILURE_ELUTION,
+    MINIPREP_FAILURE_OVERLYSIS,
+    MINIPREP_FAILURE_WRONG_BUFFER,
+    MINIPREP_FAILURE_WRONG_METHOD,
+    MINIPREP_LYSIS_DURATION_MAX_MINUTES,
+    MINIPREP_LYSIS_DURATION_MIN_MINUTES,
+    MINIPREP_NOMINAL_A260_A280,
+    MINIPREP_REFERENCE_YIELD_UG_AT_5_ML,
+    MINIPREP_SOURCE_CULTURE_ID,
+    MINIPREP_SOURCE_CULTURE_VOLUME_ML,
+    canonicalize_miniprep_buffer_sequence,
+    canonicalize_miniprep_purification_method,
+    normalize_miniprep_label,
+)
 from .state import (
     AssemblyReaction,
     DigestReaction,
@@ -26,6 +46,7 @@ from .state import (
     GrowthMeasurement,
     LabState,
     LigationReaction,
+    MiniprepCulture,
     MiniprepSample,
     NtaPurification,
     PcrReaction,
@@ -70,6 +91,8 @@ _PURIFICATION_BUNDLE = None
 
 
 def _require_finite_float(value: object, field_name: str) -> float:
+    if isinstance(value, bool):
+        raise ValueError("{} must be numeric.".format(field_name))
     try:
         parsed = float(value)
     except (TypeError, ValueError) as exc:
@@ -87,6 +110,8 @@ def _require_positive_float(value: object, field_name: str) -> float:
 
 
 def _require_integer(value: object, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError("{} must be an integer.".format(field_name))
     try:
         parsed_float = float(value)
     except (TypeError, ValueError) as exc:
@@ -2039,114 +2064,154 @@ def transform_gibson(
     return payload
 
 
+def initialize_miniprep_source_culture(state: LabState) -> MiniprepCulture:
+    """Seed the task's explicit high-copy, plasmid-bearing overnight culture."""
+    existing = state.miniprep_cultures.get(MINIPREP_SOURCE_CULTURE_ID)
+    if existing is not None:
+        return existing
+    culture = MiniprepCulture(
+        culture_id=MINIPREP_SOURCE_CULTURE_ID,
+        plasmid_name="pUC19-derived high-copy plasmid",
+        medium="LB",
+        is_overnight=True,
+        is_plasmid_bearing=True,
+        copy_number_class="high-copy",
+        available_volume_ml=MINIPREP_SOURCE_CULTURE_VOLUME_ML,
+    )
+    state.miniprep_cultures[culture.culture_id] = culture
+    return culture
+
+
 def perform_miniprep(
     state: LabState,
+    culture_id: str,
     culture_volume_ml: float,
     lysis_buffer_sequence: str,
     lysis_duration_min: int,
     purification_method: str,
     elution_volume_ul: float,
 ) -> Dict[str, object]:
-    """Simulate a single-pass plasmid miniprep (alkaline lysis + silica column)."""
-    bundle = _miniprep_bundle()
-    optimal_volume = bundle.value("culture_volume_ml_optimal")
-    max_lysis = bundle.integer("lysis_duration_minutes_max")
-    min_elution = bundle.integer("elution_volume_ul_min")
-    canonical_buffers = bundle.text("canonical_lysis_buffer_sequence")
-    accepted_methods = {_normalize_choice(m) for m in bundle.choices("accepted_purification_methods")}
-    a260_target_min, a260_target_max = bundle.number_list("target_a260_a280_range")
+    """Simulate one QIAprep-style alkaline-lysis silica-spin miniprep."""
+    source_id = str(culture_id or "").strip()
+    culture_volume = _require_positive_float(culture_volume_ml, "culture_volume_ml")
+    lysis_duration = _require_positive_integer(lysis_duration_min, "lysis_duration_min")
+    elution_volume = _require_positive_float(elution_volume_ul, "elution_volume_ul")
 
-    notes: List[str] = []
-    status = "prepared"
-    purity_multiplier = 1.0
-    yield_multiplier = 1.0
-
-    normalized_buffers = (
-        lysis_buffer_sequence.replace(" ", "").replace("->", ",").replace("/", ",").lower()
+    culture = state.miniprep_cultures.get(source_id)
+    if culture is None:
+        raise ValueError("Unknown miniprep culture_id '{}'.".format(source_id))
+    if not culture.is_overnight:
+        raise ValueError("culture_id '{}' is not an overnight culture.".format(source_id))
+    if not culture.is_plasmid_bearing:
+        raise ValueError("culture_id '{}' is not plasmid-bearing.".format(source_id))
+    if culture.copy_number_class.strip().casefold() != "high-copy":
+        raise ValueError("culture_id '{}' is not a high-copy plasmid culture.".format(source_id))
+    culture_volume_in_contract = (
+        MINIPREP_CULTURE_VOLUME_MIN_ML
+        <= culture_volume
+        <= MINIPREP_CULTURE_VOLUME_MAX_ML
     )
-    if _normalize_choice(normalized_buffers) != _normalize_choice(canonical_buffers):
-        status = "wrong_buffer_sequence"
-        notes.append(
-            "Lysis buffer sequence '{}' does not match the canonical alkaline lysis order '{}'".format(
-                lysis_buffer_sequence, canonical_buffers
+    if culture_volume_in_contract and culture.available_volume_ml + 1e-12 < culture_volume:
+        raise ValueError(
+            "culture_id '{}' has only {:.1f} mL remaining.".format(
+                source_id, culture.available_volume_ml
             )
         )
-        purity_multiplier *= 0.5
-        yield_multiplier *= 0.4
 
-    if int(lysis_duration_min) > max_lysis:
+    canonical_buffers = canonicalize_miniprep_buffer_sequence(lysis_buffer_sequence)
+    canonical_method = canonicalize_miniprep_purification_method(purification_method)
+    failure_reasons: List[str] = []
+    notes: List[str] = []
+
+    if not culture_volume_in_contract:
+        failure_reasons.append(MINIPREP_FAILURE_CULTURE_VOLUME)
         notes.append(
-            "Lysis duration {} min exceeds the {} min maximum; genomic DNA contamination is likely.".format(
-                int(lysis_duration_min), max_lysis
+            "Culture volume {:.1f} mL is outside the 1-5 mL high-copy QIAprep range.".format(
+                culture_volume
             )
         )
-        if status == "prepared":
-            status = "overlysis_genomic_contamination"
-        purity_multiplier *= 0.6
-
-    if int(lysis_duration_min) < 1:
-        notes.append("Lysis duration is too short; lysis is likely incomplete.")
-        yield_multiplier *= 0.3
-
-    normalized_method = _normalize_choice(purification_method)
-    if normalized_method not in accepted_methods:
-        if status == "prepared":
-            status = "wrong_purification_method"
+    if canonical_buffers is None:
+        failure_reasons.append(MINIPREP_FAILURE_WRONG_BUFFER)
         notes.append(
-            "Purification method '{}' is not an accepted miniprep method.".format(purification_method)
-        )
-        purity_multiplier *= 0.5
-        yield_multiplier *= 0.5
-
-    if float(elution_volume_ul) < min_elution:
-        notes.append(
-            "Elution volume {:.0f} uL is below the {} uL minimum; matrix carryover and poor recovery are likely.".format(
-                float(elution_volume_ul), min_elution
+            "Lysis buffer sequence '{}' does not match the QIAprep P1/P2/N3 order.".format(
+                lysis_buffer_sequence
             )
         )
-        yield_multiplier *= 0.5
-
-    if float(culture_volume_ml) < 1.0 or float(culture_volume_ml) > 10.0:
+    if not MINIPREP_LYSIS_DURATION_MIN_MINUTES <= lysis_duration <= MINIPREP_LYSIS_DURATION_MAX_MINUTES:
+        failure_reasons.append(MINIPREP_FAILURE_OVERLYSIS)
         notes.append(
-            "Culture volume {:.1f} mL is outside the 1-10 mL recommended range for a standard miniprep.".format(
-                float(culture_volume_ml)
+            "Lysis duration {} min exceeds the 5 min maximum; irreversible plasmid denaturation is likely.".format(
+                lysis_duration
             )
         )
-        yield_multiplier *= 0.6
+    if canonical_method is None:
+        failure_reasons.append(MINIPREP_FAILURE_WRONG_METHOD)
+        notes.append(
+            "Purification method '{}' is not an accepted QIAprep silica-spin method.".format(
+                purification_method
+            )
+        )
+    if not MINIPREP_ELUTION_VOLUME_UL <= elution_volume <= MINIPREP_ELUTION_VOLUME_MAX_UL:
+        failure_reasons.append(MINIPREP_FAILURE_ELUTION)
+        notes.append(
+            "Elution volume {:.0f} uL is outside the supported 50-100 uL QIAprep range.".format(
+                elution_volume
+            )
+        )
 
-    base_yield_ug = 10.0 * (float(culture_volume_ml) / optimal_volume)
-    total_yield_ug = base_yield_ug * yield_multiplier
-    final_concentration_ng_ul = (total_yield_ug * 1000.0) / max(float(elution_volume_ul), 1.0)
-
-    target_center = (a260_target_min + a260_target_max) / 2.0
-    a260_a280_ratio = target_center * purity_multiplier
-    a260_a280_ratio = max(1.2, min(2.3, float(a260_a280_ratio)))
+    preparation_accepted = not failure_reasons
+    status = "prepared" if preparation_accepted else failure_reasons[0]
+    if preparation_accepted:
+        total_yield_ug = MINIPREP_REFERENCE_YIELD_UG_AT_5_ML * (
+            culture_volume / MINIPREP_CULTURE_VOLUME_MAX_ML
+        )
+        final_concentration_ng_ul = (total_yield_ug * 1000.0) / elution_volume
+        a260_a280_ratio = MINIPREP_NOMINAL_A260_A280
+    else:
+        total_yield_ug = 0.0
+        final_concentration_ng_ul = 0.0
+        a260_a280_ratio = 0.0
 
     miniprep_id = state.next_miniprep_id()
+    if preparation_accepted:
+        culture.available_volume_ml -= culture_volume
+        culture.consumed_volume_ml += culture_volume
     sample = MiniprepSample(
         miniprep_id=miniprep_id,
-        culture_volume_ml=float(culture_volume_ml),
+        culture_id=source_id,
+        culture_volume_ml=culture_volume,
         lysis_buffer_sequence=lysis_buffer_sequence,
-        lysis_duration_min=int(lysis_duration_min),
+        lysis_duration_min=lysis_duration,
         purification_method=purification_method,
-        elution_volume_ul=float(elution_volume_ul),
+        elution_volume_ul=elution_volume,
         final_concentration_ng_ul=float(final_concentration_ng_ul),
         a260_a280_ratio=float(a260_a280_ratio),
         total_yield_ug=float(total_yield_ug),
         status=status,
+        failure_reasons=list(failure_reasons),
         notes=list(notes),
     )
     state.miniprep_samples[miniprep_id] = sample
     payload = {
         "status": status,
+        "preparation_accepted": preparation_accepted,
+        "failure_reasons": list(failure_reasons),
         "miniprep_id": miniprep_id,
-        "culture_volume_ml": float(culture_volume_ml),
+        "culture_id": source_id,
+        "culture_volume_ml": culture_volume,
+        "source_culture_remaining_volume_ml": round(culture.available_volume_ml, 3),
         "lysis_buffer_sequence": lysis_buffer_sequence,
-        "lysis_buffer_sequence_normalized": _normalize_choice(normalized_buffers),
-        "lysis_duration_min": int(lysis_duration_min),
+        "lysis_buffer_sequence_normalized": (
+            canonical_buffers or normalize_miniprep_label(lysis_buffer_sequence)
+        ),
+        "lysis_buffer_sequence_canonical": canonical_buffers,
+        "lysis_duration_min": lysis_duration,
         "purification_method": purification_method,
-        "purification_method_normalized": normalized_method,
-        "elution_volume_ul": float(elution_volume_ul),
+        "purification_method_normalized": (
+            canonical_method or normalize_miniprep_label(purification_method)
+        ),
+        "purification_method_canonical": canonical_method,
+        "elution_volume_ul": elution_volume,
         "final_concentration_ng_ul": round(float(final_concentration_ng_ul), 1),
         "a260_a280_ratio": round(float(a260_a280_ratio), 2),
         "total_yield_ug": round(float(total_yield_ug), 1),

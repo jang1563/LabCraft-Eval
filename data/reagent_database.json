@@ -1778,5 +1778,103 @@
       "membrane protein solubilization",
       "protein extraction"
     ]
+  },
+  {
+    "name": "QIAprep Spin Miniprep Workflow",
+    "aliases": [
+      "QIAprep",
+      "QIAprep Spin Miniprep Kit",
+      "QIAprep 2.0 spin column",
+      "QIAprep 2.0 Spin Columns",
+      "QIAprep spin column",
+      "QIAprep silica spin column",
+      "QIAprep silica-membrane spin column",
+      "QIAprep 2.0 silica membrane spin column",
+      "QIAprep 2.0 silica-membrane spin column",
+      "QIAprep-compatible silica-membrane spin column",
+      "plasmid miniprep",
+      "miniprep",
+      "silica column",
+      "silica spin column",
+      "silica membrane column",
+      "silica membrane spin column",
+      "silica-membrane spin column",
+      "P1 buffer",
+      "P2 buffer",
+      "N3 buffer",
+      "QIAprep elution volume"
+    ],
+    "type": "workflow reference",
+    "category": "plasmid DNA purification",
+    "working_concentration": "Benchmark scenario: high-copy plasmid from 1-5 mL overnight E. coli culture in LB",
+    "stock_concentration": null,
+    "storage_temperature_c": "15-25; Buffer P1 with RNase A at 2-8",
+    "storage_conditions": "Follow the kit label and current handbook; store Buffer P1 containing RNase A at 2-8 C.",
+    "preparation_notes": "For this benchmark, resuspend in Buffer P1, lyse with Buffer P2 for 1-5 min, neutralize with Buffer N3, purify on a QIAprep-compatible silica-membrane spin column, and elute with 50-100 uL Buffer EB or water; 50 uL is the standard recommended condition. Mix gently after P2; long alkaline exposure can irreversibly denature plasmid DNA, while vigorous mixing can shear genomic DNA.",
+    "shelf_life": "See kit lot and manufacturer documentation",
+    "incompatible_with": [
+      "anion-exchange column workflows (different product and procedure)",
+      "generic QIAGEN column labels that do not identify silica-spin technology",
+      "bleach or acidic solutions in waste containing guanidine hydrochloride"
+    ],
+    "safety_notes": "Wear a lab coat, disposable gloves, and eye protection. Buffers N3 and PB contain guanidine hydrochloride; do not add bleach or acidic solutions directly to preparation waste.",
+    "common_uses": [
+      "small-scale high-copy plasmid DNA purification",
+      "silica-membrane spin-column miniprep",
+      "plasmid preparation for routine cloning, restriction digestion, and sequencing"
+    ],
+    "protocol_contract": {
+      "organism": "Escherichia coli",
+      "plasmid_copy_class": "high-copy",
+      "culture_medium": "LB",
+      "culture_volume_ml": {
+        "min": 1,
+        "max": 5
+      },
+      "lysis_buffer_sequence": [
+        "P1",
+        "P2",
+        "N3"
+      ],
+      "lysis_duration_min": {
+        "min": 1,
+        "max": 5,
+        "lower_bound_note": "The 1-minute lower bound is the benchmark's positive-integer action calibration; the official protocol supplies the 5-minute maximum."
+      },
+      "purification_technology": "QIAprep 2.0 silica-membrane spin column",
+      "accepted_method_aliases": [
+        "QIAprep spin column",
+        "QIAprep 2.0 spin column",
+        "QIAprep 2.0 Spin Columns",
+        "QIAprep silica spin column",
+        "QIAprep silica-membrane spin column",
+        "QIAprep 2.0 silica membrane spin column",
+        "QIAprep 2.0 silica-membrane spin column",
+        "QIAprep-compatible silica-membrane spin column"
+      ],
+      "elution_volume_ul": {
+        "min": 50,
+        "max": 100,
+        "standard": 50
+      },
+      "nominal_a260_a280": 1.8,
+      "benchmark_calibrations": {
+        "total_yield_ug_at_5_ml": 10,
+        "yield_note": "Synthetic deterministic benchmark calibration below the official column capacity of up to 20 ug; not a universal empirical yield.",
+        "a260_a280_note": "Synthetic deterministic output anchored to the approximately 1.8 value generally accepted for DNA; not a universal purity interval."
+      }
+    },
+    "source_citations": [
+      {
+        "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+        "url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+        "accessed": "2026-07-15"
+      },
+      {
+        "title": "Thermo Fisher 260/280 and 260/230 Ratios Reference",
+        "url": "https://assets.thermofisher.com/TFS-Assets/CAD/Product-Bulletins/TN52646-E-0215M-NucleicAcid.pdf",
+        "accessed": "2026-07-15"
+      }
+    ]
   }
 ]

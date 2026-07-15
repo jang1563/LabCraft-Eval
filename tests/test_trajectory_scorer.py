@@ -8,11 +8,19 @@ from pathlib import Path
 
 import pytest
 
+from src.environment.miniprep_contract import (
+    MINIPREP_FAILURE_OVERLYSIS,
+    MINIPREP_FAILURE_WRONG_BUFFER,
+    MINIPREP_FAILURE_WRONG_METHOD,
+    MINIPREP_SOURCE_CULTURE_ID,
+)
 from src.environment.operations import (
     count_colonies,
     gibson_assembly,
+    initialize_miniprep_source_culture,
     list_gibson_substrates,
     plate,
+    perform_miniprep,
     prepare_media,
     transform_gibson,
 )
@@ -2509,40 +2517,84 @@ def test_gibson_ampicillin_decision_audits_all_attempts_order_independently(bad_
     assert scores["decision_scores"]["gibson_ampicillin_selection_100"] == 0.0
 
 
-def _good_miniprep_transcript():
+def _good_miniprep_arguments(**updates):
+    arguments = {
+        "culture_id": MINIPREP_SOURCE_CULTURE_ID,
+        "culture_volume_ml": 5.0,
+        "lysis_buffer_sequence": "P1,P2,N3",
+        "lysis_duration_min": 3,
+        "purification_method": "QIAprep silica spin column",
+        "elution_volume_ul": 50.0,
+    }
+    arguments.update(updates)
+    return arguments
+
+
+def _good_miniprep_observation(**updates):
+    observation = {
+        "status": "prepared",
+        "preparation_accepted": True,
+        "failure_reasons": [],
+        "miniprep_id": "miniprep_001",
+        "culture_id": MINIPREP_SOURCE_CULTURE_ID,
+        "culture_volume_ml": 5.0,
+        "lysis_buffer_sequence": "P1,P2,N3",
+        "lysis_buffer_sequence_canonical": "P1,P2,N3",
+        "lysis_duration_min": 3,
+        "purification_method": "QIAprep silica spin column",
+        "purification_method_canonical": "QIAprep silica spin column",
+        "elution_volume_ul": 50.0,
+        "final_concentration_ng_ul": 200.0,
+        "a260_a280_ratio": 1.8,
+        "total_yield_ug": 10.0,
+        "source_culture_remaining_volume_ml": 0.0,
+    }
+    observation.update(updates)
+    return observation
+
+
+def _miniprep_call_pair(*, arguments=None, observation=None, call_id="call_miniprep"):
+    if arguments is None:
+        arguments = _good_miniprep_arguments()
+    if observation is None:
+        observation = _good_miniprep_observation()
     return [
         {
-            "type": "tool_call",
-            "tool_name": "perform_miniprep",
-            "arguments": {
-                "miniprep_id": "miniprep_001",
-                "culture_volume_ml": 5.0,
-                "lysis_buffer_sequence": "P1,P2,P3",
-                "lysis_buffer_sequence_normalized": "p1,p2,p3",
-                "lysis_duration_min": 3,
-                "purification_method": "silica column",
-                "purification_method_normalized": "silica column",
-                "elution_volume_ul": 50.0,
-                "final_concentration_ng_ul": 200.0,
-                "a260_a280_ratio": 1.9,
-                "total_yield_ug": 10.0,
-                "status": "prepared",
-            },
-        }
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": call_id,
+                    "function": "perform_miniprep",
+                    "arguments": copy.deepcopy(arguments),
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": call_id,
+            "function": "perform_miniprep",
+            "content": json.dumps(observation),
+        },
     ]
+
+
+def _good_miniprep_transcript():
+    return _miniprep_call_pair()
 
 
 def _good_miniprep_answer() -> str:
     return (
+        "Culture ID: miniprep_culture_high_copy_001\n"
         "Culture volume: 5 mL\n"
-        "Lysis buffer sequence: P1,P2,P3\n"
+        "Lysis buffer sequence: P1,P2,N3\n"
         "Lysis duration: 3 min\n"
-        "Purification method: silica column\n"
+        "Purification method: QIAprep silica spin column\n"
         "Elution volume: 50 uL\n"
         "Plasmid concentration: 200.0 ng/uL\n"
-        "A260/A280: 1.90\n"
+        "A260/A280: 1.80\n"
         "Total yield: 10.0 ug\n"
-        "Interpretation: success"
+        "Interpretation: success\n"
+        "Diagnosis: none"
     )
 
 
@@ -2564,36 +2616,94 @@ def test_good_miniprep_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
-def test_miniprep_missing_range_argument_scores_zero_instead_of_raising():
-    malformed_call = {
-        "type": "tool_call",
-        "tool_name": "perform_miniprep",
-        "arguments": {
-            "culture_volume_ml": 5.0,
-            "lysis_buffer_sequence": "P1,P2,P3",
-            "lysis_duration_min": 3,
-            "purification_method": "silica column",
-            "elution_volume": 50.0,
-        },
-    }
+def test_real_miniprep_output_in_paired_transcript_scores_high():
+    state = create_lab_state(sample_id="miniprep-real-output", seed=1)
+    initialize_miniprep_source_culture(state)
+    arguments = _good_miniprep_arguments()
+    observation = perform_miniprep(state=state, **arguments)
 
-    scores = score_miniprep_trajectory(
-        final_answer=_good_miniprep_answer(),
-        transcript=[malformed_call, *_good_miniprep_transcript()],
-        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    scores = _score_miniprep(
+        _good_miniprep_answer(),
+        _miniprep_call_pair(arguments=arguments, observation=observation),
     )
 
-    assert scores["decision_scores"]["elution_volume_min_30"] == 0.0
-    assert scores["decision_quality"] < 1.0
+    assert scores["task_success"] == 1.0
+    assert scores["decision_quality"] == 1.0
+
+
+def test_miniprep_accepts_supported_100_ul_elution_but_reserves_optimal_decision_credit():
+    arguments = _good_miniprep_arguments(elution_volume_ul=100.0)
+    observation = _good_miniprep_observation(
+        elution_volume_ul=100.0,
+        final_concentration_ng_ul=100.0,
+    )
+    answer = _replace_report_line(
+        _good_miniprep_answer(), "Elution volume:", "Elution volume: 100 uL"
+    )
+    answer = _replace_report_line(
+        answer,
+        "Plasmid concentration:",
+        "Plasmid concentration: 100.0 ng/uL",
+    )
+
+    scores = _score_miniprep(
+        answer,
+        _miniprep_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_quality"] == pytest.approx(0.75)
+
+
+def test_miniprep_requires_exact_report_of_submitted_culture_volume():
+    arguments = _good_miniprep_arguments(culture_volume_ml=1.0)
+    observation = _good_miniprep_observation(
+        culture_volume_ml=1.0,
+        total_yield_ug=2.0,
+        final_concentration_ng_ul=40.0,
+        source_culture_remaining_volume_ml=4.0,
+    )
+    answer = _replace_report_line(
+        _good_miniprep_answer(), "Culture volume:", "Culture volume: 0.9 mL"
+    )
+    answer = _replace_report_line(
+        answer,
+        "Plasmid concentration:",
+        "Plasmid concentration: 40.0 ng/uL",
+    )
+    answer = _replace_report_line(answer, "Total yield:", "Total yield: 2.0 ug")
+
+    scores = _score_miniprep(
+        answer,
+        _miniprep_call_pair(arguments=arguments, observation=observation),
+    )
+
     assert scores["task_success"] == 0.0
-    for metric in ("overall", "decision_quality", "task_success", "troubleshooting", "efficiency"):
-        assert 0.0 <= scores[metric] <= 1.0
+
+
+def test_miniprep_requires_exact_report_of_submitted_elution_volume():
+    answer = _replace_report_line(
+        _good_miniprep_answer(), "Elution volume:", "Elution volume: 49.9 uL"
+    )
+
+    scores = _score_miniprep(answer, _good_miniprep_transcript())
+
+    assert scores["task_success"] == 0.0
+
+
+def _score_miniprep(answer, transcript):
+    return score_miniprep_trajectory(
+        final_answer=answer,
+        transcript=transcript,
+        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    )
 
 
 def test_miniprep_rejects_each_inconsistent_or_nonsensical_report_field():
     replacements = {
+        "Culture ID:": "Culture ID: unknown_culture",
         "Culture volume:": "Culture volume: 999 mL",
-        "Lysis buffer sequence:": "Lysis buffer sequence: P3,P2,P1",
+        "Lysis buffer sequence:": "Lysis buffer sequence: P1,P2,P3",
         "Lysis duration:": "Lysis duration: 999 min",
         "Purification method:": "Purification method: boiling",
         "Elution volume:": "Elution volume: 1 uL",
@@ -2601,12 +2711,12 @@ def test_miniprep_rejects_each_inconsistent_or_nonsensical_report_field():
         "A260/A280:": "A260/A280: 9.99",
         "Total yield:": "Total yield: 999 ug",
         "Interpretation:": "Interpretation: No plasmid was prepared.",
+        "Diagnosis:": "Diagnosis: wrong buffer sequence",
     }
     for prefix, replacement in replacements.items():
-        scores = score_miniprep_trajectory(
-            final_answer=_replace_report_line(_good_miniprep_answer(), prefix, replacement),
-            transcript=_good_miniprep_transcript(),
-            ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+        scores = _score_miniprep(
+            _replace_report_line(_good_miniprep_answer(), prefix, replacement),
+            _good_miniprep_transcript(),
         )
         assert scores["task_success"] == 0.0, prefix
 
@@ -2615,18 +2725,36 @@ def test_miniprep_accepts_equivalent_punctuation_and_spacing():
     answer = _replace_report_line(
         _good_miniprep_answer(),
         "Lysis buffer sequence:",
-        "Lysis buffer sequence: P1 -> P2 -> P3",
+        "Lysis buffer sequence: P1 -> P2 -> N3",
     )
     answer = _replace_report_line(
         answer,
         "Purification method:",
-        "Purification method: silica-column",
+        "Purification method: QIAprep 2.0 silica-membrane spin-column",
     )
-    scores = score_miniprep_trajectory(
-        final_answer=answer,
-        transcript=_good_miniprep_transcript(),
-        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+    scores = _score_miniprep(answer, _good_miniprep_transcript())
+    assert scores["task_success"] == 1.0
+
+
+def test_miniprep_rejects_unqualified_generic_silica_method_report():
+    answer = _replace_report_line(
+        _good_miniprep_answer(),
+        "Purification method:",
+        "Purification method: silica column",
     )
+
+    scores = _score_miniprep(answer, _good_miniprep_transcript())
+
+    assert scores["task_success"] == 0.0
+
+
+@pytest.mark.parametrize("micro", ("µ", "μ"))
+def test_miniprep_accepts_unicode_micro_symbols(micro):
+    answer = _good_miniprep_answer().replace("uL", "{}L".format(micro))
+    answer = answer.replace("ug", "{}g".format(micro))
+
+    scores = _score_miniprep(answer, _good_miniprep_transcript())
+
     assert scores["task_success"] == 1.0
 
 
@@ -2636,25 +2764,289 @@ def test_miniprep_rejects_success_label_with_contradictory_interpretation():
         "Interpretation:",
         "Interpretation: success; the plasmid is not pure and the preparation did not succeed.",
     )
-    scores = score_miniprep_trajectory(
-        final_answer=answer,
-        transcript=_good_miniprep_transcript(),
-        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
-    )
+    scores = _score_miniprep(answer, _good_miniprep_transcript())
     assert scores["task_success"] == 0.0
 
 
-def test_miniprep_wrong_buffer_triggers_troubleshooting():
-    transcript = _good_miniprep_transcript()
-    transcript[0]["arguments"]["lysis_buffer_sequence_normalized"] = "p3,p2,p1"
-    transcript[0]["arguments"]["status"] = "wrong_buffer_sequence"
-    scores = score_miniprep_trajectory(
-        final_answer=_good_miniprep_answer(),
-        transcript=transcript,
-        ground_truth_path=str(MINIPREP_GROUND_TRUTH_PATH),
+@pytest.mark.parametrize(
+    "duplicate",
+    (
+        "Culture ID: another_culture",
+        "Culture volume: 4 mL",
+        "Lysis buffer sequence: P1,P2,P3",
+        "Lysis duration: 4 min",
+        "Purification method: anion exchange column",
+        "Elution volume: 100 uL",
+        "Plasmid concentration: 100 ng/uL",
+        "A260/A280: 2.10",
+        "Total yield: 5 ug",
+        "Interpretation: failure",
+        "Diagnosis: wrong buffer sequence",
+    ),
+)
+def test_miniprep_rejects_duplicate_or_contradictory_report_fields(duplicate):
+    scores = _score_miniprep(
+        _good_miniprep_answer() + "\n" + duplicate,
+        _good_miniprep_transcript(),
     )
-    assert scores["troubleshooting"] < 1.0
+
     assert scores["task_success"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("prefix", "replacement"),
+    (
+        ("Culture ID:", "Culture ID: miniprep_culture_high_copy_001 trailing"),
+        ("Culture volume:", "Culture volume: 5 mL trailing"),
+        ("Lysis buffer sequence:", "Lysis buffer sequence: P1,P2,N3 trailing"),
+        ("Lysis duration:", "Lysis duration: 3 min trailing"),
+        ("Purification method:", "Purification method: QIAprep silica spin column trailing"),
+        ("Elution volume:", "Elution volume: 50 uL trailing"),
+        ("Plasmid concentration:", "Plasmid concentration: 200 ng/uL trailing"),
+        ("A260/A280:", "A260/A280: 1.8 trailing"),
+        ("Total yield:", "Total yield: 10 ug trailing"),
+        ("Interpretation:", "Interpretation: success trailing"),
+        ("Diagnosis:", "Diagnosis: none trailing"),
+    ),
+)
+def test_miniprep_rejects_trailing_junk_on_every_schema_field(prefix, replacement):
+    scores = _score_miniprep(
+        _replace_report_line(_good_miniprep_answer(), prefix, replacement),
+        _good_miniprep_transcript(),
+    )
+
+    assert scores["task_success"] == 0.0
+
+
+def test_miniprep_output_overrides_forged_result_fields_in_arguments():
+    forged_arguments = _good_miniprep_arguments(
+        miniprep_id="miniprep_001",
+        status="prepared",
+        preparation_accepted=True,
+        failure_reasons=[],
+        final_concentration_ng_ul=200.0,
+        a260_a280_ratio=1.8,
+        total_yield_ug=10.0,
+        lysis_buffer_sequence_canonical="P1,P2,N3",
+        purification_method_canonical="QIAprep silica spin column",
+    )
+    failed_output = _good_miniprep_observation(
+        status=MINIPREP_FAILURE_WRONG_BUFFER,
+        preparation_accepted=False,
+        failure_reasons=[MINIPREP_FAILURE_WRONG_BUFFER],
+        final_concentration_ng_ul=80.0,
+        a260_a280_ratio=1.4,
+        total_yield_ug=4.0,
+    )
+
+    scores = _score_miniprep(
+        _good_miniprep_answer(),
+        _miniprep_call_pair(arguments=forged_arguments, observation=failed_output),
+    )
+
+    assert scores["task_success"] == 0.0
+
+
+def test_miniprep_missing_output_field_cannot_fall_back_to_request_arguments():
+    observation = _good_miniprep_observation()
+    observation.pop("lysis_duration_min")
+
+    scores = _score_miniprep(
+        _good_miniprep_answer(),
+        _miniprep_call_pair(observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["efficiency"] == 0.0
+    assert scores["overall"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("updates", "answer_replacements"),
+    (
+        (
+            {"total_yield_ug": 1.0, "final_concentration_ng_ul": 20.0},
+            (
+                ("Plasmid concentration:", "Plasmid concentration: 20.0 ng/uL"),
+                ("Total yield:", "Total yield: 1.0 ug"),
+            ),
+        ),
+        ({"source_culture_remaining_volume_ml": 5.0}, ()),
+    ),
+)
+def test_miniprep_rejects_impossible_yield_or_causal_remaining_volume(
+    updates, answer_replacements
+):
+    impossible = _good_miniprep_observation(**updates)
+    answer = _good_miniprep_answer()
+    for prefix, replacement in answer_replacements:
+        answer = _replace_report_line(answer, prefix, replacement)
+
+    scores = _score_miniprep(answer, _miniprep_call_pair(observation=impossible))
+
+    assert scores["task_success"] == 0.0
+
+
+def test_miniprep_rejects_arguments_only_fake_observation():
+    fake = {
+        "type": "tool_call",
+        "tool_name": "perform_miniprep",
+        "arguments": {**_good_miniprep_arguments(), **_good_miniprep_observation()},
+    }
+
+    assert _score_miniprep(_good_miniprep_answer(), [fake])["task_success"] == 0.0
+
+
+def test_miniprep_rejects_standalone_tool_output_without_a_request():
+    standalone_output = {
+        "role": "tool",
+        "tool_call_id": "orphan_miniprep_output",
+        "function": "perform_miniprep",
+        "content": json.dumps(_good_miniprep_observation()),
+    }
+
+    scores = _score_miniprep(_good_miniprep_answer(), [standalone_output])
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["overall"] == 0.0
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    (
+        "missing_output",
+        "missing_miniprep_id",
+        "missing_culture_id",
+        "tool_error",
+        "rejected_preparation",
+        "hidden_failure_reason",
+    ),
+)
+def test_miniprep_fails_closed_on_missing_or_error_tool_output(failure_mode):
+    if failure_mode == "missing_output":
+        observation = {}
+    elif failure_mode == "missing_miniprep_id":
+        observation = _good_miniprep_observation()
+        observation.pop("miniprep_id")
+    elif failure_mode == "missing_culture_id":
+        observation = _good_miniprep_observation()
+        observation.pop("culture_id")
+    elif failure_mode == "tool_error":
+        observation = _good_miniprep_observation(
+            status="tool_error",
+            preparation_accepted=False,
+            failure_reasons=["tool_error"],
+            error="simulated tool failure",
+        )
+    elif failure_mode == "rejected_preparation":
+        observation = _good_miniprep_observation(preparation_accepted=False)
+    else:
+        observation = _good_miniprep_observation(
+            failure_reasons=[MINIPREP_FAILURE_WRONG_BUFFER]
+        )
+
+    scores = _score_miniprep(
+        _good_miniprep_answer(),
+        _miniprep_call_pair(observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+
+
+@pytest.mark.parametrize("terminal_status", (None, "garbage", "Tool_Error"))
+def test_miniprep_unknown_or_error_status_has_no_result_credit(terminal_status):
+    observation = _good_miniprep_observation()
+    if terminal_status is None:
+        observation.pop("status")
+    else:
+        observation["status"] = terminal_status
+
+    scores = _score_miniprep(
+        _good_miniprep_answer(),
+        _miniprep_call_pair(observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+    assert scores["overall"] == 0.0
+
+
+@pytest.mark.parametrize("good_first", (True, False), ids=("good-then-bad", "bad-then-good"))
+def test_miniprep_requires_exactly_one_call_across_attempts(good_first):
+    good = _miniprep_call_pair(call_id="call_miniprep_good")
+    bad = _miniprep_call_pair(
+        call_id="call_miniprep_bad",
+        arguments=_good_miniprep_arguments(lysis_buffer_sequence="P1,P2,P3"),
+        observation=_good_miniprep_observation(
+            miniprep_id="miniprep_002",
+            status=MINIPREP_FAILURE_WRONG_BUFFER,
+            preparation_accepted=False,
+            failure_reasons=[MINIPREP_FAILURE_WRONG_BUFFER],
+            lysis_buffer_sequence="P1,P2,P3",
+            lysis_buffer_sequence_canonical=None,
+            final_concentration_ng_ul=80.0,
+            a260_a280_ratio=1.4,
+            total_yield_ug=4.0,
+        ),
+    )
+    transcript = [*(good if good_first else bad), *(bad if good_first else good)]
+
+    scores = _score_miniprep(_good_miniprep_answer(), transcript)
+
+    assert scores["task_success"] == 0.0
+
+
+def test_miniprep_cross_attempt_field_splicing_cannot_pass():
+    first = _miniprep_call_pair(
+        call_id="call_miniprep_first",
+        observation=_good_miniprep_observation(
+            miniprep_id="miniprep_001",
+            final_concentration_ng_ul=100.0,
+            total_yield_ug=5.0,
+        ),
+    )
+    second = _miniprep_call_pair(
+        call_id="call_miniprep_second",
+        observation=_good_miniprep_observation(miniprep_id="miniprep_002"),
+    )
+
+    assert _score_miniprep(_good_miniprep_answer(), [*first, *second])["task_success"] == 0.0
+
+
+def test_miniprep_multi_failure_requires_each_diagnosis_for_full_credit():
+    failure_reasons = [
+        MINIPREP_FAILURE_WRONG_BUFFER,
+        MINIPREP_FAILURE_OVERLYSIS,
+        MINIPREP_FAILURE_WRONG_METHOD,
+    ]
+    with open(MINIPREP_GROUND_TRUTH_PATH) as handle:
+        ground_truth = json.load(handle)
+    one_diagnosis = ground_truth["failure_diagnosis_map"][MINIPREP_FAILURE_WRONG_BUFFER][
+        "canonical_diagnosis"
+    ]
+    answer = _replace_report_line(_good_miniprep_answer(), "Interpretation:", "Interpretation: failure")
+    answer = _replace_report_line(answer, "Diagnosis:", "Diagnosis: " + one_diagnosis)
+    observation = _good_miniprep_observation(
+        status=failure_reasons[0],
+        preparation_accepted=False,
+        failure_reasons=failure_reasons,
+    )
+
+    scores = _score_miniprep(answer, _miniprep_call_pair(observation=observation))
+
+    assert scores["task_success"] == 0.0
+    assert scores["troubleshooting"] == pytest.approx(1.0 / 3.0)
+
+
+def test_miniprep_no_tool_oracle_answer_scores_zero():
+    scores = _score_miniprep(_good_miniprep_answer(), [])
+
+    assert scores["task_success"] == 0.0
+    assert scores["overall"] == 0.0
 
 
 def _good_express_transcript():

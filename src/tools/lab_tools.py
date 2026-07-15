@@ -13,6 +13,7 @@ from src.environment.operations import (
     gibson_assembly,
     golden_gate_assembly,
     incubate,
+    initialize_miniprep_source_culture,
     inspect_screening_plate,
     inoculate_growth,
     ligate,
@@ -432,6 +433,7 @@ async def transform_gibson_call(
 
 
 async def perform_miniprep_call(
+    culture_id: str,
     culture_volume_ml: float,
     lysis_buffer_sequence: str,
     lysis_duration_min: int,
@@ -442,6 +444,7 @@ async def perform_miniprep_call(
     try:
         payload = perform_miniprep(
             state=state,
+            culture_id=culture_id,
             culture_volume_ml=culture_volume_ml,
             lysis_buffer_sequence=lysis_buffer_sequence,
             lysis_duration_min=lysis_duration_min,
@@ -451,6 +454,11 @@ async def perform_miniprep_call(
     except (KeyError, ValueError) as exc:
         return _tool_error_observation("perform_miniprep", exc)
     return render_observation(payload)
+
+
+def initialize_miniprep_sample() -> None:
+    """Seed the causal Miniprep-01 source culture in the active sample state."""
+    initialize_miniprep_source_culture(_current_state())
 
 
 async def run_protein_expression_call(
@@ -1165,6 +1173,7 @@ def perform_miniprep_tool():
         """Perform a single-pass alkaline-lysis plasmid miniprep."""
 
         async def execute(
+            culture_id: str,
             culture_volume_ml: float,
             lysis_buffer_sequence: str,
             lysis_duration_min: int,
@@ -1174,6 +1183,7 @@ def perform_miniprep_tool():
             """Run an end-to-end plasmid miniprep.
 
             Args:
+                culture_id: Seeded overnight plasmid culture identifier from the task.
                 culture_volume_ml: Overnight culture volume in mL.
                 lysis_buffer_sequence: Ordered alkaline-lysis buffer labels.
                 lysis_duration_min: Time in alkaline lysis before neutralisation.
@@ -1181,6 +1191,7 @@ def perform_miniprep_tool():
                 elution_volume_ul: Final elution volume in microlitres.
             """
             return await perform_miniprep_call(
+                culture_id=culture_id,
                 culture_volume_ml=culture_volume_ml,
                 lysis_buffer_sequence=lysis_buffer_sequence,
                 lysis_duration_min=lysis_duration_min,

@@ -204,10 +204,25 @@ class GibsonReaction:
 
 
 @dataclass
+class MiniprepCulture:
+    """Seeded high-copy plasmid culture available to Miniprep-01."""
+
+    culture_id: str
+    plasmid_name: str
+    medium: str
+    is_overnight: bool
+    is_plasmid_bearing: bool
+    copy_number_class: str
+    available_volume_ml: float
+    consumed_volume_ml: float = 0.0
+
+
+@dataclass
 class MiniprepSample:
-    """Plasmid miniprep result (alkaline lysis + silica column workflow)."""
+    """Plasmid miniprep result (QIAprep alkaline lysis + silica-spin workflow)."""
 
     miniprep_id: str
+    culture_id: str
     culture_volume_ml: float
     lysis_buffer_sequence: str
     lysis_duration_min: int
@@ -217,6 +232,7 @@ class MiniprepSample:
     a260_a280_ratio: float
     total_yield_ug: float
     status: str
+    failure_reasons: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
 
 
@@ -279,6 +295,7 @@ class LabState:
     ligation_reactions: Dict[str, LigationReaction] = field(default_factory=dict)
     assembly_reactions: Dict[str, AssemblyReaction] = field(default_factory=dict)
     gibson_reactions: Dict[str, GibsonReaction] = field(default_factory=dict)
+    miniprep_cultures: Dict[str, MiniprepCulture] = field(default_factory=dict)
     miniprep_samples: Dict[str, MiniprepSample] = field(default_factory=dict)
     protein_expressions: Dict[str, ProteinExpression] = field(default_factory=dict)
     nta_purifications: Dict[str, NtaPurification] = field(default_factory=dict)

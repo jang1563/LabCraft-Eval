@@ -32,6 +32,13 @@ recorded rather than silently rewriting history.
   validate the fixed fragments, overlap, temperature, duration, and Amp100
   selection contract, and bind every success report to one assembled,
   transformed, plated, countable colony path without retry hybridization.
+- Make `miniprep_01` causal and QIAprep-specific: bind the action and report to
+  one seeded high-copy overnight culture, correct the silica-spin contract to
+  P1/P2/N3, 1-5 mL, at most 5 min, and a 50-100 uL elution range with a
+  standard 50 uL optimum, separate simulator calibrations
+  from source-backed thresholds, reject ambiguous column labels and malformed
+  inputs, trust paired tool output over request arguments, require a unique
+  structured report, and score every reported failure reason.
 
 ## 0.1.2 - 2026-07-12
 

@@ -7,6 +7,10 @@ import json
 
 import pytest
 
+from src.environment.miniprep_contract import (
+    MINIPREP_PURIFICATION_METHOD_CANONICAL,
+    canonicalize_miniprep_purification_method,
+)
 from src.solvers import (
     build_clone_solver,
     build_expression_solver,
@@ -29,7 +33,11 @@ from src.tasks.golden_gate_01 import (
     build_golden_gate_01_sample,
 )
 from src.tasks.growth_01 import build_growth_01_prompt
-from src.tasks.miniprep_01 import build_miniprep_01_prompt, build_miniprep_01_sample
+from src.tasks.miniprep_01 import (
+    MINIPREP_01_GROUND_TRUTH,
+    build_miniprep_01_prompt,
+    build_miniprep_01_sample,
+)
 from src.tasks.purify_01 import (
     PURIFY_01_GROUND_TRUTH,
     build_purify_01_prompt,
@@ -76,6 +84,9 @@ ANSWER_BEARING_PROMPT_FRAGMENTS = (
     "BsaI is canonical",
     "canonical 2-fragment Gibson condition",
     'canonical Birnboim-Doly alkaline lysis sequence is "P1,P2,P3"',
+    "P1/P2/N3",
+    "1-5 mL",
+    "Elution volume: 50 uL",
     "1 mM is textbook-standard",
     "OD600 = 0.6 is canonical",
     "250 mM is canonical",
@@ -127,6 +138,26 @@ def test_gibson_given_substrate_fields_are_not_scored_as_decisions():
     assert "gibson_uses_two_fragments" not in decision_ids
     assert "gibson_overlap_at_least_20" not in decision_ids
     assert "Interpretation: <success|failure>" in prompt
+
+
+def test_miniprep_given_qiaprep_method_and_source_are_not_scored_as_decisions():
+    payload = json.loads(MINIPREP_01_GROUND_TRUTH.read_text())
+    decision_ids = {point["id"] for point in payload["decision_points"]}
+
+    task_prompt = build_miniprep_01_prompt()
+    prompt = task_prompt.casefold()
+    specified_method = "QIAprep 2.0 Spin Column"
+
+    assert specified_method.casefold() in prompt
+    assert (
+        canonicalize_miniprep_purification_method(specified_method)
+        == MINIPREP_PURIFICATION_METHOD_CANONICAL
+    )
+    assert "miniprep_culture_high_copy_001" in prompt
+    assert "Culture volume: <float> mL" in task_prompt
+    assert "Elution volume: <float> µL" in task_prompt
+    assert "silica_spin_column_purification" not in decision_ids
+    assert "culture_id" not in decision_ids
 
 
 def test_given_ni_nta_method_is_not_scored_as_a_decision():

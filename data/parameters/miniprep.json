@@ -3,14 +3,14 @@
   "parameters": [
     {
       "parameter_name": "canonical_lysis_buffer_sequence",
-      "description": "Canonical alkaline lysis buffer sequence for plasmid miniprep.",
+      "description": "Canonical QIAprep silica-spin alkaline-lysis sequence for the benchmark's high-copy E. coli scenario.",
       "units": "buffer sequence",
       "distribution": "deterministic",
       "parameters": {
-        "value": "P1,P2,P3"
+        "value": "P1,P2,N3"
       },
       "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
@@ -21,33 +21,79 @@
           "doi": "10.1093/nar/7.6.1513",
           "canonical_url": "https://doi.org/10.1093/nar/7.6.1513",
           "tier": "Silver",
-          "tier_justification": "Canonical Birnboim and Doly paper for alkaline lysis plasmid miniprep; P1 (resuspension) / P2 (alkaline SDS lysis) / P3 (neutralization) is the standard modern naming."
+          "tier_justification": "Primary paper establishes the alkaline-lysis principle; it does not establish QIAprep's proprietary buffer labels."
+        },
+        {
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+          "tier": "Bronze",
+          "tier_justification": "Official QIAprep protocol specifies Buffer P1, then Buffer P2, followed by neutralization with Buffer N3."
         }
       ]
     },
     {
       "parameter_name": "culture_volume_ml_optimal",
-      "description": "Optimal overnight culture volume for a standard plasmid miniprep.",
+      "description": "Reference culture volume used by the benchmark yield calibration. Five millilitres is the upper endpoint of the supported 1-5 mL high-copy QIAprep range, not a universal biological optimum.",
       "units": "mL",
       "distribution": "deterministic",
       "parameters": {
         "value": 5
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+          "tier": "Bronze",
+          "tier_justification": "Official protocol supports 1-5 mL overnight LB cultures for high-copy plasmids; choosing 5 mL as the benchmark reference point is an explicit task calibration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "culture_volume_ml_supported_range",
+      "description": "Supported overnight LB culture-volume range for the benchmark's high-copy plasmid QIAprep workflow.",
+      "units": "mL",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": [1, 5]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAprep Spin Miniprep Kit Handbook",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=331d6776-2b47-4f56-ba30-c9ffe4c4d2fa&lang=en",
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN handbook recommends 1-5 mL overnight culture for standard miniprep; 5 mL is the standard teaching-lab volume."
+          "tier_justification": "Official microcentrifuge protocol is designed for high-copy plasmid DNA from 1-5 mL overnight E. coli cultures in LB medium."
+        }
+      ]
+    },
+    {
+      "parameter_name": "lysis_duration_minutes_min",
+      "description": "Minimum positive integer lysis duration accepted by this benchmark. The 1-minute lower bound is an input-contract calibration, not an independently published biological threshold.",
+      "units": "minutes",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 1
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+          "tier": "Bronze",
+          "tier_justification": "Official protocol defines a timed P2 lysis step and a 5-minute maximum; the exact 1-minute lower bound reflects the benchmark's positive-integer action space."
         }
       ]
     },
     {
       "parameter_name": "lysis_duration_minutes_max",
-      "description": "Maximum time the lysate can sit in P2 before neutralization, beyond which genomic DNA shearing and irreversible chromosomal contamination become problems.",
+      "description": "Maximum P2 lysis duration before QIAprep N3 neutralization; longer alkaline exposure can irreversibly denature plasmid DNA.",
       "units": "minutes",
       "distribution": "deterministic",
       "parameters": {
@@ -58,70 +104,119 @@
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAprep Spin Miniprep Kit Handbook",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=331d6776-2b47-4f56-ba30-c9ffe4c4d2fa&lang=en",
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN handbook warns that lysis must not exceed 5 min to prevent genomic-DNA contamination."
+          "tier_justification": "Official protocol says not to allow P2 lysis to proceed for more than 5 minutes; the handbook attributes long alkaline exposure to irreversible plasmid denaturation."
         }
       ]
     },
     {
       "parameter_name": "accepted_purification_methods",
-      "description": "Purification methods accepted for the miniprep task.",
+      "description": "Finite aliases accepted for the QIAprep 2.0 silica-membrane spin-column workflow. Generic QIAGEN-column and anion-exchange terms are intentionally excluded because they identify different or ambiguous products.",
       "units": "method names",
       "distribution": "deterministic",
       "parameters": {
-        "value": ["silica column", "Qiagen column", "anion exchange column"]
+        "value": [
+          "QIAprep spin column",
+          "QIAprep 2.0 spin column",
+          "QIAprep 2.0 Spin Columns",
+          "QIAprep silica spin column",
+          "QIAprep silica-membrane spin column",
+          "QIAprep 2.0 silica membrane spin column",
+          "QIAprep 2.0 silica-membrane spin column",
+          "QIAprep-compatible silica-membrane spin column"
+        ]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAprep Spin Miniprep Kit Handbook",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=331d6776-2b47-4f56-ba30-c9ffe4c4d2fa&lang=en",
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN handbook confirms silica-membrane column purification as the standard miniprep method; anion exchange is the alternative for higher purity preps."
+          "tier_justification": "Official handbook defines QIAprep 2.0 Spin Columns as silica-membrane columns for the bind-wash-elute miniprep workflow."
         }
       ]
     },
     {
       "parameter_name": "elution_volume_ul_min",
-      "description": "Minimum elution volume to avoid silica-column matrix carryover.",
+      "description": "Minimum and standard QIAprep 2.0 spin-column elution volume. Decision scoring treats the standard 50 uL condition as optimal while the simulator supports 50-100 uL.",
       "units": "microlitres",
       "distribution": "deterministic",
       "parameters": {
-        "value": 30
+        "value": 50
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAprep Spin Miniprep Kit Handbook",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=331d6776-2b47-4f56-ba30-c9ffe4c4d2fa&lang=en",
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
           "tier": "Bronze",
-          "tier_justification": "QIAGEN handbook recommends 30-50 uL elution volume for standard spin columns."
+          "tier_justification": "Official QIAprep spin protocol recommends 50 uL Buffer EB or water and permits 50-100 uL; lower volumes trade recovery for concentration rather than preventing matrix carryover."
+        }
+      ]
+    },
+    {
+      "parameter_name": "elution_volume_ul_max",
+      "description": "Maximum supported QIAprep 2.0 spin-column elution volume for this benchmark.",
+      "units": "microlitres",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 100
+      },
+      "claim_type": "protocol_threshold",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook permits 50-100 uL Buffer EB or water for elution, with 50 uL as the standard recommended condition."
         }
       ]
     },
     {
       "parameter_name": "target_a260_a280_range",
-      "description": "Target A260/A280 ratio for pure plasmid DNA (below indicates protein contamination; above indicates RNA).",
+      "description": "Deterministic simulator calibration for the nominal A260/A280 observation. The degenerate 1.8-1.8 interval is not a universal biological acceptance range or a standalone purity diagnosis.",
       "units": "ratio",
       "distribution": "deterministic",
       "parameters": {
-        "value": [1.8, 2.0]
+        "value": [1.8, 1.8]
       },
-      "claim_type": "protocol_threshold",
+      "claim_type": "task_configuration",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "Thermo Fisher 260/280 and 260/230 Ratios Reference",
+          "title": "Thermo Fisher Assessment of Nucleic Acid Purity (Technical Note 52646)",
           "canonical_url": "https://assets.thermofisher.com/TFS-Assets/CAD/Product-Bulletins/TN52646-E-0215M-NucleicAcid.pdf",
           "tier": "Bronze",
-          "tier_justification": "Thermo Fisher technical note defining 1.8-2.0 as the target A260/A280 range for pure DNA."
+          "tier_justification": "Technical note states that approximately 1.8 is generally accepted for DNA and approximately 2.0 for RNA; the exact deterministic 1.8 output remains a benchmark calibration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "base_yield_ug_at_reference_volume",
+      "description": "Deterministic simulator yield calibration of 10 ug at the 5 mL reference culture volume. This is not a universal empirical yield claim.",
+      "units": "micrograms",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 10
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "title": "QIAGEN QIAprep Miniprep Handbook (December 2020)",
+          "canonical_url": "https://www.qiagen.com/en-US/resources/download/KitHandbook/hb-1206-006-hb-qiaprep-miniprep-0320-ww",
+          "tier": "Bronze",
+          "tier_justification": "Official QIAprep 2.0 spin-column protocol supports yields up to 20 ug; 10 ug at 5 mL is an explicit conservative simulator calibration within that capacity, not a handbook-reported fixed yield."
         }
       ]
     }

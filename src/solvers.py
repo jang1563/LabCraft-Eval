@@ -401,6 +401,9 @@ def configure_miniprep_sample():
 
     async def solve(state, generate):
         _configure_lab_sample_state(state)
+        from .tools.lab_tools import initialize_miniprep_sample
+
+        initialize_miniprep_sample()
         return state
 
     return solve

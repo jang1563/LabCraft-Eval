@@ -26,6 +26,29 @@ class TestSearchDatabase:
         assert results[0]["name"] == "EcoRI"
 
     @pytest.mark.parametrize(
+        "query",
+        (
+            "miniprep",
+            "QIAprep",
+            "P1 buffer",
+            "N3 buffer",
+            "silica column",
+            "QIAprep 2.0 silica-membrane spin column",
+        ),
+    )
+    def test_miniprep_queries_rank_the_qiaprep_workflow_first(self, query):
+        db_path = _DATA_DIR / "reagent_database.json"
+        results = _search_database(db_path, query)
+
+        assert results
+        workflow = results[0]
+        assert workflow["name"] == "QIAprep Spin Miniprep Workflow"
+        contract = workflow["protocol_contract"]
+        assert contract["lysis_buffer_sequence"] == ["P1", "P2", "N3"]
+        assert contract["culture_volume_ml"] == {"min": 1, "max": 5}
+        assert contract["elution_volume_ul"] == {"min": 50, "max": 100, "standard": 50}
+
+    @pytest.mark.parametrize(
         ("query", "expected_name"),
         (
             ("BsaI", "BsaI-HFv2"),

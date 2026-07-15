@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 
 import pytest
@@ -10,6 +11,19 @@ import pytest
 from pathlib import Path
 
 from src.environment.gibson_contract import canonicalize_gibson_master_mix
+from src.environment.miniprep_contract import (
+    MINIPREP_BUFFER_SEQUENCE_CANONICAL,
+    MINIPREP_ELUTION_VOLUME_UL,
+    MINIPREP_FAILURE_CULTURE_VOLUME,
+    MINIPREP_FAILURE_ELUTION,
+    MINIPREP_FAILURE_OVERLYSIS,
+    MINIPREP_FAILURE_WRONG_BUFFER,
+    MINIPREP_FAILURE_WRONG_METHOD,
+    MINIPREP_PURIFICATION_METHOD_CANONICAL,
+    MINIPREP_SOURCE_CULTURE_ID,
+    canonicalize_miniprep_buffer_sequence,
+    canonicalize_miniprep_purification_method,
+)
 from src.environment.operations import (
     count_colonies,
     fit_growth_curve,
@@ -18,6 +32,7 @@ from src.environment.operations import (
     incubate,
     inoculate_growth,
     inspect_screening_plate,
+    initialize_miniprep_source_culture,
     ligate,
     list_cloning_substrates,
     list_gibson_substrates,
@@ -1564,52 +1579,270 @@ MINIPREP_PARAMETERS_PATH = (
 
 def test_miniprep_parameter_bundle_exposes_required_values():
     bundle = load_miniprep_parameters(MINIPREP_PARAMETERS_PATH)
-    assert bundle.text("canonical_lysis_buffer_sequence") == "P1,P2,P3"
+    assert bundle.text("canonical_lysis_buffer_sequence") == "P1,P2,N3"
     assert bundle.value("culture_volume_ml_optimal") == pytest.approx(5.0)
     assert bundle.integer("lysis_duration_minutes_max") == 5
-    assert bundle.integer("elution_volume_ul_min") == 30
-    assert any("silica" in m.lower() for m in bundle.choices("accepted_purification_methods"))
+    assert bundle.integer("elution_volume_ul_min") == 50
+    assert bundle.integer("elution_volume_ul_max") == 100
+    accepted_methods = bundle.choices("accepted_purification_methods")
+    assert accepted_methods
+    assert all("qiaprep" in method.casefold() for method in accepted_methods)
+    assert all(
+        canonicalize_miniprep_purification_method(method)
+        == MINIPREP_PURIFICATION_METHOD_CANONICAL
+        for method in accepted_methods
+    )
+
+
+def _new_miniprep_state(sample_id="miniprep-test"):
+    state = create_lab_state(sample_id=sample_id, seed=1)
+    initialize_miniprep_source_culture(state)
+    return state
+
+
+def _perform_standard_miniprep(state, **overrides):
+    arguments = {
+        "culture_id": MINIPREP_SOURCE_CULTURE_ID,
+        "culture_volume_ml": 5.0,
+        "lysis_buffer_sequence": "P1,P2,N3",
+        "lysis_duration_min": 3,
+        "purification_method": "QIAprep silica spin column",
+        "elution_volume_ul": 50.0,
+    }
+    arguments.update(overrides)
+    return perform_miniprep(state=state, **arguments)
+
+
+def _miniprep_mutation_snapshot(state):
+    return {
+        "counter": state.miniprep_counter,
+        "samples": copy.deepcopy(state.miniprep_samples),
+        "cultures": copy.deepcopy(state.miniprep_cultures),
+        "events": copy.deepcopy(state.event_log),
+        "rng": state.rng.getstate(),
+    }
 
 
 def test_miniprep_happy_path():
-    state = create_lab_state(sample_id="miniprep-happy", seed=1)
-    result = perform_miniprep(
-        state=state,
-        culture_volume_ml=5.0,
-        lysis_buffer_sequence="P1,P2,P3",
-        lysis_duration_min=3,
-        purification_method="silica column",
-        elution_volume_ul=50,
-    )
+    state = _new_miniprep_state("miniprep-happy")
+    result = _perform_standard_miniprep(state)
+
     assert result["status"] == "prepared"
-    assert 1.8 <= result["a260_a280_ratio"] <= 2.0
-    assert result["total_yield_ug"] > 5.0
+    assert result["preparation_accepted"] is True
+    assert result["failure_reasons"] == []
+    assert result["culture_id"] == MINIPREP_SOURCE_CULTURE_ID
+    assert result["miniprep_id"] == "miniprep_001"
+    assert result["lysis_buffer_sequence_canonical"] == MINIPREP_BUFFER_SEQUENCE_CANONICAL
+    assert result["purification_method_canonical"] == MINIPREP_PURIFICATION_METHOD_CANONICAL
+    assert result["elution_volume_ul"] == MINIPREP_ELUTION_VOLUME_UL
+    assert result["a260_a280_ratio"] == pytest.approx(1.8)
+    assert result["total_yield_ug"] == pytest.approx(10.0)
+    assert result["final_concentration_ng_ul"] == pytest.approx(200.0)
+    assert result["source_culture_remaining_volume_ml"] == pytest.approx(0.0)
+    assert state.miniprep_samples[result["miniprep_id"]].culture_id == MINIPREP_SOURCE_CULTURE_ID
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "P1,P2,N3",
+        "P1 -> P2 -> N3",
+        "P1/P2/N3",
+        "Buffer P1 -> Buffer P2 -> Buffer N3",
+        "resuspension, lysis, neutralization",
+        "P1 (resuspension), P2 (alkaline lysis), N3 (neutralization)",
+    ),
+)
+def test_miniprep_buffer_allowlist_accepts_explicit_equivalent_labels(label):
+    assert canonicalize_miniprep_buffer_sequence(label) == MINIPREP_BUFFER_SEQUENCE_CANONICAL
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "P1,P2,P3",
+        "P1,P2,N3,N3",
+        "P1 then lysis then N3",
+        "standard alkaline lysis buffers",
+        "not P1/P2/N3",
+    ),
+)
+def test_miniprep_buffer_allowlist_rejects_near_misses(label):
+    assert canonicalize_miniprep_buffer_sequence(label) is None
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "QIAprep spin column",
+        "QIAprep 2.0 spin column",
+        "QIAprep 2.0 Spin Columns",
+        "QIAprep 2.0 silica-membrane spin column",
+        "QIAprep-compatible silica-membrane spin column",
+    ),
+)
+def test_miniprep_method_allowlist_accepts_explicit_silica_spin_aliases(label):
+    assert canonicalize_miniprep_purification_method(label) == MINIPREP_PURIFICATION_METHOD_CANONICAL
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "QIAGEN column",
+        "anion exchange column",
+        "silica column",
+        "silica spin column",
+        "silica membrane column",
+        "silica-membrane spin column",
+        "silica beads",
+        "spin column",
+        "not a silica column",
+    ),
+)
+def test_miniprep_method_allowlist_rejects_near_misses(label):
+    assert canonicalize_miniprep_purification_method(label) is None
+
+
+def test_miniprep_operation_accepts_functional_buffer_and_silica_spin_aliases():
+    state = _new_miniprep_state("miniprep-functional-aliases")
+    result = _perform_standard_miniprep(
+        state,
+        lysis_buffer_sequence="resuspension, lysis, neutralization",
+        purification_method="QIAprep 2.0 spin column",
+    )
+
+    assert result["status"] == "prepared"
+    assert result["lysis_buffer_sequence_canonical"] == MINIPREP_BUFFER_SEQUENCE_CANONICAL
+    assert result["purification_method_canonical"] == MINIPREP_PURIFICATION_METHOD_CANONICAL
+
+
+def test_miniprep_accepts_supported_100_ul_elution_with_lower_concentration():
+    state = _new_miniprep_state("miniprep-100-ul-elution")
+    result = _perform_standard_miniprep(state, elution_volume_ul=100.0)
+
+    assert result["status"] == "prepared"
+    assert result["preparation_accepted"] is True
+    assert result["total_yield_ug"] == pytest.approx(10.0)
+    assert result["final_concentration_ng_ul"] == pytest.approx(100.0)
+
+
+def test_miniprep_operation_rejects_generic_qiagen_column_near_miss():
+    state = _new_miniprep_state("miniprep-method-near-miss")
+    result = _perform_standard_miniprep(state, purification_method="QIAGEN column")
+
+    assert result["status"] == MINIPREP_FAILURE_WRONG_METHOD
+    assert result["failure_reasons"] == [MINIPREP_FAILURE_WRONG_METHOD]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("culture_volume_ml", 0.0),
+        ("culture_volume_ml", -1.0),
+        ("culture_volume_ml", float("nan")),
+        ("culture_volume_ml", float("inf")),
+        ("culture_volume_ml", True),
+        ("lysis_duration_min", 0),
+        ("lysis_duration_min", -1),
+        ("lysis_duration_min", 1.5),
+        ("lysis_duration_min", float("nan")),
+        ("lysis_duration_min", float("inf")),
+        ("lysis_duration_min", True),
+        ("elution_volume_ul", 0.0),
+        ("elution_volume_ul", -1.0),
+        ("elution_volume_ul", float("nan")),
+        ("elution_volume_ul", float("inf")),
+        ("elution_volume_ul", True),
+    ),
+)
+def test_miniprep_rejects_malformed_numeric_inputs_without_mutating_state(field, value):
+    state = _new_miniprep_state("miniprep-invalid-{}-{}".format(field, value))
+    before = _miniprep_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _perform_standard_miniprep(state, **{field: value})
+
+    assert _miniprep_mutation_snapshot(state) == before
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_failure"),
+    (
+        ({"culture_volume_ml": 0.5}, MINIPREP_FAILURE_CULTURE_VOLUME),
+        ({"culture_volume_ml": 5.1}, MINIPREP_FAILURE_CULTURE_VOLUME),
+        ({"lysis_duration_min": 6}, MINIPREP_FAILURE_OVERLYSIS),
+        ({"elution_volume_ul": 30.0}, MINIPREP_FAILURE_ELUTION),
+        ({"elution_volume_ul": 101.0}, MINIPREP_FAILURE_ELUTION),
+    ),
+)
+def test_miniprep_finite_out_of_contract_values_emit_explicit_failure(overrides, expected_failure):
+    state = _new_miniprep_state("miniprep-contract-failure")
+    result = _perform_standard_miniprep(state, **overrides)
+
+    assert result["preparation_accepted"] is False
+    assert expected_failure in result["failure_reasons"]
+    assert result["status"] == result["failure_reasons"][0]
 
 
 def test_miniprep_wrong_buffer_sequence_flagged():
-    state = create_lab_state(sample_id="miniprep-wrong-buffer", seed=1)
-    result = perform_miniprep(
-        state=state,
-        culture_volume_ml=5.0,
-        lysis_buffer_sequence="P3,P2,P1",
-        lysis_duration_min=3,
-        purification_method="silica column",
-        elution_volume_ul=50,
-    )
+    state = _new_miniprep_state("miniprep-wrong-buffer")
+    result = _perform_standard_miniprep(state, lysis_buffer_sequence="P3,P2,P1")
     assert result["status"] == "wrong_buffer_sequence"
+    assert result["failure_reasons"] == [MINIPREP_FAILURE_WRONG_BUFFER]
 
 
 def test_miniprep_overlysis_flagged():
-    state = create_lab_state(sample_id="miniprep-overlysis", seed=1)
-    result = perform_miniprep(
-        state=state,
-        culture_volume_ml=5.0,
+    state = _new_miniprep_state("miniprep-overlysis")
+    result = _perform_standard_miniprep(state, lysis_duration_min=15)
+    assert result["status"] == MINIPREP_FAILURE_OVERLYSIS
+    assert result["failure_reasons"] == [MINIPREP_FAILURE_OVERLYSIS]
+
+
+def test_miniprep_reports_every_simultaneous_contract_failure_in_stable_order():
+    state = _new_miniprep_state("miniprep-multiple-failures")
+    result = _perform_standard_miniprep(
+        state,
+        culture_volume_ml=0.5,
         lysis_buffer_sequence="P1,P2,P3",
-        lysis_duration_min=15,
-        purification_method="silica column",
-        elution_volume_ul=50,
+        lysis_duration_min=6,
+        purification_method="anion exchange column",
+        elution_volume_ul=30.0,
     )
-    assert result["status"] == "overlysis_genomic_contamination"
+
+    assert result["failure_reasons"] == [
+        MINIPREP_FAILURE_CULTURE_VOLUME,
+        MINIPREP_FAILURE_WRONG_BUFFER,
+        MINIPREP_FAILURE_OVERLYSIS,
+        MINIPREP_FAILURE_WRONG_METHOD,
+        MINIPREP_FAILURE_ELUTION,
+    ]
+    assert result["status"] == MINIPREP_FAILURE_CULTURE_VOLUME
+    assert result["preparation_accepted"] is False
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("unknown", "non_overnight", "wrong_plasmid", "depleted"),
+)
+def test_miniprep_rejects_invalid_source_cultures_without_mutating_state(mutation):
+    state = _new_miniprep_state("miniprep-invalid-culture-{}".format(mutation))
+    arguments = {}
+    source = state.miniprep_cultures[MINIPREP_SOURCE_CULTURE_ID]
+    if mutation == "unknown":
+        arguments["culture_id"] = "missing_miniprep_culture"
+    elif mutation == "non_overnight":
+        source.is_overnight = False
+    elif mutation == "wrong_plasmid":
+        source.is_plasmid_bearing = False
+    elif mutation == "depleted":
+        source.available_volume_ml = 0.0
+        source.consumed_volume_ml = 5.0
+    before = _miniprep_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _perform_standard_miniprep(state, **arguments)
+
+    assert _miniprep_mutation_snapshot(state) == before
 
 
 EXPRESSION_PARAMETERS_PATH = (

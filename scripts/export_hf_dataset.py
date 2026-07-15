@@ -99,8 +99,11 @@ TASK_METADATA = {
         "objective": "Perform a two-fragment isothermal overlap assembly and transform it.",
     },
     "miniprep_01": {
-        "domain": "Alkaline lysis plasmid prep",
-        "objective": "Report concentration, A260/A280, and plasmid yield.",
+        "domain": "High-copy QIAprep plasmid prep",
+        "objective": (
+            "Perform a causal P1/P2/N3 silica-spin miniprep and report "
+            "concentration, A260/A280, and plasmid yield."
+        ),
     },
     "express_01": {
         "domain": "Recombinant protein expression",

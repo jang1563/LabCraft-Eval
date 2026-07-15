@@ -19,6 +19,27 @@ from src.environment.gibson_contract import (
     canonicalize_gibson_method,
     canonicalize_gibson_master_mix,
 )
+from src.environment.miniprep_contract import (
+    MINIPREP_BUFFER_SEQUENCE_CANONICAL,
+    MINIPREP_CULTURE_VOLUME_MAX_ML,
+    MINIPREP_CULTURE_VOLUME_MIN_ML,
+    MINIPREP_ELUTION_VOLUME_MAX_UL,
+    MINIPREP_ELUTION_VOLUME_UL,
+    MINIPREP_FAILURE_CULTURE_VOLUME,
+    MINIPREP_FAILURE_ELUTION,
+    MINIPREP_FAILURE_OVERLYSIS,
+    MINIPREP_FAILURE_WRONG_BUFFER,
+    MINIPREP_FAILURE_WRONG_METHOD,
+    MINIPREP_LYSIS_DURATION_MAX_MINUTES,
+    MINIPREP_LYSIS_DURATION_MIN_MINUTES,
+    MINIPREP_NOMINAL_A260_A280,
+    MINIPREP_PURIFICATION_METHOD_CANONICAL,
+    MINIPREP_REFERENCE_YIELD_UG_AT_5_ML,
+    MINIPREP_SOURCE_CULTURE_ID,
+    MINIPREP_SOURCE_CULTURE_VOLUME_ML,
+    canonicalize_miniprep_buffer_sequence,
+    canonicalize_miniprep_purification_method,
+)
 from src.tools.discovery import (
     assay_primary_readout,
     validation_result_label,
@@ -60,6 +81,12 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
                 existing["tool_name"] = call["tool_name"]
             if call.get("content") is not None:
                 existing["content"] = call.get("content")
+            existing["_request_observed"] = bool(
+                existing.get("_request_observed") or call.get("_request_observed")
+            )
+            existing["_tool_output_observed"] = bool(
+                existing.get("_tool_output_observed") or call.get("_tool_output_observed")
+            )
             return
 
         calls.append(call)
@@ -68,7 +95,13 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
 
     for item in transcript:
         if isinstance(item, dict) and item.get("type") == "tool_call":
-            append_or_merge(item)
+            append_or_merge(
+                {
+                    **item,
+                    "_request_observed": True,
+                    "_tool_output_observed": item.get("content") is not None,
+                }
+            )
             continue
 
         if isinstance(item, dict) and item.get("tool_calls"):
@@ -80,6 +113,8 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
                         "arguments": call.get("arguments", {}) or {},
                         "content": item.get("content"),
                         "call_id": call.get("id"),
+                        "_request_observed": True,
+                        "_tool_output_observed": False,
                     }
                 )
             continue
@@ -92,6 +127,8 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
                     "arguments": item.get("arguments", {}) or {},
                     "content": item.get("content"),
                     "call_id": item.get("tool_call_id"),
+                    "_request_observed": False,
+                    "_tool_output_observed": True,
                 }
             )
             continue
@@ -105,6 +142,8 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
                     "arguments": getattr(item, "arguments", {}) or {},
                     "content": getattr(item, "content", None),
                     "call_id": getattr(item, "tool_call_id", None),
+                    "_request_observed": False,
+                    "_tool_output_observed": True,
                 }
             )
             continue
@@ -119,6 +158,8 @@ def _extract_tool_calls(transcript: Iterable[Any]) -> List[Dict[str, Any]]:
                         "arguments": getattr(call, "arguments", {}) or {},
                         "content": getattr(call, "content", None),
                         "call_id": getattr(call, "id", None),
+                        "_request_observed": True,
+                        "_tool_output_observed": False,
                     }
                 )
     return calls
@@ -171,7 +212,7 @@ def _matches_filters(arguments: Dict[str, Any], filters: Dict[str, Any]) -> bool
 def _observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
     arguments = _coerce_arguments(call.get("arguments"))
     content_values = _coerce_content_dict(call.get("content"))
-    return {**content_values, **arguments}
+    return {**arguments, **content_values}
 
 
 def _coerce_float(value: Any) -> float | None:
@@ -2468,62 +2509,237 @@ def build_gibson_trajectory_scorer():
 
 
 def _extract_reported_miniprep_summary(final_answer: str) -> Dict[str, Any]:
+    number = r"([0-9]+(?:\.[0-9]+)?)"
+    micro = r"[uµμ]"
+    field_specs = (
+        ("culture_id", r"^Culture ID:\s*(\S(?:.*\S)?)\s*$", str),
+        ("culture_volume_ml", rf"^Culture volume:\s*{number}\s*mL\s*$", float),
+        (
+            "lysis_buffer_sequence",
+            r"^Lysis buffer sequence:\s*(\S(?:.*\S)?)\s*$",
+            str,
+        ),
+        ("lysis_duration_min", r"^Lysis duration:\s*([0-9]+)\s*min\s*$", int),
+        (
+            "purification_method",
+            r"^Purification method:\s*(\S(?:.*\S)?)\s*$",
+            str,
+        ),
+        ("elution_volume_ul", rf"^Elution volume:\s*{number}\s*{micro}L\s*$", float),
+        (
+            "final_concentration_ng_ul",
+            rf"^Plasmid concentration:\s*{number}\s*ng/{micro}L\s*$",
+            float,
+        ),
+        ("a260_a280_ratio", rf"^A260/A280:\s*{number}\s*$", float),
+        ("total_yield_ug", rf"^Total yield:\s*{number}\s*{micro}g\s*$", float),
+        ("interpretation", r"^Interpretation:\s*(\S(?:.*\S)?)\s*$", str),
+        ("diagnosis", r"^Diagnosis:\s*(\S(?:.*\S)?)\s*$", str),
+    )
+    lines = [line.strip() for line in final_answer.splitlines() if line.strip()]
+    if len(lines) != len(field_specs):
+        return {}
+
     summary: Dict[str, Any] = {}
-    vol = re.search(r"(?im)^Culture volume:\s*([0-9]+(?:\.[0-9]+)?)\s*mL", final_answer)
-    if vol:
-        summary["culture_volume_ml"] = float(vol.group(1))
-    buf = re.search(r"(?im)^Lysis buffer sequence:\s*(.+)$", final_answer)
-    if buf:
-        summary["lysis_buffer_sequence"] = buf.group(1).strip().lower()
-    dur = re.search(r"(?im)^Lysis duration:\s*([0-9]+)\s*min", final_answer)
-    if dur:
-        summary["lysis_duration_min"] = int(dur.group(1))
-    method = re.search(r"(?im)^Purification method:\s*(.+)$", final_answer)
-    if method:
-        summary["purification_method"] = method.group(1).strip().lower()
-    elu = re.search(r"(?im)^Elution volume:\s*([0-9]+(?:\.[0-9]+)?)\s*uL", final_answer)
-    if elu:
-        summary["elution_volume_ul"] = float(elu.group(1))
-    conc = re.search(r"(?im)^Plasmid concentration:\s*([0-9]+(?:\.[0-9]+)?)\s*ng/uL", final_answer)
-    if conc:
-        summary["final_concentration_ng_ul"] = float(conc.group(1))
-    ratio = re.search(r"(?im)^A260/A280:\s*([0-9]+(?:\.[0-9]+)?)", final_answer)
-    if ratio:
-        summary["a260_a280_ratio"] = float(ratio.group(1))
-    yld = re.search(r"(?im)^Total yield:\s*([0-9]+(?:\.[0-9]+)?)\s*ug", final_answer)
-    if yld:
-        summary["total_yield_ug"] = float(yld.group(1))
-    interp = re.search(r"(?im)^Interpretation:\s*(.+)$", final_answer)
-    if interp:
-        summary["interpretation"] = interp.group(1).strip()
+    for key, pattern, converter in field_specs:
+        matches = [
+            match
+            for line in lines
+            if (match := re.fullmatch(pattern, line, flags=re.IGNORECASE)) is not None
+        ]
+        if len(matches) != 1:
+            return {}
+        raw_value = matches[0].group(1).strip()
+        try:
+            summary[key] = converter(raw_value)
+        except (TypeError, ValueError):
+            return {}
     return summary
+
+
+def _miniprep_observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a miniprep call with simulator output authoritative over inputs."""
+    arguments = _coerce_arguments(call.get("arguments"))
+    content_values = _coerce_content_dict(call.get("content"))
+    observed = {**arguments, **content_values}
+    request_observed = call.get("_request_observed") is True
+    output_observed = call.get("_tool_output_observed") is True
+    terminal_status = str(content_values.get("status", "")).strip()
+    allowed_statuses = {
+        "prepared",
+        MINIPREP_FAILURE_CULTURE_VOLUME,
+        MINIPREP_FAILURE_WRONG_BUFFER,
+        MINIPREP_FAILURE_OVERLYSIS,
+        MINIPREP_FAILURE_WRONG_METHOD,
+        MINIPREP_FAILURE_ELUTION,
+    }
+    required_output_fields = {
+        "status",
+        "preparation_accepted",
+        "failure_reasons",
+        "miniprep_id",
+        "culture_id",
+        "culture_volume_ml",
+        "source_culture_remaining_volume_ml",
+        "lysis_buffer_sequence",
+        "lysis_buffer_sequence_canonical",
+        "lysis_duration_min",
+        "purification_method",
+        "purification_method_canonical",
+        "elution_volume_ul",
+        "final_concentration_ng_ul",
+        "a260_a280_ratio",
+        "total_yield_ug",
+    }
+    observed["_has_output"] = bool(content_values and output_observed)
+    observed["_has_result"] = bool(
+        request_observed
+        and output_observed
+        and content_values
+        and required_output_fields <= set(content_values)
+        and content_values.get("miniprep_id")
+        and content_values.get("culture_id")
+        and terminal_status in allowed_statuses
+    )
+    observed["_output_failure_reasons"] = content_values.get("failure_reasons")
+    observed["_output_values"] = content_values
+    return observed
 
 
 def _reconstruct_miniprep_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     last = None
     call_count = 0
+    result_count = 0
     statuses: List[str] = []
+    failure_reasons: List[str] = []
     for call in tool_calls:
         if _normalize_tool_name(call.get("tool_name", "")) != "perform_miniprep":
             continue
         call_count += 1
-        observed = _observed_values(call)
+        observed = _miniprep_observed_values(call)
         statuses.append(str(observed.get("status", "")))
+        if observed["_has_result"]:
+            result_count += 1
+        raw_reasons = observed.get("_output_failure_reasons")
+        if isinstance(raw_reasons, list):
+            failure_reasons.extend(str(reason) for reason in raw_reasons if reason)
         last = observed
-    return {"last": last, "call_count": call_count, "statuses": statuses}
+    return {
+        "last": last,
+        "call_count": call_count,
+        "result_count": result_count,
+        "statuses": statuses,
+        "failure_reasons": list(dict.fromkeys(failure_reasons)),
+    }
 
 
-MINIPREP_CULTURE_VOLUME_TOLERANCE_ML = 0.1
+MINIPREP_CULTURE_VOLUME_TOLERANCE_ML = 0.0
 MINIPREP_LYSIS_DURATION_TOLERANCE_MIN = 0.0
-MINIPREP_ELUTION_VOLUME_TOLERANCE_UL = 1.0
+MINIPREP_ELUTION_VOLUME_TOLERANCE_UL = 0.0
 MINIPREP_CONCENTRATION_TOLERANCE = 2.0  # ng/uL
 MINIPREP_RATIO_TOLERANCE = 0.05
 MINIPREP_TOTAL_YIELD_TOLERANCE_UG = 0.2
 
 
+def _miniprep_output_contract_is_valid(observed: Dict[str, Any]) -> bool:
+    output = observed.get("_output_values")
+    if not isinstance(output, dict):
+        return False
+    if (
+        not observed.get("_has_result")
+        or str(output.get("status", "")) != "prepared"
+        or output.get("preparation_accepted") is not True
+        or output.get("failure_reasons") != []
+        or not str(output.get("miniprep_id", "")).strip()
+        or str(output.get("culture_id", "")) != MINIPREP_SOURCE_CULTURE_ID
+    ):
+        return False
+
+    canonical_buffers = canonicalize_miniprep_buffer_sequence(
+        output.get("lysis_buffer_sequence")
+    )
+    canonical_method = canonicalize_miniprep_purification_method(
+        output.get("purification_method")
+    )
+    if (
+        canonical_buffers != MINIPREP_BUFFER_SEQUENCE_CANONICAL
+        or output.get("lysis_buffer_sequence_canonical") != canonical_buffers
+        or canonical_method != MINIPREP_PURIFICATION_METHOD_CANONICAL
+        or output.get("purification_method_canonical") != canonical_method
+    ):
+        return False
+
+    culture_volume = _coerce_float(output.get("culture_volume_ml"))
+    lysis_duration = _coerce_strict_int(output.get("lysis_duration_min"))
+    elution_volume = _coerce_float(output.get("elution_volume_ul"))
+    if (
+        culture_volume is None
+        or not math.isfinite(culture_volume)
+        or not MINIPREP_CULTURE_VOLUME_MIN_ML
+        <= culture_volume
+        <= MINIPREP_CULTURE_VOLUME_MAX_ML
+        or lysis_duration is None
+        or not MINIPREP_LYSIS_DURATION_MIN_MINUTES
+        <= lysis_duration
+        <= MINIPREP_LYSIS_DURATION_MAX_MINUTES
+        or elution_volume is None
+        or not math.isfinite(elution_volume)
+        or not MINIPREP_ELUTION_VOLUME_UL
+        <= elution_volume
+        <= MINIPREP_ELUTION_VOLUME_MAX_UL
+    ):
+        return False
+
+    concentration = _coerce_float(output.get("final_concentration_ng_ul"))
+    ratio = _coerce_float(output.get("a260_a280_ratio"))
+    total_yield = _coerce_float(output.get("total_yield_ug"))
+    remaining_volume = _coerce_float(output.get("source_culture_remaining_volume_ml"))
+    if (
+        concentration is None
+        or ratio is None
+        or total_yield is None
+        or remaining_volume is None
+        or not all(
+            math.isfinite(value)
+            for value in (concentration, ratio, total_yield, remaining_volume)
+        )
+        or concentration <= 0.0
+        or ratio <= 0.0
+        or total_yield <= 0.0
+        or remaining_volume < 0.0
+        or not _numeric_values_match(
+            ratio,
+            MINIPREP_NOMINAL_A260_A280,
+            tolerance=MINIPREP_RATIO_TOLERANCE,
+        )
+    ):
+        return False
+    expected_yield = MINIPREP_REFERENCE_YIELD_UG_AT_5_ML * (
+        culture_volume / MINIPREP_CULTURE_VOLUME_MAX_ML
+    )
+    expected_remaining_volume = MINIPREP_SOURCE_CULTURE_VOLUME_ML - culture_volume
+    if not _numeric_values_match(
+        total_yield,
+        expected_yield,
+        tolerance=MINIPREP_TOTAL_YIELD_TOLERANCE_UG,
+    ) or not _numeric_values_match(
+        remaining_volume,
+        expected_remaining_volume,
+        tolerance=0.001,
+    ):
+        return False
+    expected_concentration = total_yield * 1000.0 / elution_volume
+    return _numeric_values_match(
+        concentration,
+        expected_concentration,
+        tolerance=MINIPREP_CONCENTRATION_TOLERANCE,
+    )
+
+
 def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
     reported = _extract_reported_miniprep_summary(final_answer)
     required = {
+        "culture_id",
         "culture_volume_ml",
         "lysis_buffer_sequence",
         "lysis_duration_min",
@@ -2533,14 +2749,19 @@ def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, An
         "a260_a280_ratio",
         "total_yield_ug",
         "interpretation",
+        "diagnosis",
     }
     if required - set(reported):
         return 0.0
     reconstructed = _reconstruct_miniprep_results(tool_calls)
-    if reconstructed["call_count"] != 1 or reconstructed["last"] is None:
+    if (
+        reconstructed["call_count"] != 1
+        or reconstructed["result_count"] != 1
+        or reconstructed["last"] is None
+    ):
         return 0.0
     last = reconstructed["last"]
-    if str(last.get("status")) != "prepared":
+    if not _miniprep_output_contract_is_valid(last):
         return 0.0
     numeric_fields = {
         "culture_volume_ml": MINIPREP_CULTURE_VOLUME_TOLERANCE_ML,
@@ -2555,45 +2776,85 @@ def score_miniprep_task_success(final_answer: str, tool_calls: List[Dict[str, An
         for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if not _reported_text_matches(
-        reported["lysis_buffer_sequence"],
-        last.get("lysis_buffer_sequence_normalized") or last.get("lysis_buffer_sequence"),
+    if reported["culture_id"] != last.get("culture_id"):
+        return 0.0
+    if canonicalize_miniprep_buffer_sequence(reported["lysis_buffer_sequence"]) != last.get(
+        "lysis_buffer_sequence_canonical"
     ):
         return 0.0
-    if not _reported_text_matches(
-        reported["purification_method"],
-        last.get("purification_method_normalized") or last.get("purification_method"),
+    if canonicalize_miniprep_purification_method(reported["purification_method"]) != last.get(
+        "purification_method_canonical"
     ):
         return 0.0
     if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
+    if str(reported["diagnosis"]).strip().casefold() != "none":
+        return 0.0
     return 1.0
+
+
+_MINIPREP_DIAGNOSIS_PATTERN_GROUPS = {
+    MINIPREP_FAILURE_CULTURE_VOLUME: (r"culture", r"volume|\bml\b", r"range|outside|1\s*[-–]\s*5"),
+    MINIPREP_FAILURE_WRONG_BUFFER: (r"buffer|sequence|neutral", r"\bn3\b"),
+    MINIPREP_FAILURE_OVERLYSIS: (
+        r"overlys|too\s+long|exceed|beyond|more\s+than",
+        r"denatur|five\s+min|5\s*min",
+    ),
+    MINIPREP_FAILURE_WRONG_METHOD: (r"silica|qiaprep", r"column|spin|method|purif"),
+    MINIPREP_FAILURE_ELUTION: (r"elut", r"50\s*[-–]\s*100|outside|range"),
+}
+
+
+def _miniprep_diagnosis_matches(
+    marker: str, diagnosis_text: str, ground_truth: Dict[str, Any]
+) -> bool:
+    diagnosis = ground_truth.get("failure_diagnosis_map", {}).get(marker, {})
+    acceptable = [diagnosis.get("canonical_diagnosis", "")] + diagnosis.get(
+        "acceptable_variants", []
+    )
+    lowered = diagnosis_text.casefold()
+    if any(candidate and str(candidate).casefold() in lowered for candidate in acceptable):
+        return True
+    groups = _MINIPREP_DIAGNOSIS_PATTERN_GROUPS.get(marker)
+    return bool(groups) and all(re.search(pattern, diagnosis_text, re.IGNORECASE) for pattern in groups)
 
 
 def score_miniprep_troubleshooting(
     final_answer: str, tool_calls: List[Dict[str, Any]], ground_truth: Dict[str, Any]
 ) -> float:
     reconstructed = _reconstruct_miniprep_results(tool_calls)
-    failure_markers: List[str] = []
-    for status in reconstructed["statuses"]:
-        if status in {
-            "wrong_buffer_sequence",
-            "overlysis_genomic_contamination",
-            "wrong_purification_method",
-        }:
-            failure_markers.append(status)
+    if reconstructed["call_count"] != 1 or reconstructed["result_count"] != 1:
+        return 0.0
+    failure_markers = list(reconstructed["failure_reasons"])
     if not failure_markers:
-        return _score_no_failure_troubleshooting(tool_calls, ground_truth)
-    final_answer_lower = final_answer.lower()
+        legacy_markers = set(ground_truth.get("failure_diagnosis_map", {}))
+        failure_markers = [
+            status for status in reconstructed["statuses"] if status in legacy_markers
+        ]
+    failure_markers = list(dict.fromkeys(failure_markers))
+    if not failure_markers:
+        last = reconstructed["last"]
+        return 1.0 if last is not None and _miniprep_output_contract_is_valid(last) else 0.0
+    reported = _extract_reported_miniprep_summary(final_answer)
+    diagnosis_text = str(reported.get("diagnosis") or final_answer)
     resolved = 0
     for marker in failure_markers:
-        diagnosis = ground_truth["failure_diagnosis_map"].get(marker)
-        if diagnosis is None:
-            continue
-        acceptable = [diagnosis["canonical_diagnosis"]] + diagnosis.get("acceptable_variants", [])
-        if any(candidate.lower() in final_answer_lower for candidate in acceptable):
+        if _miniprep_diagnosis_matches(marker, diagnosis_text, ground_truth):
             resolved += 1
     return float(resolved) / float(len(failure_markers))
+
+
+def _miniprep_output_authoritative_calls(
+    tool_calls: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Remove request-argument fallback from miniprep decision observations."""
+    sanitized: List[Dict[str, Any]] = []
+    for call in tool_calls:
+        if _normalize_tool_name(call.get("tool_name", "")) == "perform_miniprep":
+            sanitized.append({**call, "arguments": {}})
+        else:
+            sanitized.append(call)
+    return sanitized
 
 
 def score_miniprep_trajectory(
@@ -2603,10 +2864,28 @@ def score_miniprep_trajectory(
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
     tool_calls = _extract_tool_calls(transcript)
-    decision_quality = score_decision_quality(tool_calls, ground_truth)
+    reconstructed = _reconstruct_miniprep_results(tool_calls)
+    output_authoritative_calls = _miniprep_output_authoritative_calls(tool_calls)
+    has_single_result = (
+        reconstructed["call_count"] == 1 and reconstructed["result_count"] == 1
+    )
+    if has_single_result:
+        decision_quality = score_decision_quality(output_authoritative_calls, ground_truth)
+    else:
+        decision_quality = {
+            "mean": 0.0,
+            "by_decision": {
+                decision_point["id"]: 0.0
+                for decision_point in ground_truth.get("decision_points", [])
+            },
+        }
     task_success = score_miniprep_task_success(final_answer, tool_calls)
     troubleshooting = score_miniprep_troubleshooting(final_answer, tool_calls, ground_truth)
-    efficiency = score_efficiency(tool_calls, ground_truth)
+    efficiency = (
+        score_efficiency(output_authoritative_calls, ground_truth)
+        if has_single_result
+        else 0.0
+    )
     overall = (
         0.4 * task_success
         + 0.3 * decision_quality["mean"]
