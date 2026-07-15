@@ -10,6 +10,8 @@ from scripts.validate_eval_cell import (
     model_ids_match,
     output_completion,
     parse_expected_generation_config,
+    parse_expected_revision_commit,
+    revision_commits_match,
     resolved_model,
     sample_id_matches_seed,
     score_value,
@@ -71,6 +73,48 @@ def test_model_ids_match_accepts_optional_provider_qualification():
     assert not model_ids_match("gpt-5.6-sol", "gpt-5.6-terra", "openai")
 
 
+EXPECTED_REVISION_COMMIT = "58dfb088b86962c5696b6b0ad8afdc4beb5b20a2"
+
+
+@pytest.mark.parametrize(
+    "actual_commit",
+    (
+        EXPECTED_REVISION_COMMIT,
+        EXPECTED_REVISION_COMMIT[:12],
+        EXPECTED_REVISION_COMMIT[:7].upper(),
+    ),
+)
+def test_revision_commits_match_exact_or_valid_prefix(actual_commit):
+    assert revision_commits_match(EXPECTED_REVISION_COMMIT, actual_commit)
+
+
+@pytest.mark.parametrize(
+    ("expected_commit", "actual_commit"),
+    (
+        (EXPECTED_REVISION_COMMIT, "f" * 40),
+        (EXPECTED_REVISION_COMMIT, EXPECTED_REVISION_COMMIT[:6]),
+        (EXPECTED_REVISION_COMMIT, "58dfb08-not-hex"),
+        (EXPECTED_REVISION_COMMIT[:-1], EXPECTED_REVISION_COMMIT[:12]),
+        ("g" * 40, EXPECTED_REVISION_COMMIT[:12]),
+    ),
+)
+def test_revision_commits_reject_mismatch_and_malformed_values(
+    expected_commit, actual_commit
+):
+    assert not revision_commits_match(expected_commit, actual_commit)
+
+
+def test_parse_expected_revision_commit_requires_full_hex_sha():
+    assert (
+        parse_expected_revision_commit(EXPECTED_REVISION_COMMIT.upper())
+        == EXPECTED_REVISION_COMMIT
+    )
+    with pytest.raises(argparse.ArgumentTypeError, match="full 40-character"):
+        parse_expected_revision_commit(EXPECTED_REVISION_COMMIT[:12])
+    with pytest.raises(argparse.ArgumentTypeError, match="hexadecimal Git SHA"):
+        parse_expected_revision_commit("g" * 40)
+
+
 def test_parse_expected_generation_config_accepts_json_and_file(tmp_path):
     expected = {"max_tokens": 8192, "reasoning_effort": "medium"}
     assert parse_expected_generation_config(json.dumps(expected)) == expected
@@ -95,6 +139,76 @@ def test_latest_row_prefers_created_then_path_name():
     ]
 
     assert latest_row(rows)["eval_path"] == "a.eval"
+
+
+def _install_revision_eval_log(monkeypatch, tmp_path, revision_commit):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "cell.eval").write_text("fixture")
+    sample = SimpleNamespace(
+        id="growth_01_seeded_seed_00",
+        scores={"trajectory": SimpleNamespace(value={"overall": 0.75})},
+        output=SimpleNamespace(model="gpt-5.6-sol", completion="answer"),
+    )
+    log = SimpleNamespace(
+        status="success",
+        error=None,
+        eval=SimpleNamespace(
+            model="openai/gpt-5.6-sol",
+            task="growth_01",
+            created="2026-07-15T01:00:00Z",
+            model_generate_config={"max_tokens": 8192},
+            packages={"inspect_ai": "0.3.245"},
+            revision={"commit": revision_commit, "dirty": False},
+        ),
+        samples=[sample],
+    )
+    monkeypatch.setattr("inspect_ai.log.read_eval_log", lambda _path: log)
+    return log_dir
+
+
+@pytest.mark.parametrize(
+    "actual_commit",
+    (EXPECTED_REVISION_COMMIT, EXPECTED_REVISION_COMMIT[:12]),
+)
+def test_validate_cell_accepts_exact_or_abbreviated_expected_revision(
+    monkeypatch, tmp_path, actual_commit
+):
+    log_dir = _install_revision_eval_log(monkeypatch, tmp_path, actual_commit)
+
+    assert (
+        validate_cell(
+            log_dir,
+            "growth_01",
+            "openai/gpt-5.6-sol",
+            0,
+            expected_revision_commit=EXPECTED_REVISION_COMMIT,
+            require_clean_revision=True,
+        )
+        == 0
+    )
+
+
+@pytest.mark.parametrize(
+    "actual_commit",
+    ("f" * 40, EXPECTED_REVISION_COMMIT[:6], "58dfb08-not-hex", None),
+)
+def test_validate_cell_rejects_mismatched_or_malformed_revision(
+    monkeypatch, tmp_path, actual_commit
+):
+    log_dir = _install_revision_eval_log(monkeypatch, tmp_path, actual_commit)
+
+    assert (
+        validate_cell(
+            log_dir,
+            "growth_01",
+            "openai/gpt-5.6-sol",
+            0,
+            expected_revision_commit=EXPECTED_REVISION_COMMIT,
+            require_clean_revision=True,
+        )
+        == 1
+    )
 
 
 def test_validate_cell_checks_model_provenance_but_allows_dirty_smoke(

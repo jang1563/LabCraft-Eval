@@ -294,6 +294,7 @@ if [ "${VALIDATE_EVAL_CELL:-1}" != "0" ]; then
     --expected-resolved-model "${EXPECTED_RESOLVED_MODEL}"
     --expected-generation-config "${GENERATION_PROFILE_JSON}"
     --expected-inspect-version "${EXPECTED_INSPECT_VERSION}"
+    --expected-revision-commit "${COMMIT_SHA}"
     --require-clean-revision
   )
   if [ "$REQUIRE_MODEL_PROVENANCE" != "0" ]; then

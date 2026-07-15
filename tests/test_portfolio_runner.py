@@ -586,6 +586,8 @@ def test_hpc_runner_records_registered_model_provenance_and_profile(tmp_path):
     assert json.loads(validator_args[config_index]) == manifest["generation_profile"]
     inspect_index = validator_args.index("--expected-inspect-version") + 1
     assert validator_args[inspect_index] == "0.3.245"
+    revision_index = validator_args.index("--expected-revision-commit") + 1
+    assert validator_args[revision_index] == manifest["commit_sha"]
     assert "--require-clean-revision" in validator_args
 
 

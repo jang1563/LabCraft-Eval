@@ -16,6 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - imported as scripts.validate_e
     from scripts.aggregate_eval_results import infer_provider, sample_resolved_models
 
 _SAMPLE_SEED_RE = re.compile(r"_seed_(\d+)$")
+_FULL_GIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+_GIT_SHA_PREFIX_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 
 
 def expected_sample_id(task: str, seed: int) -> str:
@@ -89,6 +91,25 @@ def model_ids_match(expected: str, actual: str, provider: str) -> bool:
     return expected == "{}/{}".format(provider, actual) or actual == "{}/{}".format(
         provider, expected
     )
+
+
+def revision_commits_match(expected_full_commit: object, actual_commit: object) -> bool:
+    """Match a full expected Git SHA to an exact or safely abbreviated log SHA."""
+    if not isinstance(expected_full_commit, str) or not isinstance(actual_commit, str):
+        return False
+    if not _FULL_GIT_SHA_RE.fullmatch(expected_full_commit):
+        return False
+    if not _GIT_SHA_PREFIX_RE.fullmatch(actual_commit):
+        return False
+    return expected_full_commit.casefold().startswith(actual_commit.casefold())
+
+
+def parse_expected_revision_commit(value: str) -> str:
+    if not _FULL_GIT_SHA_RE.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            "expected revision commit must be a full 40-character hexadecimal Git SHA"
+        )
+    return value.casefold()
 
 
 def parse_expected_generation_config(value: str) -> dict[str, Any]:
@@ -247,6 +268,7 @@ def validate_cell(
     expected_provider: str | None = None,
     expected_generation_config: dict[str, Any] | None = None,
     expected_inspect_version: str | None = None,
+    expected_revision_commit: str | None = None,
     require_model_provenance: bool = False,
     require_clean_revision: bool = False,
 ) -> int:
@@ -388,6 +410,21 @@ def validate_cell(
                 file=sys.stderr,
             )
             return 1
+    if expected_revision_commit is not None:
+        actual_revision_commit = row["evaluation_revision"].get("commit")
+        if not revision_commits_match(
+            expected_revision_commit,
+            actual_revision_commit,
+        ):
+            print(
+                "Inspect eval log revision commit mismatch: expected={} actual={} ({})".format(
+                    expected_revision_commit,
+                    actual_revision_commit or "unknown",
+                    row["eval_path"],
+                ),
+                file=sys.stderr,
+            )
+            return 1
 
     resolved = row["resolved_models"][0] if row["resolved_models"] else ""
     if expected_provider and row["provider"] != expected_provider:
@@ -458,6 +495,11 @@ def main() -> int:
     parser.add_argument("--expected-provider")
     parser.add_argument("--expected-inspect-version")
     parser.add_argument(
+        "--expected-revision-commit",
+        type=parse_expected_revision_commit,
+        help="Full 40-character Git SHA expected in the Inspect evaluation revision.",
+    )
+    parser.add_argument(
         "--expected-generation-config",
         type=parse_expected_generation_config,
         help="Expected GenerateConfig as a JSON object or path to a JSON file.",
@@ -475,6 +517,7 @@ def main() -> int:
         expected_provider=args.expected_provider,
         expected_generation_config=args.expected_generation_config,
         expected_inspect_version=args.expected_inspect_version,
+        expected_revision_commit=args.expected_revision_commit,
         require_model_provenance=args.require_model_provenance,
         require_clean_revision=args.require_clean_revision,
     )
