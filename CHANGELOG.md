@@ -46,6 +46,14 @@ recorded rather than silently rewriting history.
   calibration, require one complete paired tool result and an exact 11-field
   report, score every failure reason, and exclude reference lookups from the
   experimental-action budget.
+- Make `purify_01` causal and QIAGEN-profile-specific: seed one accepted native
+  His6-MBP-GFP lysate, fix the 4 mL Ni-NTA Superflow column, remove source mass
+  and column geometry from the agent decision surface, validate immutable
+  expression and buffer provenance, consume the source exactly once, separate
+  protocol thresholds from synthetic recovery, volume, purity, and band
+  calibrations, require one complete paired tool result and an exact 16-field
+  report, score every failure reason, and exclude reference lookups from the
+  experimental-action budget.
 
 ## 0.1.2 - 2026-07-12
 

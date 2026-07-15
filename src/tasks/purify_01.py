@@ -15,23 +15,38 @@ PURIFY_01_RUBRIC = PURIFY_01_PATHS.rubric
 def build_purify_01_prompt() -> str:
     return """You are operating inside LabCraft, a stochastic microbiology simulator.
 
-Task: Purify a His-tagged benign MBP-GFP fusion (~72 kDa) from a clarified E. coli lysate by Ni-NTA affinity chromatography, then report the purified concentration, SDS-PAGE band result, and purity percentage.
+Task: Use the seeded clarified native lysate
+`purification_lysate_his6_mbp_gfp_001`, which contains the benign His6-MBP-GFP
+benchmark fusion (~72 kDa) from an accepted upstream expression. Purify it on
+the fixed 4 mL Ni-NTA Superflow column and report the causal eluate observations.
 
 Call the run_nta_purification tool exactly once with your chosen conditions.
-Select a compatible affinity resin, load/wash/elution imidazole concentrations,
-flow rate, and bed volume from your scientific knowledge of the stated His-tag
-purification workflow.
+Pass the lysate ID exactly as supplied. First retrieve the exact seeded benchmark
+workflow by calling lookup_reagent with the lysate ID. Select the load, wash, and
+elution imidazole concentrations and flow rate from that retrieved task
+configuration. Do not substitute a valid alternative from another resin or
+physical purification protocol: this task evaluates the declared simulator
+contract. Recovery, eluate volume, purity, and band observations are synthetic
+calibrations rather than universal biological claims. Copy the returned IDs and
+observations; do not invent them.
 
 Final answer schema (use exactly these fields on separate lines):
-Resin: <resin name>
-Load imidazole: <int> mM
-Wash imidazole: <int> mM
-Elute imidazole: <int> mM
+Lysate ID: <id>
+Purification ID: <id>
+Resin: <verbatim from tool>
+Column bed volume: <float> mL
+Load imidazole: <float> mM
+Wash imidazole: <float> mM
+Elute imidazole: <float> mM
+Flow rate: <float> mL/min
 Expected band size: <float> kDa
+Recovered target mass: <float> mg
+Eluate volume: <float> mL
 Purified concentration: <float> mg/mL
 SDS-PAGE result: <verbatim from tool>
 Purity: <float>%
 Interpretation: <success|failure>
+Diagnosis: <none|concise diagnosis of every returned failure reason>
 
 Constraints:
 - Use only the available lab tools and reference tools.

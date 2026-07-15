@@ -15,6 +15,7 @@ from src.environment.operations import (
     incubate,
     initialize_expression_construct,
     initialize_miniprep_source_culture,
+    initialize_purification_lysate,
     inspect_screening_plate,
     inoculate_growth,
     ligate,
@@ -494,29 +495,30 @@ def initialize_expression_sample() -> None:
 
 
 async def run_nta_purification_call(
-    resin_name: str,
+    lysate_id: str,
     load_imidazole_mm: float,
     wash_imidazole_mm: float,
     elute_imidazole_mm: float,
     flow_rate_ml_per_min: float,
-    column_bed_volume_ml: float,
-    input_mass_mg: float = 18.0,
 ) -> str:
     state = _current_state()
     try:
         payload = run_nta_purification(
             state=state,
-            resin_name=resin_name,
+            lysate_id=lysate_id,
             load_imidazole_mm=load_imidazole_mm,
             wash_imidazole_mm=wash_imidazole_mm,
             elute_imidazole_mm=elute_imidazole_mm,
             flow_rate_ml_per_min=flow_rate_ml_per_min,
-            column_bed_volume_ml=column_bed_volume_ml,
-            input_mass_mg=input_mass_mg,
         )
     except (KeyError, ValueError) as exc:
         return _tool_error_observation("run_nta_purification", exc)
     return render_observation(payload)
+
+
+def initialize_purification_sample() -> None:
+    """Seed the causal Purify-01 lysate in the active sample state."""
+    initialize_purification_lysate(_current_state())
 
 
 def prepare_media_tool():
@@ -1260,33 +1262,27 @@ def run_nta_purification_tool():
         """Run a single-pass Ni-NTA affinity purification with SDS-PAGE readout."""
 
         async def execute(
-            resin_name: str,
+            lysate_id: str,
             load_imidazole_mm: float,
             wash_imidazole_mm: float,
             elute_imidazole_mm: float,
             flow_rate_ml_per_min: float,
-            column_bed_volume_ml: float,
-            input_mass_mg: float = 18.0,
         ) -> str:
             """Purify a His-tagged benign protein over Ni-NTA.
 
             Args:
-                resin_name: Immobilised-metal affinity resin name.
+                lysate_id: Seeded clarified native His6-MBP-GFP lysate identifier.
                 load_imidazole_mm: Imidazole concentration in the load buffer.
                 wash_imidazole_mm: Imidazole concentration in the wash buffer.
                 elute_imidazole_mm: Imidazole concentration in the elution buffer.
                 flow_rate_ml_per_min: Column flow rate in mL/min.
-                column_bed_volume_ml: Column bed volume in mL.
-                input_mass_mg: Mass of input soluble protein to load in mg.
             """
             return await run_nta_purification_call(
-                resin_name=resin_name,
+                lysate_id=lysate_id,
                 load_imidazole_mm=load_imidazole_mm,
                 wash_imidazole_mm=wash_imidazole_mm,
                 elute_imidazole_mm=elute_imidazole_mm,
                 flow_rate_ml_per_min=flow_rate_ml_per_min,
-                column_bed_volume_ml=column_bed_volume_ml,
-                input_mass_mg=input_mass_mg,
             )
 
         return execute

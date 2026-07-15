@@ -34,6 +34,21 @@ from src.environment.miniprep_contract import (
     canonicalize_miniprep_buffer_sequence,
     canonicalize_miniprep_purification_method,
 )
+from src.environment.purification_contract import (
+    PURIFICATION_COLUMN_BED_VOLUME_ML,
+    PURIFICATION_CONSTRUCT_ID,
+    PURIFICATION_FAILURE_ELUTION,
+    PURIFICATION_FAILURE_FLOW,
+    PURIFICATION_FAILURE_LOAD,
+    PURIFICATION_FAILURE_SDS_PAGE_RESULT,
+    PURIFICATION_FAILURE_WASH,
+    PURIFICATION_INPUT_TARGET_MASS_MG,
+    PURIFICATION_LYSATE_ID,
+    PURIFICATION_RESIN_NAME,
+    PURIFICATION_SDS_PAGE_RESULT,
+    PURIFICATION_SOURCE_EXPRESSION_ID,
+    PURIFICATION_SUCCESS_STATUS,
+)
 from src.environment.operations import (
     count_colonies,
     fit_growth_curve,
@@ -44,6 +59,7 @@ from src.environment.operations import (
     inoculate_growth,
     inspect_screening_plate,
     initialize_miniprep_source_culture,
+    initialize_purification_lysate,
     ligate,
     list_cloning_substrates,
     list_gibson_substrates,
@@ -81,6 +97,7 @@ from src.tools.lab_tools import (
     inoculate_growth_call,
     inspect_screening_plate_call,
     initialize_expression_sample,
+    initialize_purification_sample,
     measure_od600_call,
     plate_call,
     prepare_media_call,
@@ -88,6 +105,7 @@ from src.tools.lab_tools import (
     run_gel_call,
     run_pcr_call,
     run_protein_expression_call,
+    run_nta_purification_call,
     set_active_sample,
     transform_call,
 )
@@ -2074,45 +2092,241 @@ PURIFICATION_PARAMETERS_PATH = (
 
 def test_purification_parameter_bundle_exposes_required_values():
     bundle = load_purification_parameters(PURIFICATION_PARAMETERS_PATH)
-    assert "Ni-NTA" in bundle.choices("accepted_resins")
-    load_range = bundle.number_list("load_imidazole_mm_range")
-    assert load_range == [10.0, 20.0]
-    assert bundle.value("elute_imidazole_mm_min") == pytest.approx(200.0)
+    assert bundle.text("fixed_resin") == PURIFICATION_RESIN_NAME
+    assert bundle.value("fixed_column_bed_volume_ml") == pytest.approx(4.0)
+    assert bundle.number_list("load_imidazole_mm_range") == [10.0, 20.0]
+    assert bundle.number_list("wash_imidazole_mm_range") == [20.0, 20.0]
+    assert bundle.number_list("elution_imidazole_mm_range") == [250.0, 250.0]
+    assert bundle.number_list("flow_rate_ml_per_min_range") == [0.5, 1.0]
+    assert bundle.value("seeded_input_target_mass_mg") == pytest.approx(18.4)
+    assert bundle.value("recovery_fraction_calibration") == pytest.approx(0.85)
+    assert bundle.value("eluate_column_volumes_calibration") == pytest.approx(2.5)
+    assert bundle.value("purity_percent_calibration") == pytest.approx(95.0)
+
+
+def _new_purification_state(sample_id="purify-test"):
+    state = create_lab_state(sample_id=sample_id, seed=1)
+    initialize_purification_lysate(state)
+    return state
+
+
+def _run_standard_purification(state, **updates):
+    arguments = {
+        "lysate_id": PURIFICATION_LYSATE_ID,
+        "load_imidazole_mm": 20.0,
+        "wash_imidazole_mm": 20.0,
+        "elute_imidazole_mm": 250.0,
+        "flow_rate_ml_per_min": 1.0,
+    }
+    arguments.update(updates)
+    return run_nta_purification(state=state, **arguments)
+
+
+def _purification_mutation_snapshot(state):
+    return {
+        "counter": state.nta_purification_counter,
+        "lysates": copy.deepcopy(state.purification_lysates),
+        "purifications": copy.deepcopy(state.nta_purifications),
+        "events": copy.deepcopy(state.event_log),
+    }
+
+
+def test_initialize_purification_lysate_seeds_causal_native_fixture():
+    state = create_lab_state(sample_id="purify-seed", seed=1)
+
+    lysate = initialize_purification_lysate(state)
+
+    assert lysate.lysate_id == PURIFICATION_LYSATE_ID
+    assert lysate.source_expression_id == PURIFICATION_SOURCE_EXPRESSION_ID
+    assert lysate.construct_id == PURIFICATION_CONSTRUCT_ID
+    assert lysate.target_protein_name == "His6-MBP-GFP fusion"
+    assert lysate.affinity_tag == "His6"
+    assert lysate.is_benign is True
+    assert lysate.is_clarified is True
+    assert lysate.is_native is True
+    assert lysate.is_chelator_free is True
+    assert lysate.lysis_buffer_ph == pytest.approx(8.0)
+    assert lysate.phosphate_mm == pytest.approx(50.0)
+    assert lysate.sodium_chloride_mm == pytest.approx(300.0)
+    assert lysate.total_target_mass_mg == pytest.approx(PURIFICATION_INPUT_TARGET_MASS_MG)
+    assert lysate.available_target_mass_mg == pytest.approx(PURIFICATION_INPUT_TARGET_MASS_MG)
+    assert lysate.consumed_target_mass_mg == 0.0
+    assert lysate.usage_count == 0
+    assert initialize_purification_lysate(state) is lysate
 
 
 def test_run_nta_purification_happy_path():
-    state = create_lab_state(sample_id="purify-happy", seed=1)
-    result = run_nta_purification(
-        state=state,
-        resin_name="Ni-NTA",
-        load_imidazole_mm=20.0,
-        wash_imidazole_mm=50.0,
-        elute_imidazole_mm=250.0,
+    state = _new_purification_state("purify-happy")
+    result = _run_standard_purification(state)
+
+    assert result["status"] == PURIFICATION_SUCCESS_STATUS
+    assert result["purification_accepted"] is True
+    assert result["failure_reasons"] == []
+    assert result["purification_id"] == "purification_001"
+    assert result["lysate_id"] == PURIFICATION_LYSATE_ID
+    assert result["source_expression_id"] == PURIFICATION_SOURCE_EXPRESSION_ID
+    assert result["construct_id"] == PURIFICATION_CONSTRUCT_ID
+    assert result["lysate_usage_count"] == 1
+    assert result["input_lysate_consumed"] is True
+    assert result["lysate_remaining_target_mass_mg"] == 0.0
+    assert result["resin_name"] == PURIFICATION_RESIN_NAME
+    assert result["column_bed_volume_ml"] == PURIFICATION_COLUMN_BED_VOLUME_ML
+    assert result["input_target_mass_mg"] == pytest.approx(18.4)
+    assert result["recovery_fraction"] == pytest.approx(0.85)
+    assert result["recovered_target_mass_mg"] == pytest.approx(15.64)
+    assert result["eluate_volume_column_volumes"] == pytest.approx(2.5)
+    assert result["eluate_volume_ml"] == pytest.approx(10.0)
+    assert result["purified_concentration_mg_per_ml"] == pytest.approx(1.56)
+    assert result["purity_percent"] == pytest.approx(95.0)
+    assert result["sds_page_result"] == PURIFICATION_SDS_PAGE_RESULT
+    assert result["eluate_prepared"] is True
+    record = state.nta_purifications[result["purification_id"]]
+    assert record.lysate_id == PURIFICATION_LYSATE_ID
+    assert record.recovered_target_mass_mg / record.eluate_volume_ml == pytest.approx(
+        record.purified_concentration_mg_per_ml
     )
-    assert result["status"] == "purified"
-    assert result["purity_percent"] >= 90.0
-    assert "single_clean_band" in result["sds_page_result"]
+    lysate = state.purification_lysates[PURIFICATION_LYSATE_ID]
+    assert lysate.available_target_mass_mg == 0.0
+    assert lysate.consumed_target_mass_mg == pytest.approx(18.4)
 
 
-def test_run_nta_purification_wrong_resin_flagged():
-    state = create_lab_state(sample_id="purify-wrong-resin", seed=1)
-    result = run_nta_purification(
-        state=state,
-        resin_name="glutathione agarose",
-        load_imidazole_mm=20.0,
-        wash_imidazole_mm=50.0,
-        elute_imidazole_mm=250.0,
+def test_run_nta_purification_reports_all_failures_in_stable_order():
+    state = _new_purification_state("purify-all-failures")
+
+    result = _run_standard_purification(
+        state,
+        load_imidazole_mm=0.0,
+        wash_imidazole_mm=0.0,
+        elute_imidazole_mm=0.0,
+        flow_rate_ml_per_min=0.0,
     )
-    assert result["status"] == "wrong_resin"
+
+    assert result["failure_reasons"] == [
+        PURIFICATION_FAILURE_LOAD,
+        PURIFICATION_FAILURE_WASH,
+        PURIFICATION_FAILURE_ELUTION,
+        PURIFICATION_FAILURE_FLOW,
+    ]
+    assert result["status"] == PURIFICATION_FAILURE_LOAD
+    assert result["purification_accepted"] is False
+    assert result["input_lysate_consumed"] is True
+    assert result["recovery_fraction"] == 0.0
+    assert result["recovered_target_mass_mg"] == 0.0
+    assert result["eluate_volume_column_volumes"] == 0.0
+    assert result["eluate_volume_ml"] == 0.0
+    assert result["purified_concentration_mg_per_ml"] == 0.0
+    assert result["purity_percent"] == 0.0
+    assert result["sds_page_result"] == PURIFICATION_FAILURE_SDS_PAGE_RESULT
+    assert result["eluate_prepared"] is False
 
 
-def test_run_nta_purification_weak_elution_flagged():
-    state = create_lab_state(sample_id="purify-weak-elution", seed=1)
-    result = run_nta_purification(
-        state=state,
-        resin_name="Ni-NTA",
-        load_imidazole_mm=20.0,
-        wash_imidazole_mm=50.0,
-        elute_imidazole_mm=100.0,
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("load_imidazole_mm", None),
+        ("load_imidazole_mm", True),
+        ("wash_imidazole_mm", ""),
+        ("wash_imidazole_mm", float("nan")),
+        ("elute_imidazole_mm", float("inf")),
+        ("elute_imidazole_mm", float("-inf")),
+        ("flow_rate_ml_per_min", False),
+        ("flow_rate_ml_per_min", "not-a-number"),
+    ),
+)
+def test_run_nta_purification_rejects_malformed_scalars_without_mutation(field, value):
+    state = _new_purification_state("purify-invalid-{}".format(field))
+    before = _purification_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _run_standard_purification(state, **{field: value})
+
+    assert _purification_mutation_snapshot(state) == before
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "unseeded",
+        "unknown",
+        "wrong_source_expression",
+        "wrong_construct",
+        "wrong_target",
+        "non_benign",
+        "not_clarified",
+        "not_native",
+        "has_chelator",
+        "buffer_mismatch",
+        "mass_mismatch",
+        "depleted",
+    ),
+)
+def test_run_nta_purification_rejects_invalid_source_without_mutation(mutation):
+    state = create_lab_state(sample_id="purify-invalid-source-{}".format(mutation), seed=1)
+    arguments = {}
+    if mutation != "unseeded":
+        lysate = initialize_purification_lysate(state)
+        if mutation == "unknown":
+            arguments["lysate_id"] = "unknown_purification_lysate"
+        elif mutation == "wrong_source_expression":
+            lysate.source_expression_id = "expression_rejected_001"
+        elif mutation == "wrong_construct":
+            lysate.construct_id = "wrong_construct"
+        elif mutation == "wrong_target":
+            lysate.target_protein_name = "different benign protein"
+        elif mutation == "non_benign":
+            lysate.is_benign = False
+        elif mutation == "not_clarified":
+            lysate.is_clarified = False
+        elif mutation == "not_native":
+            lysate.is_native = False
+        elif mutation == "has_chelator":
+            lysate.is_chelator_free = False
+        elif mutation == "buffer_mismatch":
+            lysate.lysis_buffer_ph = 6.0
+        elif mutation == "mass_mismatch":
+            lysate.available_target_mass_mg = 17.0
+        elif mutation == "depleted":
+            lysate.available_target_mass_mg = 0.0
+            lysate.consumed_target_mass_mg = PURIFICATION_INPUT_TARGET_MASS_MG
+            lysate.usage_count = 1
+    before = _purification_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _run_standard_purification(state, **arguments)
+
+    assert _purification_mutation_snapshot(state) == before
+
+
+def test_run_nta_purification_rejects_retry_without_creating_second_record():
+    state = _new_purification_state("purify-retry")
+    first = _run_standard_purification(state)
+    before = _purification_mutation_snapshot(state)
+
+    with pytest.raises(ValueError):
+        _run_standard_purification(state)
+
+    assert first["purification_id"] == "purification_001"
+    assert _purification_mutation_snapshot(state) == before
+    assert list(state.nta_purifications) == ["purification_001"]
+
+
+def test_purification_tool_wrapper_uses_seeded_active_sample():
+    sample_id = "purify-wrapper"
+    set_active_sample(sample_id, seed=1)
+    initialize_purification_sample()
+
+    observation = asyncio.run(
+        run_nta_purification_call(
+            lysate_id=PURIFICATION_LYSATE_ID,
+            load_imidazole_mm=20.0,
+            wash_imidazole_mm=20.0,
+            elute_imidazole_mm=250.0,
+            flow_rate_ml_per_min=1.0,
+        )
     )
-    assert result["status"] == "weak_elution"
+    result = json.loads(observation)
+
+    assert result["status"] == PURIFICATION_SUCCESS_STATUS
+    assert result["lysate_id"] == PURIFICATION_LYSATE_ID
+    assert result["purification_id"] == "purification_001"
+    cleanup_sample(sample_id)

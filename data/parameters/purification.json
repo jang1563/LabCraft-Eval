@@ -2,17 +2,25 @@
   "task_id": "purify_01",
   "parameters": [
     {
-      "parameter_name": "accepted_resins",
-      "description": "Affinity resins accepted for His-tag capture in the Purify-01 task.",
-      "units": "resin names",
+      "parameter_name": "fixed_resin",
+      "description": "Fixed Ni-NTA Superflow resin for the seeded native purification workflow; resin identity is task context rather than an agent decision.",
+      "units": "resin name",
       "distribution": "deterministic",
       "parameters": {
-        "value": ["Ni-NTA", "Ni-NTA agarose", "Ni-NTA Superflow", "HisPur Ni-NTA", "HisTrap HP"]
+        "value": "Ni-NTA Superflow"
       },
-      "claim_type": "protocol_threshold",
-      "minimum_tier_required": "Silver",
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook documents native FPLC purification of 6xHis-tagged proteins using Ni-NTA Superflow."
+        },
         {
           "authors": "Bornhorst JA, Falke JJ",
           "title": "Purification of proteins using polyhistidine affinity tags",
@@ -21,13 +29,62 @@
           "doi": "10.1016/S0076-6879(00)26058-8",
           "canonical_url": "https://doi.org/10.1016/S0076-6879(00)26058-8",
           "tier": "Silver",
-          "tier_justification": "Peer-reviewed Methods in Enzymology chapter establishing Ni-NTA and its variants as the canonical His-tag affinity resins."
+          "tier_justification": "Peer-reviewed methods chapter establishes immobilized-nickel capture of polyhistidine-tagged proteins."
+        }
+      ]
+    },
+    {
+      "parameter_name": "fixed_column_bed_volume_ml",
+      "description": "Fixed 4 mL bed chosen so the seeded 18.4 mg target load remains below the handbook's conservative 5 mg/mL Ni-NTA Superflow capacity bound.",
+      "units": "millilitres",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 4.0
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook reports a protein-dependent Ni-NTA Superflow binding capacity of 5-10 mg per mL resin; the 4 mL bed is a conservative benchmark configuration for the fixed input."
+        }
+      ]
+    },
+    {
+      "parameter_name": "native_lysate_buffer_fixture",
+      "description": "Seeded clarified native lysate buffer provenance used for the fixed Ni-NTA workflow.",
+      "units": "buffer composition",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": {
+          "sodium_phosphate_mm": 50.0,
+          "sodium_chloride_mm": 300.0,
+          "ph": 8.0,
+          "chelator_free": true
+        }
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official native buffer recipe uses 50 mM sodium phosphate, 300 mM NaCl, and pH 8.0; the task fixture excludes chelators that interfere with immobilized nickel."
         }
       ]
     },
     {
       "parameter_name": "load_imidazole_mm_range",
-      "description": "Acceptable load-buffer imidazole concentration to reduce non-specific protein binding.",
+      "description": "Supported binding/load imidazole range for the fixed QIAGEN native Ni-NTA workflow.",
       "units": "millimolar",
       "distribution": "deterministic",
       "parameters": {
@@ -38,96 +95,172 @@
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist handbook recommends 10-20 mM imidazole in the load buffer to reduce non-specific binding."
+          "tier_justification": "Official handbook uses 10-20 mM imidazole in native lysis/binding buffer to suppress binding of nontagged proteins."
         }
       ]
     },
     {
       "parameter_name": "wash_imidazole_mm_range",
-      "description": "Acceptable wash-buffer imidazole concentration for stringent contaminant removal without eluting the target.",
+      "description": "Supported standard native wash-buffer imidazole concentration for this exact benchmark workflow.",
       "units": "millimolar",
       "distribution": "deterministic",
       "parameters": {
-        "value": [40.0, 60.0]
+        "value": [20.0, 20.0]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist handbook: 40-60 mM imidazole wash achieves high purity while retaining the His-tagged target."
+          "tier_justification": "Official native wash-buffer recipe contains 20 mM imidazole; broader product-specific optimization windows are not imported into this fixed workflow."
         }
       ]
     },
     {
-      "parameter_name": "elute_imidazole_mm_min",
-      "description": "Minimum elution imidazole concentration to displace the His-tagged target from Ni-NTA.",
+      "parameter_name": "elution_imidazole_mm_range",
+      "description": "Supported standard native elution-buffer imidazole concentration for this exact benchmark workflow.",
       "units": "millimolar",
       "distribution": "deterministic",
       "parameters": {
-        "value": 200
+        "value": [250.0, 250.0]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist handbook: 200-250 mM imidazole elution recovers the His-tagged target."
+          "tier_justification": "Official native elution-buffer recipe contains 250 mM imidazole."
         }
       ]
     },
     {
-      "parameter_name": "optimal_flow_rate_ml_per_min",
-      "description": "Canonical flow rate for a 1 mL Ni-NTA column during load / wash / elution.",
-      "units": "mL/min",
+      "parameter_name": "flow_rate_ml_per_min_range",
+      "description": "Supported starting flow-rate range for loading the clarified lysate on Ni-NTA Superflow.",
+      "units": "millilitres per minute",
       "distribution": "deterministic",
       "parameters": {
-        "value": 1.0
+        "value": [0.5, 1.0]
       },
       "claim_type": "protocol_threshold",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "Cytiva HisTrap HP Instructions (1 mL)",
-          "canonical_url": "https://www.cytivalifesciences.com/en/us/shop/chromatography/prepacked-columns/affinity-tagged-protein/histrap-hp-1-ml-and-5-ml-p-05664",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "Cytiva HisTrap HP 1 mL column data sheet: recommended flow rate 1 mL/min."
+          "tier_justification": "Official native Ni-NTA Superflow protocol says to start lysate loading at 0.5-1 mL/min."
         }
       ]
     },
     {
-      "parameter_name": "target_protein_name",
-      "description": "Benign target protein captured in Purify-01.",
-      "units": "protein name",
+      "parameter_name": "seeded_input_target_mass_mg",
+      "description": "Fixed available target mass in the causal seeded lysate, derived from the accepted upstream expression calibration (36.8 mg/L across 500 mL).",
+      "units": "milligrams",
       "distribution": "deterministic",
       "parameters": {
-        "value": "MBP-GFP fusion"
+        "value": 18.4
       },
       "claim_type": "task_configuration",
       "minimum_tier_required": "Bronze",
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "NEB pMAL Protein Fusion and Purification System",
-          "canonical_url": "https://www.neb.com/en-us/products/e8200-pmal-protein-fusion-and-purification-system",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "Reused benign MBP-GFP target consistent with Express-01."
+          "tier_justification": "Official handbook provides the 5-10 mg/mL resin-capacity context used to verify that the synthetic 18.4 mg input fits the fixed 4 mL bed; 18.4 mg itself is an upstream simulator value."
         }
       ]
     },
     {
-      "parameter_name": "expected_band_kda",
-      "description": "Expected SDS-PAGE band molecular weight for the benign MBP-GFP fusion target.",
+      "parameter_name": "recovery_fraction_calibration",
+      "description": "Synthetic deterministic accepted-run recovery fraction; not an empirical recovery claim for the fixture or for Ni-NTA purification generally.",
+      "units": "fraction of input target mass",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 0.85
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook supports one-step native purification as the scientific context; the exact 0.85 recovery remains explicitly synthetic task configuration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "eluate_column_volumes_calibration",
+      "description": "Synthetic deterministic eluate-volume multiplier used to generate concentration after an accepted run; not a universal physical optimum.",
+      "units": "column volumes",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 2.5
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook motivates column-volume-based wash and elution accounting; the exact 2.5-column-volume output is explicitly a simulator calibration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "purity_percent_calibration",
+      "description": "Synthetic deterministic accepted-run purity observation; not an empirical purity guarantee.",
+      "units": "percent",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": 95.0
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official handbook establishes selective one-step Ni-NTA purification; the exact 95 percent output remains explicitly synthetic task configuration."
+        }
+      ]
+    },
+    {
+      "parameter_name": "expected_apparent_band_kda",
+      "description": "Synthetic fixture's expected apparent SDS-PAGE band; the exact construct sequence is benchmark configuration and no source is represented as measuring it.",
       "units": "kilodaltons",
       "distribution": "deterministic",
       "parameters": {
@@ -138,10 +271,34 @@
       "tier_satisfied": true,
       "citations": [
         {
-          "title": "NEB pMAL Protein Fusion and Purification System",
-          "canonical_url": "https://www.neb.com/en-us/products/e8200-pmal-protein-fusion-and-purification-system",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "MBP (~42.5 kDa) + GFP (~27 kDa) + linker ~ 72 kDa."
+          "tier_justification": "Official handbook supports SDS-PAGE monitoring of 6xHis purification; 72 kDa is explicitly retained as the synthetic fixture's expected apparent band rather than a sourced measurement."
+        }
+      ]
+    },
+    {
+      "parameter_name": "out_of_contract_attempt_behavior",
+      "description": "A well-formed out-of-contract attempt consumes the one seeded lysate and returns zero recovery with no prepared eluate. This is a deterministic task boundary, not a physical zero-recovery claim.",
+      "units": "simulator state transition",
+      "distribution": "deterministic",
+      "parameters": {
+        "value": "consumed_input_zero_recovery_no_eluate"
+      },
+      "claim_type": "task_configuration",
+      "minimum_tier_required": "Bronze",
+      "tier_satisfied": true,
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "Official protocol supplies scientific context for the supported workflow; zero recovery and no eluate are explicitly simulator-defined failure outputs rather than claims from the handbook."
         }
       ]
     }

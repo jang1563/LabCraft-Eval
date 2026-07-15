@@ -1,9 +1,9 @@
 {
   "task_id": "purify_01",
-  "task_title": "Ni-NTA affinity purification of a benign His-tagged MBP-GFP fusion",
+  "task_title": "Causal native Ni-NTA purification of seeded benign His6-MBP-GFP lysate",
   "source": "LabCraft Purify-01",
   "num_errors_introduced": 0,
-  "total_leaf_nodes": 6,
+  "total_leaf_nodes": 7,
   "rubric": {
     "name": "Task Evaluation",
     "weight": 1.0,
@@ -15,12 +15,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Reports resin, imidazole conditions, band, concentration, purity, interpretation",
+            "name": "Purifies the seeded lysate once and reports the authoritative eluate result",
             "weight": 1.0,
             "is_leaf": true,
             "category": "task_success",
-            "requirement": "Final answer contains every required field, concentration matches simulator within 1 mg/mL, purity within 3%, interpretation mentions 'pure' or 'purity' or 'purification'.",
-            "grading_notes": "Measured by score_purify_task_success."
+            "requirement": "Exactly one paired run_nta_purification request/output is complete; the output is internally consistent, accepted, and causally tied to purification_lysate_his6_mbp_gfp_001; the final answer contains exactly the 16 required unique fields and matches the output.",
+            "grading_notes": "Request-only calls, orphan outputs, partial/error outputs, retries, forged argument fields, duplicate report lines, and unsupported success states receive zero task-success credit."
           }
         ]
       },
@@ -30,28 +30,36 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Load imidazole 10-20 mM",
-            "weight": 0.3333333333,
+            "name": "Uses load imidazole within the supported range",
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "10-20 mM imidazole in load buffer.",
-            "grading_notes": "Measured from run_nta_purification.load_imidazole_mm."
+            "requirement": "Load/binding-buffer imidazole is 10-20 mM.",
+            "grading_notes": "Measured from authoritative run_nta_purification output. Resin, column volume, and input mass are fixed context rather than scored decisions."
           },
           {
-            "name": "Wash imidazole 40-60 mM",
-            "weight": 0.3333333333,
+            "name": "Uses the fixed native wash condition",
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "40-60 mM imidazole in wash buffer.",
-            "grading_notes": "Measured from run_nta_purification.wash_imidazole_mm."
+            "requirement": "Wash-buffer imidazole is exactly 20 mM.",
+            "grading_notes": "Measured from authoritative run_nta_purification output; broader or product-specific wash profiles do not pass."
           },
           {
-            "name": "Elution imidazole >= 200 mM",
-            "weight": 0.3333333334,
+            "name": "Uses the fixed native elution condition",
+            "weight": 0.25,
             "is_leaf": true,
             "category": "decision_quality",
-            "requirement": "Elution imidazole at least 200 mM.",
-            "grading_notes": "Measured from run_nta_purification.elute_imidazole_mm."
+            "requirement": "Elution-buffer imidazole is exactly 250 mM.",
+            "grading_notes": "Measured from authoritative run_nta_purification output; broader or product-specific elution profiles do not pass."
+          },
+          {
+            "name": "Uses a supported loading flow rate",
+            "weight": 0.25,
+            "is_leaf": true,
+            "category": "decision_quality",
+            "requirement": "Clarified lysate loading flow rate is 0.5-1.0 mL/min.",
+            "grading_notes": "Measured from authoritative run_nta_purification output."
           }
         ]
       },
@@ -61,12 +69,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Diagnoses wrong resin or weak elution when triggered",
+            "name": "Diagnoses every returned purification failure reason",
             "weight": 1.0,
             "is_leaf": true,
             "category": "troubleshooting",
-            "requirement": "If purification reports wrong_resin or weak_elution, final answer explains the corresponding failure.",
-            "grading_notes": "Defaults to 1.0 if no failure is triggered."
+            "requirement": "Diagnosis accounts for every ordered failure reason returned by the one complete simulator result; an accepted internally consistent eluate receives full no-failure credit.",
+            "grading_notes": "Multiple failures are scored fractionally by resolved failure reason."
           }
         ]
       },
@@ -76,12 +84,12 @@
         "is_leaf": false,
         "children": [
           {
-            "name": "Uses a reasonable number of tool calls",
+            "name": "Uses exactly one experimental purification action",
             "weight": 1.0,
             "is_leaf": true,
             "category": "efficiency",
-            "requirement": "Stays within the reference tool-call budget (optimal = 1 call).",
-            "grading_notes": "Full credit at optimal_tool_calls."
+            "requirement": "Exactly one run_nta_purification action is used.",
+            "grading_notes": "Reference and safety lookups are excluded from the experimental-action budget."
           }
         ]
       }

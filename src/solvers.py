@@ -459,10 +459,10 @@ def build_purification_solver():
         prompt=AgentPrompt(
             instructions=LABCRAFT_SYSTEM_PROMPT,
             assistant_prompt=(
-                "\nBe concise. Choose scientifically appropriate affinity-purification "
-                "conditions for the specified His-tagged target. Report the submitted "
-                "conditions, concentration, SDS-PAGE observation, and purity returned by "
-                "the tool.\n"
+                "\nBe concise. Retrieve the exact seeded purification workflow, execute "
+                "one causal purification attempt, and copy every requested condition, "
+                "identifier, observation, interpretation, and diagnosis from the paired "
+                "tool result into the required report schema.\n"
             ),
         ),
         tools=[
@@ -479,6 +479,9 @@ def configure_purification_sample():
 
     async def solve(state, generate):
         _configure_lab_sample_state(state)
+        from .tools.lab_tools import initialize_purification_sample
+
+        initialize_purification_sample()
         return state
 
     return solve

@@ -115,8 +115,8 @@ TASK_METADATA = {
     "purify_01": {
         "domain": "Ni-NTA affinity purification",
         "objective": (
-            "Purify a benign His-tagged MBP-GFP fusion and report concentration "
-            "and purity."
+            "Purify one seeded benign His6-MBP-GFP native lysate on the fixed "
+            "Ni-NTA Superflow workflow and report the causal eluate."
         ),
     },
     "followup_01": {

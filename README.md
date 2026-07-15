@@ -343,7 +343,7 @@ Current implemented task inventory:
 | `gibson_01` | Isothermal Gibson overlap assembly | 2-fragment master-mix assembly at 50 °C for 15 min, transform |
 | `miniprep_01` | High-copy QIAprep plasmid prep | P1/P2/N3 silica-spin miniprep from a seeded overnight culture; report concentration, A260/A280, and yield |
 | `express_01` | Recombinant protein expression | Express one seeded benign T7lac His6-MBP-GFP construct, prepare native lysate, and report the causal soluble yield |
-| `purify_01` | Ni-NTA affinity purification | Purify a benign His-tagged MBP-GFP fusion and report concentration, band, and purity |
+| `purify_01` | Ni-NTA affinity purification | Purify one seeded benign His6-MBP-GFP native lysate on the fixed Ni-NTA Superflow workflow and report the causal eluate |
 | `followup_01` | Growth follow-up decision under ambiguous intervention data | Resolve whether a chloramphenicol slowdown is real or an undersampling artifact using the minimum follow-up experiment |
 | `perturb_followup_01` | Perturbation follow-up | Resolve one ambiguous discovery hit with a single orthogonal assay |
 | `target_prioritize_01` | Discovery target triage | Rank four candidate targets by perturbation strength, translation support, and liability risk |

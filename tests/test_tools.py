@@ -90,6 +90,65 @@ class TestSearchDatabase:
         }
 
     @pytest.mark.parametrize(
+        "query",
+        (
+            "purification",
+            "Ni-NTA purification",
+            "Ni-NTA Superflow",
+            "His6-MBP-GFP purification",
+            "purification_lysate_his6_mbp_gfp_001",
+        ),
+    )
+    def test_purification_queries_rank_the_qiagen_workflow_first(self, query):
+        db_path = _DATA_DIR / "reagent_database.json"
+        results = _search_database(db_path, query)
+
+        assert results
+        workflow = results[0]
+        assert workflow["name"] == "QIAGEN Ni-NTA Superflow Purification Workflow"
+        contract = workflow["protocol_contract"]
+        assert contract["lysate_id"] == "purification_lysate_his6_mbp_gfp_001"
+        assert contract["source_expression_id"] == "expression_seeded_for_purify_001"
+        assert contract["fixed_input_target_mass_mg"] == 18.4
+        assert contract["fixed_resin"] == "Ni-NTA Superflow"
+        assert contract["fixed_column_bed_volume_ml"] == 4.0
+        assert contract["native_lysate_buffer"] == {
+            "sodium_phosphate_mm": 50.0,
+            "sodium_chloride_mm": 300.0,
+            "ph": 8.0,
+            "chelator_free": True,
+        }
+        assert contract["load_imidazole_mm"] == {"min": 10.0, "max": 20.0}
+        assert contract["wash_imidazole_mm"] == {"min": 20.0, "max": 20.0}
+        assert contract["elution_imidazole_mm"] == {"min": 250.0, "max": 250.0}
+        assert contract["flow_rate_ml_per_min"] == {"min": 0.5, "max": 1.0}
+        assert contract["benchmark_calibrations"] == {
+            "recovery_fraction": 0.85,
+            "eluate_column_volumes": 2.5,
+            "purity_percent": 95.0,
+            "expected_apparent_band_kda": 72.0,
+            "calibration_note": (
+                "Synthetic deterministic accepted-run outputs; not empirical "
+                "measurements or universal purification guarantees."
+            ),
+            "out_of_contract_attempt": {
+                "input_consumed": True,
+                "recovered_target_mass_mg": 0.0,
+                "eluate_prepared": False,
+                "note": (
+                    "Deterministic benchmark state transition only; not a "
+                    "physical zero-recovery claim."
+                ),
+            },
+        }
+        assert contract["ordered_failure_reasons"] == [
+            "load_imidazole_out_of_range",
+            "wash_imidazole_out_of_range",
+            "elution_imidazole_out_of_range",
+            "flow_rate_out_of_range",
+        ]
+
+    @pytest.mark.parametrize(
         ("query", "expected_name"),
         (
             ("BsaI", "BsaI-HFv2"),

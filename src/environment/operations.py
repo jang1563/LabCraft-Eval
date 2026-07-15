@@ -61,6 +61,40 @@ from .miniprep_contract import (
     canonicalize_miniprep_purification_method,
     normalize_miniprep_label,
 )
+from .purification_contract import (
+    PURIFICATION_AFFINITY_TAG,
+    PURIFICATION_COLUMN_BED_VOLUME_ML,
+    PURIFICATION_COLUMN_CAPACITY_MIN_MG_PER_ML,
+    PURIFICATION_CONSTRUCT_ID,
+    PURIFICATION_ELUATE_COLUMN_VOLUMES,
+    PURIFICATION_ELUTION_IMIDAZOLE_MAX_MM,
+    PURIFICATION_ELUTION_IMIDAZOLE_MIN_MM,
+    PURIFICATION_FAILURE_ELUTION,
+    PURIFICATION_FAILURE_FLOW,
+    PURIFICATION_FAILURE_LOAD,
+    PURIFICATION_FAILURE_SDS_PAGE_RESULT,
+    PURIFICATION_FAILURE_WASH,
+    PURIFICATION_FLOW_RATE_MAX_ML_PER_MIN,
+    PURIFICATION_FLOW_RATE_MIN_ML_PER_MIN,
+    PURIFICATION_INPUT_TARGET_MASS_MG,
+    PURIFICATION_LOAD_IMIDAZOLE_MAX_MM,
+    PURIFICATION_LOAD_IMIDAZOLE_MIN_MM,
+    PURIFICATION_LYSATE_ID,
+    PURIFICATION_LYSATE_NACL_MM,
+    PURIFICATION_LYSATE_PH,
+    PURIFICATION_LYSATE_PHOSPHATE_MM,
+    PURIFICATION_PURITY_PERCENT,
+    PURIFICATION_RECOVERY_FRACTION,
+    PURIFICATION_RESIN_NAME,
+    PURIFICATION_SDS_PAGE_RESULT,
+    PURIFICATION_SOURCE_EXPRESSION_ID,
+    PURIFICATION_SUCCESS_STATUS,
+    PURIFICATION_TARGET_PROTEIN_KDA,
+    PURIFICATION_TARGET_PROTEIN_NAME,
+    PURIFICATION_WASH_IMIDAZOLE_MAX_MM,
+    PURIFICATION_WASH_IMIDAZOLE_MIN_MM,
+    normalize_purification_label,
+)
 from .state import (
     AssemblyReaction,
     DigestReaction,
@@ -79,6 +113,7 @@ from .state import (
     PlatedSample,
     PreparedPlate,
     ProteinExpression,
+    PurificationLysate,
     ScreeningColony,
     ScreeningPlate,
     TransformationCulture,
@@ -90,7 +125,6 @@ from .stochastic import (
     load_growth_parameters,
     load_miniprep_parameters,
     load_pcr_parameters,
-    load_purification_parameters,
     load_screening_parameters,
     sample_poisson,
 )
@@ -109,8 +143,6 @@ _GIBSON_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parame
 _GIBSON_BUNDLE = None
 _MINIPREP_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parameters" / "miniprep.json"
 _MINIPREP_BUNDLE = None
-_PURIFICATION_PARAMETERS_PATH = Path(__file__).resolve().parents[2] / "data" / "parameters" / "purification.json"
-_PURIFICATION_BUNDLE = None
 
 
 def _require_finite_float(value: object, field_name: str) -> float:
@@ -205,13 +237,6 @@ def _miniprep_bundle():
     if _MINIPREP_BUNDLE is None:
         _MINIPREP_BUNDLE = load_miniprep_parameters(_MINIPREP_PARAMETERS_PATH)
     return _MINIPREP_BUNDLE
-
-
-def _purification_bundle():
-    global _PURIFICATION_BUNDLE
-    if _PURIFICATION_BUNDLE is None:
-        _PURIFICATION_BUNDLE = load_purification_parameters(_PURIFICATION_PARAMETERS_PATH)
-    return _PURIFICATION_BUNDLE
 
 
 def _normalize_choice(value: str) -> str:
@@ -2395,133 +2420,278 @@ def run_protein_expression(
     return payload
 
 
+def initialize_purification_lysate(state: LabState) -> PurificationLysate:
+    """Seed the fixed clarified native lysate used by Purify-01."""
+    if (
+        PURIFICATION_INPUT_TARGET_MASS_MG
+        > PURIFICATION_COLUMN_BED_VOLUME_ML
+        * PURIFICATION_COLUMN_CAPACITY_MIN_MG_PER_ML
+    ):
+        raise RuntimeError("Purify-01 fixture exceeds the conservative column capacity.")
+    existing = state.purification_lysates.get(PURIFICATION_LYSATE_ID)
+    if existing is not None:
+        return existing
+    lysate = PurificationLysate(
+        lysate_id=PURIFICATION_LYSATE_ID,
+        source_expression_id=PURIFICATION_SOURCE_EXPRESSION_ID,
+        construct_id=PURIFICATION_CONSTRUCT_ID,
+        target_protein_name=PURIFICATION_TARGET_PROTEIN_NAME,
+        expected_band_kda=PURIFICATION_TARGET_PROTEIN_KDA,
+        affinity_tag=PURIFICATION_AFFINITY_TAG,
+        is_benign=True,
+        is_clarified=True,
+        is_native=True,
+        lysis_buffer_ph=PURIFICATION_LYSATE_PH,
+        phosphate_mm=PURIFICATION_LYSATE_PHOSPHATE_MM,
+        sodium_chloride_mm=PURIFICATION_LYSATE_NACL_MM,
+        is_chelator_free=True,
+        total_target_mass_mg=PURIFICATION_INPUT_TARGET_MASS_MG,
+        available_target_mass_mg=PURIFICATION_INPUT_TARGET_MASS_MG,
+    )
+    state.purification_lysates[lysate.lysate_id] = lysate
+    return lysate
+
+
 def run_nta_purification(
     state: LabState,
-    resin_name: str,
+    lysate_id: str,
     load_imidazole_mm: float,
     wash_imidazole_mm: float,
     elute_imidazole_mm: float,
-    flow_rate_ml_per_min: float = 1.0,
-    column_bed_volume_ml: float = 1.0,
-    input_mass_mg: float = 18.0,
+    flow_rate_ml_per_min: float,
 ) -> Dict[str, object]:
-    """Simulate a single-pass Ni-NTA affinity purification of a His-tagged benign protein."""
-    bundle = _purification_bundle()
-    accepted_resins = {_normalize_choice(r) for r in bundle.choices("accepted_resins")}
-    load_range = bundle.number_list("load_imidazole_mm_range")
-    wash_range = bundle.number_list("wash_imidazole_mm_range")
-    min_elute = bundle.value("elute_imidazole_mm_min")
-    target_protein = bundle.text("target_protein_name")
-    expected_band_kda = bundle.value("expected_band_kda")
-    optimal_flow = bundle.value("optimal_flow_rate_ml_per_min")
+    """Run one causal native Ni-NTA Superflow purification attempt."""
+    source_id = str(lysate_id or "").strip()
+    load_imidazole = _require_finite_float(
+        load_imidazole_mm, "load_imidazole_mm"
+    )
+    wash_imidazole = _require_finite_float(
+        wash_imidazole_mm, "wash_imidazole_mm"
+    )
+    elute_imidazole = _require_finite_float(
+        elute_imidazole_mm, "elute_imidazole_mm"
+    )
+    flow_rate = _require_finite_float(
+        flow_rate_ml_per_min, "flow_rate_ml_per_min"
+    )
 
-    notes: List[str] = []
-    status = "purified"
-    recovery_multiplier = 1.0
-    purity = 0.95
-
-    normalized_resin = _normalize_choice(resin_name)
-    if not any(
-        normalized_resin == a or normalized_resin in a or a in normalized_resin
-        for a in accepted_resins
+    if source_id != PURIFICATION_LYSATE_ID:
+        raise ValueError("Unknown purification lysate_id '{}'.".format(source_id))
+    lysate = state.purification_lysates.get(source_id)
+    if lysate is None:
+        raise ValueError("Unknown purification lysate_id '{}'.".format(source_id))
+    if lysate.is_benign is not True:
+        raise ValueError("lysate_id '{}' is not a benign task input.".format(source_id))
+    if (
+        lysate.is_clarified is not True
+        or lysate.is_native is not True
+        or lysate.is_chelator_free is not True
     ):
-        status = "wrong_resin"
-        notes.append(
-            "Resin '{}' is not a recognised Ni-NTA / immobilised-Ni affinity resin.".format(resin_name)
+        raise ValueError(
+            "lysate_id '{}' is not a clarified native lysate.".format(source_id)
         )
-        recovery_multiplier *= 0.10
-        purity *= 0.30
-
-    load_min, load_max = load_range
-    if float(load_imidazole_mm) < load_min or float(load_imidazole_mm) > load_max:
-        notes.append(
-            "Load imidazole {:.1f} mM is outside the {:.0f}-{:.0f} mM window; binding specificity will drop.".format(
-                float(load_imidazole_mm), load_min, load_max
+    if (
+        lysate.source_expression_id != PURIFICATION_SOURCE_EXPRESSION_ID
+        or lysate.construct_id != PURIFICATION_CONSTRUCT_ID
+        or lysate.target_protein_name != PURIFICATION_TARGET_PROTEIN_NAME
+        or lysate.affinity_tag != PURIFICATION_AFFINITY_TAG
+    ):
+        raise ValueError(
+            "lysate_id '{}' does not match the required expression fixture.".format(
+                source_id
             )
         )
-        purity *= 0.70
 
-    wash_min, wash_max = wash_range
-    if float(wash_imidazole_mm) < wash_min:
-        notes.append(
-            "Wash imidazole {:.1f} mM is too low; contaminants will co-elute.".format(
-                float(wash_imidazole_mm)
+    expected_band_kda = _require_finite_float(
+        lysate.expected_band_kda, "lysate expected_band_kda"
+    )
+    lysis_buffer_ph = _require_finite_float(
+        lysate.lysis_buffer_ph, "lysate lysis_buffer_ph"
+    )
+    phosphate_mm = _require_finite_float(
+        lysate.phosphate_mm, "lysate phosphate_mm"
+    )
+    sodium_chloride_mm = _require_finite_float(
+        lysate.sodium_chloride_mm, "lysate sodium_chloride_mm"
+    )
+    total_target_mass_mg = _require_finite_float(
+        lysate.total_target_mass_mg, "lysate total_target_mass_mg"
+    )
+    available_target_mass_mg = _require_finite_float(
+        lysate.available_target_mass_mg, "lysate available_target_mass_mg"
+    )
+    consumed_target_mass_mg = _require_finite_float(
+        lysate.consumed_target_mass_mg, "lysate consumed_target_mass_mg"
+    )
+    if (
+        expected_band_kda != PURIFICATION_TARGET_PROTEIN_KDA
+        or lysis_buffer_ph != PURIFICATION_LYSATE_PH
+        or phosphate_mm != PURIFICATION_LYSATE_PHOSPHATE_MM
+        or sodium_chloride_mm != PURIFICATION_LYSATE_NACL_MM
+    ):
+        raise ValueError(
+            "lysate_id '{}' does not match the native Ni-NTA buffer fixture.".format(
+                source_id
             )
         )
-        purity *= 0.55
-    elif float(wash_imidazole_mm) > wash_max:
+    if (
+        total_target_mass_mg != PURIFICATION_INPUT_TARGET_MASS_MG
+        or available_target_mass_mg != PURIFICATION_INPUT_TARGET_MASS_MG
+        or consumed_target_mass_mg != 0.0
+        or isinstance(lysate.usage_count, bool)
+        or lysate.usage_count != 0
+    ):
+        raise ValueError("lysate_id '{}' has already been consumed.".format(source_id))
+
+    failure_reasons: List[str] = []
+    notes: List[str] = []
+    if not (
+        PURIFICATION_LOAD_IMIDAZOLE_MIN_MM
+        <= load_imidazole
+        <= PURIFICATION_LOAD_IMIDAZOLE_MAX_MM
+    ):
+        failure_reasons.append(PURIFICATION_FAILURE_LOAD)
         notes.append(
-            "Wash imidazole {:.1f} mM is too high; target is being eluted during wash.".format(
-                float(wash_imidazole_mm)
+            "Load imidazole {:.1f} mM is outside the supported {:.0f}-{:.0f} mM range.".format(
+                load_imidazole,
+                PURIFICATION_LOAD_IMIDAZOLE_MIN_MM,
+                PURIFICATION_LOAD_IMIDAZOLE_MAX_MM,
             )
         )
-        recovery_multiplier *= 0.50
-
-    if float(elute_imidazole_mm) < min_elute:
-        status = "weak_elution" if status == "purified" else status
+    if not (
+        PURIFICATION_WASH_IMIDAZOLE_MIN_MM
+        <= wash_imidazole
+        <= PURIFICATION_WASH_IMIDAZOLE_MAX_MM
+    ):
+        failure_reasons.append(PURIFICATION_FAILURE_WASH)
         notes.append(
-            "Elution imidazole {:.1f} mM is below the {:.0f} mM minimum; target retention on column.".format(
-                float(elute_imidazole_mm), min_elute
+            "Wash imidazole {:.1f} mM does not match the supported {:.0f} mM native workflow.".format(
+                wash_imidazole, PURIFICATION_WASH_IMIDAZOLE_MIN_MM
             )
         )
-        recovery_multiplier *= 0.25
-
-    if float(flow_rate_ml_per_min) > optimal_flow * 3:
+    if not (
+        PURIFICATION_ELUTION_IMIDAZOLE_MIN_MM
+        <= elute_imidazole
+        <= PURIFICATION_ELUTION_IMIDAZOLE_MAX_MM
+    ):
+        failure_reasons.append(PURIFICATION_FAILURE_ELUTION)
         notes.append(
-            "Flow rate {:.1f} mL/min is too fast for a {:.1f} mL column; reduced binding.".format(
-                float(flow_rate_ml_per_min), float(column_bed_volume_ml)
+            "Elution imidazole {:.1f} mM does not match the supported {:.0f} mM native workflow.".format(
+                elute_imidazole, PURIFICATION_ELUTION_IMIDAZOLE_MIN_MM
             )
         )
-        recovery_multiplier *= 0.7
+    if not (
+        PURIFICATION_FLOW_RATE_MIN_ML_PER_MIN
+        <= flow_rate
+        <= PURIFICATION_FLOW_RATE_MAX_ML_PER_MIN
+    ):
+        failure_reasons.append(PURIFICATION_FAILURE_FLOW)
+        notes.append(
+            "Flow rate {:.2f} mL/min is outside the supported {:.1f}-{:.1f} mL/min range.".format(
+                flow_rate,
+                PURIFICATION_FLOW_RATE_MIN_ML_PER_MIN,
+                PURIFICATION_FLOW_RATE_MAX_ML_PER_MIN,
+            )
+        )
 
-    purity = max(0.05, min(0.99, float(purity)))
-    recovery_multiplier = max(0.0, float(recovery_multiplier))
-    recovered_mg = float(input_mass_mg) * recovery_multiplier * 0.85  # ~85% ceiling recovery
-    eluate_volume_ml = max(0.5, float(column_bed_volume_ml) * 2.5)
-    concentration_mg_per_ml = recovered_mg / eluate_volume_ml
-    if status == "purified" and purity >= 0.85:
-        sds_page_result = "single_clean_band_at_{:.0f}_kDa".format(expected_band_kda)
-    elif status == "weak_elution":
-        sds_page_result = "target_weak_contaminants_present"
-    elif status == "wrong_resin":
-        sds_page_result = "no_target_band_detected"
-    else:
-        sds_page_result = "target_band_at_{:.0f}_kDa_with_contaminants".format(expected_band_kda)
+    input_target_mass = available_target_mass_mg
+    lysate.available_target_mass_mg = 0.0
+    lysate.consumed_target_mass_mg += input_target_mass
+    lysate.usage_count += 1
+
+    purification_accepted = not failure_reasons
+    status = (
+        PURIFICATION_SUCCESS_STATUS if purification_accepted else failure_reasons[0]
+    )
+    recovery_fraction = (
+        PURIFICATION_RECOVERY_FRACTION if purification_accepted else 0.0
+    )
+    recovered_target_mass = input_target_mass * recovery_fraction
+    eluate_volume = (
+        PURIFICATION_COLUMN_BED_VOLUME_ML * PURIFICATION_ELUATE_COLUMN_VOLUMES
+        if purification_accepted
+        else 0.0
+    )
+    purified_concentration = (
+        recovered_target_mass / eluate_volume if eluate_volume > 0.0 else 0.0
+    )
+    purity_percent = PURIFICATION_PURITY_PERCENT if purification_accepted else 0.0
+    sds_page_result = (
+        PURIFICATION_SDS_PAGE_RESULT
+        if purification_accepted
+        else PURIFICATION_FAILURE_SDS_PAGE_RESULT
+    )
+    eluate_prepared = purification_accepted
 
     purification_id = state.next_nta_purification_id()
     record = NtaPurification(
         purification_id=purification_id,
-        resin_name=resin_name,
-        load_imidazole_mm=float(load_imidazole_mm),
-        wash_imidazole_mm=float(wash_imidazole_mm),
-        elute_imidazole_mm=float(elute_imidazole_mm),
-        flow_rate_ml_per_min=float(flow_rate_ml_per_min),
-        column_bed_volume_ml=float(column_bed_volume_ml),
-        target_protein_name=target_protein,
-        expected_band_kda=float(expected_band_kda),
+        lysate_id=source_id,
+        source_expression_id=lysate.source_expression_id,
+        construct_id=lysate.construct_id,
+        resin_name=PURIFICATION_RESIN_NAME,
+        load_imidazole_mm=load_imidazole,
+        wash_imidazole_mm=wash_imidazole,
+        elute_imidazole_mm=elute_imidazole,
+        flow_rate_ml_per_min=flow_rate,
+        column_bed_volume_ml=PURIFICATION_COLUMN_BED_VOLUME_ML,
+        target_protein_name=lysate.target_protein_name,
+        expected_band_kda=lysate.expected_band_kda,
         status=status,
-        purified_concentration_mg_per_ml=float(concentration_mg_per_ml),
-        purity_percent=float(purity * 100.0),
+        purification_accepted=purification_accepted,
+        failure_reasons=list(failure_reasons),
+        input_target_mass_mg=input_target_mass,
+        recovery_fraction=recovery_fraction,
+        recovered_target_mass_mg=recovered_target_mass,
+        eluate_volume_ml=eluate_volume,
+        purified_concentration_mg_per_ml=purified_concentration,
+        purity_percent=purity_percent,
         sds_page_result=sds_page_result,
+        eluate_prepared=eluate_prepared,
         notes=list(notes),
     )
     state.nta_purifications[purification_id] = record
     payload = {
         "status": status,
+        "purification_accepted": purification_accepted,
+        "failure_reasons": list(failure_reasons),
         "purification_id": purification_id,
-        "resin_name": resin_name,
-        "resin_normalized": normalized_resin,
-        "load_imidazole_mm": float(load_imidazole_mm),
-        "wash_imidazole_mm": float(wash_imidazole_mm),
-        "elute_imidazole_mm": float(elute_imidazole_mm),
-        "flow_rate_ml_per_min": float(flow_rate_ml_per_min),
-        "column_bed_volume_ml": float(column_bed_volume_ml),
-        "target_protein_name": target_protein,
-        "expected_band_kda": float(expected_band_kda),
-        "purified_concentration_mg_per_ml": round(float(concentration_mg_per_ml), 2),
-        "purity_percent": round(float(purity * 100.0), 1),
+        "lysate_id": source_id,
+        "source_expression_id": lysate.source_expression_id,
+        "construct_id": lysate.construct_id,
+        "lysate_usage_count": lysate.usage_count,
+        "input_lysate_consumed": True,
+        "lysate_remaining_target_mass_mg": round(
+            lysate.available_target_mass_mg, 2
+        ),
+        "resin_name": PURIFICATION_RESIN_NAME,
+        "resin_normalized": normalize_purification_label(PURIFICATION_RESIN_NAME),
+        "load_imidazole_mm": load_imidazole,
+        "wash_imidazole_mm": wash_imidazole,
+        "elute_imidazole_mm": elute_imidazole,
+        "flow_rate_ml_per_min": flow_rate,
+        "column_bed_volume_ml": PURIFICATION_COLUMN_BED_VOLUME_ML,
+        "target_protein_name": lysate.target_protein_name,
+        "expected_band_kda": lysate.expected_band_kda,
+        "affinity_tag": lysate.affinity_tag,
+        "is_benign": lysate.is_benign,
+        "lysate_is_clarified": lysate.is_clarified,
+        "lysate_is_native": lysate.is_native,
+        "lysis_buffer_ph": lysate.lysis_buffer_ph,
+        "lysis_buffer_phosphate_mm": lysate.phosphate_mm,
+        "lysis_buffer_sodium_chloride_mm": lysate.sodium_chloride_mm,
+        "lysis_buffer_is_chelator_free": lysate.is_chelator_free,
+        "input_target_mass_mg": round(input_target_mass, 2),
+        "recovery_fraction": recovery_fraction,
+        "recovered_target_mass_mg": round(recovered_target_mass, 2),
+        "eluate_volume_column_volumes": (
+            PURIFICATION_ELUATE_COLUMN_VOLUMES if purification_accepted else 0.0
+        ),
+        "eluate_volume_ml": round(eluate_volume, 2),
+        "purified_concentration_mg_per_ml": round(purified_concentration, 2),
+        "purity_percent": round(purity_percent, 1),
         "sds_page_result": sds_page_result,
-        "eluate_volume_ml": round(float(eluate_volume_ml), 2),
+        "eluate_prepared": eluate_prepared,
         "notes": list(notes),
     }
     state.log_event("run_nta_purification", payload)

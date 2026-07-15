@@ -160,11 +160,32 @@ def test_miniprep_given_qiaprep_method_and_source_are_not_scored_as_decisions():
     assert "culture_id" not in decision_ids
 
 
-def test_given_ni_nta_method_is_not_scored_as_a_decision():
+def test_purification_prompt_supplies_fixed_context_without_scored_bounds():
     payload = json.loads(PURIFY_01_GROUND_TRUTH.read_text())
     decision_ids = {point["id"] for point in payload["decision_points"]}
-    assert "ni-nta" in build_purify_01_prompt().casefold()
+
+    task_prompt = build_purify_01_prompt()
+    prompt = task_prompt.casefold()
+
+    assert "purification_lysate_his6_mbp_gfp_001" in prompt
+    assert "fixed 4 ml ni-nta superflow" in prompt
+    assert "lookup_reagent" in prompt
+    assert "exact seeded benchmark" in prompt
+    assert "synthetic" in prompt
+    assert "general scientific knowledge" not in prompt
+    assert "10-20" not in prompt
+    assert "10–20" not in prompt
+    assert "wash imidazole: 20" not in prompt
+    assert "elute imidazole: 250" not in prompt
+    assert "0.5-1.0" not in prompt
+    assert "0.5–1.0" not in prompt
+    assert "Purification ID: <id>" in task_prompt
+    assert "Recovered target mass: <float> mg" in task_prompt
+    assert "Eluate volume: <float> mL" in task_prompt
+    assert "Diagnosis: <none|concise diagnosis" in task_prompt
     assert "uses_ni_nta_resin" not in decision_ids
+    assert "lysate_id" not in decision_ids
+    assert "column_bed_volume" not in decision_ids
 
 
 def test_expression_prompt_supplies_required_system_context_without_host_or_bounds():
@@ -245,7 +266,13 @@ def test_human_transform_handler_requires_all_evaluated_choices():
         (gibson_assembly_call, ("overlap_length_bp",)),
         (
             run_nta_purification_call,
-            ("flow_rate_ml_per_min", "column_bed_volume_ml"),
+            (
+                "lysate_id",
+                "load_imidazole_mm",
+                "wash_imidazole_mm",
+                "elute_imidazole_mm",
+                "flow_rate_ml_per_min",
+            ),
         ),
         (
             transform_ligation_call,
@@ -401,12 +428,11 @@ def test_solver_assistant_prompts_do_not_supply_protocol_answers(monkeypatch, so
         (
             run_nta_purification_tool,
             (
-                "resin_name",
+                "lysate_id",
                 "load_imidazole_mm",
                 "wash_imidazole_mm",
                 "elute_imidazole_mm",
                 "flow_rate_ml_per_min",
-                "column_bed_volume_ml",
             ),
         ),
     ),
@@ -426,6 +452,14 @@ def test_tool_schemas_require_evaluated_protocol_choices(tool_builder, evaluated
 
 def test_expression_tool_keeps_culture_volume_fixed_outside_agent_surface():
     assert "culture_volume_ml" not in inspect.signature(run_protein_expression_tool()).parameters
+
+
+def test_purification_tool_keeps_fixed_fixture_values_outside_agent_surface():
+    parameters = inspect.signature(run_nta_purification_tool()).parameters
+
+    assert "resin_name" not in parameters
+    assert "column_bed_volume_ml" not in parameters
+    assert "input_mass_mg" not in parameters
 
 
 def test_transform_and_pcr_tool_docs_do_not_name_scored_answers():

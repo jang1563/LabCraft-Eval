@@ -279,10 +279,36 @@ class ProteinExpression:
 
 
 @dataclass
+class PurificationLysate:
+    """Seeded clarified native lysate available to a Purify-01 sample."""
+
+    lysate_id: str
+    source_expression_id: str
+    construct_id: str
+    target_protein_name: str
+    expected_band_kda: float
+    affinity_tag: str
+    is_benign: bool
+    is_clarified: bool
+    is_native: bool
+    lysis_buffer_ph: float
+    phosphate_mm: float
+    sodium_chloride_mm: float
+    is_chelator_free: bool
+    total_target_mass_mg: float
+    available_target_mass_mg: float
+    consumed_target_mass_mg: float = 0.0
+    usage_count: int = 0
+
+
+@dataclass
 class NtaPurification:
     """Ni-NTA affinity purification of a His-tagged benign protein."""
 
     purification_id: str
+    lysate_id: str
+    source_expression_id: str
+    construct_id: str
     resin_name: str
     load_imidazole_mm: float
     wash_imidazole_mm: float
@@ -292,9 +318,16 @@ class NtaPurification:
     target_protein_name: str
     expected_band_kda: float
     status: str
+    purification_accepted: bool
+    failure_reasons: List[str]
+    input_target_mass_mg: float
+    recovery_fraction: float
+    recovered_target_mass_mg: float
+    eluate_volume_ml: float
     purified_concentration_mg_per_ml: float
     purity_percent: float
     sds_page_result: str
+    eluate_prepared: bool
     notes: List[str] = field(default_factory=list)
 
 
@@ -321,6 +354,7 @@ class LabState:
     miniprep_samples: Dict[str, MiniprepSample] = field(default_factory=dict)
     expression_constructs: Dict[str, ExpressionConstruct] = field(default_factory=dict)
     protein_expressions: Dict[str, ProteinExpression] = field(default_factory=dict)
+    purification_lysates: Dict[str, PurificationLysate] = field(default_factory=dict)
     nta_purifications: Dict[str, NtaPurification] = field(default_factory=dict)
     event_log: List[Dict[str, Any]] = field(default_factory=list)
     plate_counter: int = 0

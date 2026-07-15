@@ -65,6 +65,40 @@ from src.environment.miniprep_contract import (
     canonicalize_miniprep_buffer_sequence,
     canonicalize_miniprep_purification_method,
 )
+from src.environment.purification_contract import (
+    PURIFICATION_AFFINITY_TAG,
+    PURIFICATION_COLUMN_BED_VOLUME_ML,
+    PURIFICATION_CONSTRUCT_ID,
+    PURIFICATION_ELUATE_COLUMN_VOLUMES,
+    PURIFICATION_ELUTION_IMIDAZOLE_MAX_MM,
+    PURIFICATION_ELUTION_IMIDAZOLE_MIN_MM,
+    PURIFICATION_FAILURE_ELUTION,
+    PURIFICATION_FAILURE_FLOW,
+    PURIFICATION_FAILURE_LOAD,
+    PURIFICATION_FAILURE_SDS_PAGE_RESULT,
+    PURIFICATION_FAILURE_WASH,
+    PURIFICATION_FLOW_RATE_MAX_ML_PER_MIN,
+    PURIFICATION_FLOW_RATE_MIN_ML_PER_MIN,
+    PURIFICATION_INPUT_TARGET_MASS_MG,
+    PURIFICATION_LOAD_IMIDAZOLE_MAX_MM,
+    PURIFICATION_LOAD_IMIDAZOLE_MIN_MM,
+    PURIFICATION_LYSATE_ID,
+    PURIFICATION_LYSATE_NACL_MM,
+    PURIFICATION_LYSATE_PH,
+    PURIFICATION_LYSATE_PHOSPHATE_MM,
+    PURIFICATION_PURITY_PERCENT,
+    PURIFICATION_RECOVERY_FRACTION,
+    PURIFICATION_RESIN_NAME,
+    PURIFICATION_SDS_PAGE_RESULT,
+    PURIFICATION_SOURCE_EXPRESSION_ID,
+    PURIFICATION_SUCCESS_STATUS,
+    PURIFICATION_TARGET_PROTEIN_KDA,
+    PURIFICATION_TARGET_PROTEIN_NAME,
+    PURIFICATION_WASH_IMIDAZOLE_MAX_MM,
+    PURIFICATION_WASH_IMIDAZOLE_MIN_MM,
+    canonicalize_purification_resin,
+    normalize_purification_label,
+)
 from src.tools.discovery import (
     assay_primary_readout,
     validation_result_label,
@@ -3508,124 +3542,494 @@ def build_express_trajectory_scorer():
 # Purify-01 scorer (Phase 2b)
 # ---------------------------------------------------------------------------
 
-PURIFY_IMIDAZOLE_TOLERANCE_MM = 1.0
-PURIFY_BAND_TOLERANCE_KDA = 0.5
-PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 0.1
-PURIFY_PURITY_TOLERANCE_PCT = 1.0
+PURIFY_IMIDAZOLE_TOLERANCE_MM = 0.01
+PURIFY_FLOW_TOLERANCE_ML_PER_MIN = 0.01
+PURIFY_BAND_TOLERANCE_KDA = 0.01
+PURIFY_MASS_TOLERANCE_MG = 0.01
+PURIFY_VOLUME_TOLERANCE_ML = 0.01
+PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML = 0.01
+PURIFY_PURITY_TOLERANCE_PCT = 0.1
 
 
 def _extract_reported_purify_summary(final_answer: str) -> Dict[str, Any]:
+    number = r"([0-9]+(?:\.[0-9]+)?)"
+    field_specs = (
+        ("lysate_id", r"^Lysate ID:\s*(\S+)\s*$", str),
+        ("purification_id", r"^Purification ID:\s*(\S+)\s*$", str),
+        ("resin", r"^Resin:\s*(\S(?:.*\S)?)\s*$", str),
+        (
+            "column_bed_volume_ml",
+            rf"^Column bed volume:\s*{number}\s*mL\s*$",
+            float,
+        ),
+        (
+            "load_imidazole_mm",
+            rf"^Load imidazole:\s*{number}\s*mM\s*$",
+            float,
+        ),
+        (
+            "wash_imidazole_mm",
+            rf"^Wash imidazole:\s*{number}\s*mM\s*$",
+            float,
+        ),
+        (
+            "elute_imidazole_mm",
+            rf"^Elute imidazole:\s*{number}\s*mM\s*$",
+            float,
+        ),
+        (
+            "flow_rate_ml_per_min",
+            rf"^Flow rate:\s*{number}\s*mL/min\s*$",
+            float,
+        ),
+        (
+            "expected_band_kda",
+            rf"^Expected band size:\s*{number}\s*kDa\s*$",
+            float,
+        ),
+        (
+            "recovered_target_mass_mg",
+            rf"^Recovered target mass:\s*{number}\s*mg\s*$",
+            float,
+        ),
+        (
+            "eluate_volume_ml",
+            rf"^Eluate volume:\s*{number}\s*mL\s*$",
+            float,
+        ),
+        (
+            "purified_concentration_mg_per_ml",
+            rf"^Purified concentration:\s*{number}\s*mg/mL\s*$",
+            float,
+        ),
+        ("sds_page_result", r"^SDS-PAGE result:\s*(\S(?:.*\S)?)\s*$", str),
+        ("purity_percent", rf"^Purity:\s*{number}\s*%\s*$", float),
+        ("interpretation", r"^Interpretation:\s*(\S(?:.*\S)?)\s*$", str),
+        ("diagnosis", r"^Diagnosis:\s*(\S(?:.*\S)?)\s*$", str),
+    )
+    lines = [line.strip() for line in final_answer.splitlines() if line.strip()]
+    if len(lines) != len(field_specs):
+        return {}
+
     summary: Dict[str, Any] = {}
-    resin = re.search(r"(?im)^Resin:\s*(.+)$", final_answer)
-    if resin:
-        summary["resin"] = resin.group(1).strip().lower()
-    load = re.search(r"(?im)^Load imidazole:\s*([0-9]+(?:\.[0-9]+)?)\s*mM", final_answer)
-    if load:
-        summary["load_imidazole_mm"] = float(load.group(1))
-    wash = re.search(r"(?im)^Wash imidazole:\s*([0-9]+(?:\.[0-9]+)?)\s*mM", final_answer)
-    if wash:
-        summary["wash_imidazole_mm"] = float(wash.group(1))
-    elu = re.search(r"(?im)^Elute imidazole:\s*([0-9]+(?:\.[0-9]+)?)\s*mM", final_answer)
-    if elu:
-        summary["elute_imidazole_mm"] = float(elu.group(1))
-    band = re.search(r"(?im)^Expected band size:\s*([0-9]+(?:\.[0-9]+)?)\s*kDa", final_answer)
-    if band:
-        summary["expected_band_kda"] = float(band.group(1))
-    conc = re.search(r"(?im)^Purified concentration:\s*([0-9]+(?:\.[0-9]+)?)\s*mg/mL", final_answer)
-    if conc:
-        summary["purified_concentration_mg_per_ml"] = float(conc.group(1))
-    sds = re.search(r"(?im)^SDS-PAGE result:\s*(.+)$", final_answer)
-    if sds:
-        summary["sds_page_result"] = sds.group(1).strip()
-    purity = re.search(r"(?im)^Purity:\s*([0-9]+(?:\.[0-9]+)?)\s*%", final_answer)
-    if purity:
-        summary["purity_percent"] = float(purity.group(1))
-    interp = re.search(r"(?im)^Interpretation:\s*(.+)$", final_answer)
-    if interp:
-        summary["interpretation"] = interp.group(1).strip()
+    for key, pattern, converter in field_specs:
+        matches = [
+            match
+            for line in lines
+            if (match := re.fullmatch(pattern, line, flags=re.IGNORECASE)) is not None
+        ]
+        if len(matches) != 1:
+            return {}
+        raw_value = matches[0].group(1).strip()
+        try:
+            summary[key] = converter(raw_value)
+        except (TypeError, ValueError):
+            return {}
     return summary
+
+
+def _purify_observed_values(call: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a paired purification call with simulator output authoritative."""
+    arguments = _coerce_arguments(call.get("arguments"))
+    content_values = _coerce_content_dict(call.get("content"))
+    observed = {**arguments, **content_values}
+    request_observed = call.get("_request_observed") is True
+    output_observed = call.get("_tool_output_observed") is True
+    terminal_status = str(content_values.get("status", "")).strip()
+    allowed_statuses = {
+        PURIFICATION_SUCCESS_STATUS,
+        PURIFICATION_FAILURE_LOAD,
+        PURIFICATION_FAILURE_WASH,
+        PURIFICATION_FAILURE_ELUTION,
+        PURIFICATION_FAILURE_FLOW,
+    }
+    required_output_fields = {
+        "status",
+        "purification_accepted",
+        "failure_reasons",
+        "purification_id",
+        "lysate_id",
+        "source_expression_id",
+        "construct_id",
+        "lysate_usage_count",
+        "input_lysate_consumed",
+        "lysate_remaining_target_mass_mg",
+        "resin_name",
+        "resin_normalized",
+        "load_imidazole_mm",
+        "wash_imidazole_mm",
+        "elute_imidazole_mm",
+        "flow_rate_ml_per_min",
+        "column_bed_volume_ml",
+        "target_protein_name",
+        "expected_band_kda",
+        "affinity_tag",
+        "is_benign",
+        "lysate_is_clarified",
+        "lysate_is_native",
+        "lysis_buffer_ph",
+        "lysis_buffer_phosphate_mm",
+        "lysis_buffer_sodium_chloride_mm",
+        "lysis_buffer_is_chelator_free",
+        "input_target_mass_mg",
+        "recovery_fraction",
+        "recovered_target_mass_mg",
+        "eluate_volume_column_volumes",
+        "eluate_volume_ml",
+        "purified_concentration_mg_per_ml",
+        "purity_percent",
+        "sds_page_result",
+        "eluate_prepared",
+        "notes",
+    }
+    observed["_has_output"] = bool(content_values and output_observed)
+    observed["_has_result"] = bool(
+        request_observed
+        and output_observed
+        and content_values
+        and required_output_fields <= set(content_values)
+        and content_values.get("purification_id")
+        and content_values.get("lysate_id")
+        and terminal_status in allowed_statuses
+    )
+    observed["_output_failure_reasons"] = content_values.get("failure_reasons")
+    observed["_output_values"] = content_values
+    return observed
 
 
 def _reconstruct_purify_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     last = None
     call_count = 0
+    result_count = 0
     statuses: List[str] = []
+    failure_reasons: List[str] = []
     for call in tool_calls:
         if _normalize_tool_name(call.get("tool_name", "")) != "run_nta_purification":
             continue
         call_count += 1
-        observed = _observed_values(call)
+        observed = _purify_observed_values(call)
         statuses.append(str(observed.get("status", "")))
+        if observed["_has_result"]:
+            result_count += 1
+        raw_reasons = observed.get("_output_failure_reasons")
+        if isinstance(raw_reasons, list):
+            failure_reasons.extend(str(reason) for reason in raw_reasons if reason)
         last = observed
-    return {"last": last, "call_count": call_count, "statuses": statuses}
+    return {
+        "last": last,
+        "call_count": call_count,
+        "result_count": result_count,
+        "statuses": statuses,
+        "failure_reasons": list(dict.fromkeys(failure_reasons)),
+    }
+
+
+def _purify_output_contract_is_coherent(observed: Dict[str, Any]) -> bool:
+    """Validate a complete causal success or failure purification output."""
+    output = observed.get("_output_values")
+    if not isinstance(output, dict):
+        return False
+    usage_count = _coerce_strict_int(output.get("lysate_usage_count"))
+    notes = output.get("notes")
+    if (
+        not observed.get("_has_result")
+        or str(output.get("purification_id", "")) != "purification_001"
+        or str(output.get("lysate_id", "")) != PURIFICATION_LYSATE_ID
+        or str(output.get("source_expression_id", ""))
+        != PURIFICATION_SOURCE_EXPRESSION_ID
+        or str(output.get("construct_id", "")) != PURIFICATION_CONSTRUCT_ID
+        or usage_count != 1
+        or output.get("input_lysate_consumed") is not True
+        or str(output.get("resin_name", "")) != PURIFICATION_RESIN_NAME
+        or output.get("resin_normalized")
+        != normalize_purification_label(PURIFICATION_RESIN_NAME)
+        or str(output.get("target_protein_name", ""))
+        != PURIFICATION_TARGET_PROTEIN_NAME
+        or str(output.get("affinity_tag", "")) != PURIFICATION_AFFINITY_TAG
+        or output.get("is_benign") is not True
+        or output.get("lysate_is_clarified") is not True
+        or output.get("lysate_is_native") is not True
+        or output.get("lysis_buffer_is_chelator_free") is not True
+        or not isinstance(notes, list)
+    ):
+        return False
+
+    numeric_fields = (
+        "lysate_remaining_target_mass_mg",
+        "load_imidazole_mm",
+        "wash_imidazole_mm",
+        "elute_imidazole_mm",
+        "flow_rate_ml_per_min",
+        "column_bed_volume_ml",
+        "expected_band_kda",
+        "lysis_buffer_ph",
+        "lysis_buffer_phosphate_mm",
+        "lysis_buffer_sodium_chloride_mm",
+        "input_target_mass_mg",
+        "recovery_fraction",
+        "recovered_target_mass_mg",
+        "eluate_volume_column_volumes",
+        "eluate_volume_ml",
+        "purified_concentration_mg_per_ml",
+        "purity_percent",
+    )
+    if any(isinstance(output.get(field), bool) for field in numeric_fields):
+        return False
+    numeric = {field: _coerce_float(output.get(field)) for field in numeric_fields}
+    if any(value is None or not math.isfinite(value) for value in numeric.values()):
+        return False
+
+    fixed_numeric_values = {
+        "lysate_remaining_target_mass_mg": 0.0,
+        "column_bed_volume_ml": PURIFICATION_COLUMN_BED_VOLUME_ML,
+        "expected_band_kda": PURIFICATION_TARGET_PROTEIN_KDA,
+        "lysis_buffer_ph": PURIFICATION_LYSATE_PH,
+        "lysis_buffer_phosphate_mm": PURIFICATION_LYSATE_PHOSPHATE_MM,
+        "lysis_buffer_sodium_chloride_mm": PURIFICATION_LYSATE_NACL_MM,
+        "input_target_mass_mg": PURIFICATION_INPUT_TARGET_MASS_MG,
+    }
+    if any(
+        not _numeric_values_match(
+            numeric[field],
+            expected,
+            tolerance=0.0,
+        )
+        for field, expected in fixed_numeric_values.items()
+    ):
+        return False
+
+    load = numeric["load_imidazole_mm"]
+    wash = numeric["wash_imidazole_mm"]
+    elution = numeric["elute_imidazole_mm"]
+    flow = numeric["flow_rate_ml_per_min"]
+    expected_failure_reasons: List[str] = []
+    if not PURIFICATION_LOAD_IMIDAZOLE_MIN_MM <= load <= PURIFICATION_LOAD_IMIDAZOLE_MAX_MM:
+        expected_failure_reasons.append(PURIFICATION_FAILURE_LOAD)
+    if not PURIFICATION_WASH_IMIDAZOLE_MIN_MM <= wash <= PURIFICATION_WASH_IMIDAZOLE_MAX_MM:
+        expected_failure_reasons.append(PURIFICATION_FAILURE_WASH)
+    if not (
+        PURIFICATION_ELUTION_IMIDAZOLE_MIN_MM
+        <= elution
+        <= PURIFICATION_ELUTION_IMIDAZOLE_MAX_MM
+    ):
+        expected_failure_reasons.append(PURIFICATION_FAILURE_ELUTION)
+    if not PURIFICATION_FLOW_RATE_MIN_ML_PER_MIN <= flow <= PURIFICATION_FLOW_RATE_MAX_ML_PER_MIN:
+        expected_failure_reasons.append(PURIFICATION_FAILURE_FLOW)
+
+    if output.get("failure_reasons") != expected_failure_reasons:
+        return False
+
+    if expected_failure_reasons:
+        zero_fields = (
+            "recovery_fraction",
+            "recovered_target_mass_mg",
+            "eluate_volume_column_volumes",
+            "eluate_volume_ml",
+            "purified_concentration_mg_per_ml",
+            "purity_percent",
+        )
+        return (
+            str(output.get("status", "")) == expected_failure_reasons[0]
+            and output.get("purification_accepted") is False
+            and output.get("eluate_prepared") is False
+            and str(output.get("sds_page_result", ""))
+            == PURIFICATION_FAILURE_SDS_PAGE_RESULT
+            and len(notes) == len(expected_failure_reasons)
+            and all(str(note).strip() for note in notes)
+            and all(
+                _numeric_values_match(numeric[field], 0.0, tolerance=0.0)
+                for field in zero_fields
+            )
+        )
+
+    expected_recovered_mass = round(
+        PURIFICATION_INPUT_TARGET_MASS_MG * PURIFICATION_RECOVERY_FRACTION,
+        2,
+    )
+    expected_eluate_volume = round(
+        PURIFICATION_COLUMN_BED_VOLUME_ML * PURIFICATION_ELUATE_COLUMN_VOLUMES,
+        2,
+    )
+    expected_concentration = round(
+        expected_recovered_mass / expected_eluate_volume,
+        2,
+    )
+    return (
+        str(output.get("status", "")) == PURIFICATION_SUCCESS_STATUS
+        and output.get("purification_accepted") is True
+        and output.get("eluate_prepared") is True
+        and notes == []
+        and str(output.get("sds_page_result", "")) == PURIFICATION_SDS_PAGE_RESULT
+        and _numeric_values_match(
+            numeric["recovery_fraction"],
+            PURIFICATION_RECOVERY_FRACTION,
+            tolerance=0.0,
+        )
+        and _numeric_values_match(
+            numeric["recovered_target_mass_mg"],
+            expected_recovered_mass,
+            tolerance=PURIFY_MASS_TOLERANCE_MG,
+        )
+        and _numeric_values_match(
+            numeric["eluate_volume_column_volumes"],
+            PURIFICATION_ELUATE_COLUMN_VOLUMES,
+            tolerance=PURIFY_VOLUME_TOLERANCE_ML,
+        )
+        and _numeric_values_match(
+            numeric["eluate_volume_ml"],
+            expected_eluate_volume,
+            tolerance=PURIFY_VOLUME_TOLERANCE_ML,
+        )
+        and _numeric_values_match(
+            numeric["purified_concentration_mg_per_ml"],
+            expected_concentration,
+            tolerance=PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML,
+        )
+        and _numeric_values_match(
+            numeric["purity_percent"],
+            PURIFICATION_PURITY_PERCENT,
+            tolerance=PURIFY_PURITY_TOLERANCE_PCT,
+        )
+    )
+
+
+def _purify_output_contract_is_valid(observed: Dict[str, Any]) -> bool:
+    output = observed.get("_output_values")
+    return bool(
+        _purify_output_contract_is_coherent(observed)
+        and isinstance(output, dict)
+        and output.get("status") == PURIFICATION_SUCCESS_STATUS
+    )
 
 
 def score_purify_task_success(final_answer: str, tool_calls: List[Dict[str, Any]]) -> float:
     reported = _extract_reported_purify_summary(final_answer)
     required = {
+        "lysate_id",
+        "purification_id",
         "resin",
+        "column_bed_volume_ml",
         "load_imidazole_mm",
         "wash_imidazole_mm",
         "elute_imidazole_mm",
+        "flow_rate_ml_per_min",
         "expected_band_kda",
+        "recovered_target_mass_mg",
+        "eluate_volume_ml",
         "purified_concentration_mg_per_ml",
         "sds_page_result",
         "purity_percent",
         "interpretation",
+        "diagnosis",
     }
     if required - set(reported):
         return 0.0
     reconstructed = _reconstruct_purify_results(tool_calls)
-    if reconstructed["call_count"] != 1 or reconstructed["last"] is None:
+    if (
+        reconstructed["call_count"] != 1
+        or reconstructed["result_count"] != 1
+        or reconstructed["last"] is None
+    ):
         return 0.0
     last = reconstructed["last"]
-    if str(last.get("status")) != "purified":
+    if not _purify_output_contract_is_valid(last):
         return 0.0
-    if not _reported_text_matches(
-        reported["resin"],
-        last.get("resin_normalized") or last.get("resin_name"),
+    output = last["_output_values"]
+    if (
+        reported["lysate_id"] != output.get("lysate_id")
+        or reported["purification_id"] != output.get("purification_id")
+        or canonicalize_purification_resin(reported["resin"])
+        != output.get("resin_name")
     ):
         return 0.0
     numeric_fields = {
+        "column_bed_volume_ml": PURIFY_VOLUME_TOLERANCE_ML,
         "load_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
         "wash_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
         "elute_imidazole_mm": PURIFY_IMIDAZOLE_TOLERANCE_MM,
+        "flow_rate_ml_per_min": PURIFY_FLOW_TOLERANCE_ML_PER_MIN,
         "expected_band_kda": PURIFY_BAND_TOLERANCE_KDA,
+        "recovered_target_mass_mg": PURIFY_MASS_TOLERANCE_MG,
+        "eluate_volume_ml": PURIFY_VOLUME_TOLERANCE_ML,
         "purified_concentration_mg_per_ml": PURIFY_CONCENTRATION_TOLERANCE_MG_PER_ML,
         "purity_percent": PURIFY_PURITY_TOLERANCE_PCT,
     }
     if any(
-        not _numeric_values_match(reported[field], last.get(field), tolerance=tolerance)
+        not _numeric_values_match(reported[field], output.get(field), tolerance=tolerance)
         for field, tolerance in numeric_fields.items()
     ):
         return 0.0
-    if not _reported_text_matches(reported["sds_page_result"], last.get("sds_page_result")):
+    if not _reported_text_matches(
+        reported["sds_page_result"], output.get("sds_page_result")
+    ):
         return 0.0
     if not _interpretation_reports_success(reported["interpretation"]):
         return 0.0
+    if str(reported["diagnosis"]).strip().casefold() != "none":
+        return 0.0
     return 1.0
+
+
+_PURIFY_DIAGNOSIS_PATTERN_GROUPS = {
+    PURIFICATION_FAILURE_LOAD: (r"load", r"imidazole", r"range|outside|10|20"),
+    PURIFICATION_FAILURE_WASH: (r"wash", r"imidazole", r"range|outside|20"),
+    PURIFICATION_FAILURE_ELUTION: (
+        r"elut(?:e|ion)",
+        r"imidazole",
+        r"range|outside|250",
+    ),
+    PURIFICATION_FAILURE_FLOW: (r"flow", r"rate", r"range|outside|0\.5|1\.0"),
+}
+
+
+def _purify_diagnosis_matches(
+    marker: str, diagnosis_text: str, ground_truth: Dict[str, Any]
+) -> bool:
+    diagnosis = ground_truth.get("failure_diagnosis_map", {}).get(marker, {})
+    acceptable = [diagnosis.get("canonical_diagnosis", "")] + diagnosis.get(
+        "acceptable_variants", []
+    )
+    lowered = diagnosis_text.casefold()
+    if any(candidate and str(candidate).casefold() in lowered for candidate in acceptable):
+        return True
+    groups = _PURIFY_DIAGNOSIS_PATTERN_GROUPS.get(marker)
+    return bool(groups) and all(
+        re.search(pattern, diagnosis_text, re.IGNORECASE) for pattern in groups
+    )
 
 
 def score_purify_troubleshooting(
     final_answer: str, tool_calls: List[Dict[str, Any]], ground_truth: Dict[str, Any]
 ) -> float:
     reconstructed = _reconstruct_purify_results(tool_calls)
-    failure_markers: List[str] = []
-    for status in reconstructed["statuses"]:
-        if status in {"wrong_resin", "weak_elution"}:
-            failure_markers.append(status)
+    if reconstructed["call_count"] != 1 or reconstructed["result_count"] != 1:
+        return 0.0
+    last = reconstructed["last"]
+    if last is None or not _purify_output_contract_is_coherent(last):
+        return 0.0
+    failure_markers = list(reconstructed["failure_reasons"])
     if not failure_markers:
-        return _score_no_failure_troubleshooting(tool_calls, ground_truth)
-    final_answer_lower = final_answer.lower()
+        return 1.0 if _purify_output_contract_is_valid(last) else 0.0
+    reported = _extract_reported_purify_summary(final_answer)
+    diagnosis_text = str(reported.get("diagnosis") or final_answer)
     resolved = 0
     for marker in failure_markers:
-        diagnosis = ground_truth["failure_diagnosis_map"].get(marker)
-        if diagnosis is None:
-            continue
-        acceptable = [diagnosis["canonical_diagnosis"]] + diagnosis.get("acceptable_variants", [])
-        if any(candidate.lower() in final_answer_lower for candidate in acceptable):
+        if _purify_diagnosis_matches(marker, diagnosis_text, ground_truth):
             resolved += 1
     return float(resolved) / float(len(failure_markers))
+
+
+def _purify_output_authoritative_calls(
+    tool_calls: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Remove request-argument fallback from purification decisions."""
+    sanitized: List[Dict[str, Any]] = []
+    for call in tool_calls:
+        if _normalize_tool_name(call.get("tool_name", "")) == "run_nta_purification":
+            sanitized.append({**call, "arguments": {}})
+        else:
+            sanitized.append(call)
+    return sanitized
 
 
 def score_purify_trajectory(
@@ -3635,10 +4039,34 @@ def score_purify_trajectory(
 ) -> Dict[str, Any]:
     ground_truth = load_ground_truth(ground_truth_path)
     tool_calls = _extract_tool_calls(transcript)
-    decision_quality = score_decision_quality(tool_calls, ground_truth)
+    reconstructed = _reconstruct_purify_results(tool_calls)
+    output_authoritative_calls = _purify_output_authoritative_calls(tool_calls)
+    purification_calls = [
+        call
+        for call in output_authoritative_calls
+        if _normalize_tool_name(call.get("tool_name", "")) == "run_nta_purification"
+    ]
+    has_single_result = (
+        reconstructed["call_count"] == 1
+        and reconstructed["result_count"] == 1
+        and reconstructed["last"] is not None
+        and _purify_output_contract_is_coherent(reconstructed["last"])
+    )
+    if has_single_result:
+        decision_quality = score_decision_quality(output_authoritative_calls, ground_truth)
+    else:
+        decision_quality = {
+            "mean": 0.0,
+            "by_decision": {
+                decision_point["id"]: 0.0
+                for decision_point in ground_truth.get("decision_points", [])
+            },
+        }
     task_success = score_purify_task_success(final_answer, tool_calls)
     troubleshooting = score_purify_troubleshooting(final_answer, tool_calls, ground_truth)
-    efficiency = score_efficiency(tool_calls, ground_truth)
+    efficiency = (
+        score_efficiency(purification_calls, ground_truth) if has_single_result else 0.0
+    )
     overall = (
         0.4 * task_success
         + 0.3 * decision_quality["mean"]

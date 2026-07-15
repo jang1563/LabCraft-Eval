@@ -1991,5 +1991,108 @@
         "accessed": "2026-07-15"
       }
     ]
+  },
+  {
+    "name": "QIAGEN Ni-NTA Superflow Purification Workflow",
+    "aliases": [
+      "purification",
+      "protein purification",
+      "Ni-NTA purification",
+      "Ni NTA purification",
+      "Ni-NTA Superflow",
+      "QIAGEN Ni-NTA Superflow",
+      "His6-MBP-GFP purification",
+      "purification_lysate_his6_mbp_gfp_001"
+    ],
+    "type": "workflow reference",
+    "category": "benign polyhistidine-tagged protein purification",
+    "working_concentration": "Fixed native workflow: 10-20 mM load imidazole, 20 mM wash imidazole, 250 mM elution imidazole",
+    "stock_concentration": null,
+    "storage_temperature_c": "not applicable",
+    "storage_conditions": "Use the causal seeded lysate and fixed simulator column; consult current manufacturer documentation for physical reagents.",
+    "preparation_notes": "This entry is the exact task contract for the causal seeded benign benchmark fixture, not a claimed commercial lysate. Purify purification_lysate_his6_mbp_gfp_001 on the fixed 4 mL QIAGEN Ni-NTA Superflow bed using only the listed load, wash, elution, and flow conditions. The 18.4 mg input, 0.85 recovery fraction, 2.5-column-volume eluate, 95% purity, and expected apparent 72 kDa band are synthetic deterministic simulator configuration, not empirical fixture performance or universal Ni-NTA outcomes. An out-of-contract attempt consumes the seeded input and returns zero recovery with no prepared eluate as a benchmark state transition, not as a physical zero-recovery claim.",
+    "shelf_life": "not applicable",
+    "incompatible_with": [
+      "Cytiva HisTrap HP profiles (different Ni Sepharose product and column format)",
+      "Thermo Scientific HisPur profiles (different product workflow)",
+      "unclarified, denatured, chelator-containing, or non-native input",
+      "load, wash, elution, or flow values outside the fixed protocol contract"
+    ],
+    "safety_notes": "The task fixture is limited to a benign reporter fusion. Follow standard BSL-1 laboratory practice and the current SDS for nickel resin, imidazole, and buffer chemicals.",
+    "common_uses": [
+      "benign His6-tagged reporter purification",
+      "native Ni-NTA affinity-purification benchmarking",
+      "causal downstream use of a seeded clarified expression lysate"
+    ],
+    "protocol_contract": {
+      "lysate_id": "purification_lysate_his6_mbp_gfp_001",
+      "source_expression_id": "expression_seeded_for_purify_001",
+      "construct_id": "expression_construct_his6_mbp_gfp_001",
+      "target_protein": "His6-MBP-GFP",
+      "affinity_tag": "His6",
+      "fixture_properties": {
+        "benign": true,
+        "native": true,
+        "clarified": true,
+        "chelator_free": true
+      },
+      "fixed_input_target_mass_mg": 18.4,
+      "fixed_resin": "Ni-NTA Superflow",
+      "fixed_column_bed_volume_ml": 4.0,
+      "conservative_capacity_mg_per_ml": 5.0,
+      "native_lysate_buffer": {
+        "sodium_phosphate_mm": 50.0,
+        "sodium_chloride_mm": 300.0,
+        "ph": 8.0,
+        "chelator_free": true
+      },
+      "load_imidazole_mm": {
+        "min": 10.0,
+        "max": 20.0
+      },
+      "wash_imidazole_mm": {
+        "min": 20.0,
+        "max": 20.0
+      },
+      "elution_imidazole_mm": {
+        "min": 250.0,
+        "max": 250.0
+      },
+      "flow_rate_ml_per_min": {
+        "min": 0.5,
+        "max": 1.0
+      },
+      "benchmark_calibrations": {
+        "recovery_fraction": 0.85,
+        "eluate_column_volumes": 2.5,
+        "purity_percent": 95.0,
+        "expected_apparent_band_kda": 72.0,
+        "calibration_note": "Synthetic deterministic accepted-run outputs; not empirical measurements or universal purification guarantees.",
+        "out_of_contract_attempt": {
+          "input_consumed": true,
+          "recovered_target_mass_mg": 0.0,
+          "eluate_prepared": false,
+          "note": "Deterministic benchmark state transition only; not a physical zero-recovery claim."
+        }
+      },
+      "ordered_failure_reasons": [
+        "load_imidazole_out_of_range",
+        "wash_imidazole_out_of_range",
+        "elution_imidazole_out_of_range",
+        "flow_rate_out_of_range"
+      ]
+    },
+    "source_citations": [
+      {
+        "title": "The QIAexpressionist, Fifth Edition",
+        "url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+        "accessed": "2026-07-15"
+      },
+      {
+        "title": "Purification of proteins using polyhistidine affinity tags",
+        "url": "https://doi.org/10.1016/S0076-6879(00)26058-8",
+        "accessed": "2026-07-15"
+      }
+    ]
   }
 ]

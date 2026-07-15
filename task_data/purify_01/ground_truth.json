@@ -2,8 +2,8 @@
   "task_id": "purify_01",
   "decision_points": [
     {
-      "id": "load_imidazole_in_range",
-      "description": "Load buffer imidazole is 10-20 mM to suppress non-specific binding.",
+      "id": "load_imidazole_in_supported_range",
+      "description": "Load/binding-buffer imidazole is within the supported 10-20 mM range for the fixed native QIAGEN Ni-NTA Superflow workflow.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_nta_purification",
@@ -18,16 +18,18 @@
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist recommends 10-20 mM imidazole in load buffer."
+          "tier_justification": "The official handbook uses 10-20 mM imidazole in native lysis/binding buffer to suppress binding of nontagged proteins."
         }
       ]
     },
     {
-      "id": "wash_imidazole_in_range",
-      "description": "Wash buffer imidazole is 40-60 mM for stringent contaminant removal.",
+      "id": "wash_imidazole_matches_fixed_workflow",
+      "description": "Wash-buffer imidazole is exactly 20 mM for the fixed native QIAGEN Ni-NTA Superflow workflow.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_nta_purification",
@@ -36,22 +38,24 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 40.0,
-        "max": 60.0
+        "min": 20.0,
+        "max": 20.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist recommends 40-60 mM imidazole wash."
+          "tier_justification": "The official native wash-buffer recipe contains 20 mM imidazole; other product-specific wash profiles are not imported into this fixed workflow."
         }
       ]
     },
     {
-      "id": "elute_imidazole_at_least_200",
-      "description": "Elution imidazole is at least 200 mM to displace the His-tag.",
+      "id": "elution_imidazole_matches_fixed_workflow",
+      "description": "Elution-buffer imidazole is exactly 250 mM for the fixed native QIAGEN Ni-NTA Superflow workflow.",
       "minimum_tier_required": "Bronze",
       "matcher": {
         "tool_name": "run_nta_purification",
@@ -60,65 +64,132 @@
       },
       "acceptable_values": {
         "type": "range",
-        "min": 200.0,
-        "max": 500.0
+        "min": 250.0,
+        "max": 250.0
       },
       "scoring_rule": "binary",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist recommends 200-250 mM imidazole elution."
+          "tier_justification": "The official native elution-buffer recipe contains 250 mM imidazole."
+        }
+      ]
+    },
+    {
+      "id": "flow_rate_in_supported_range",
+      "description": "Clarified lysate is loaded at 0.5-1.0 mL/min on the fixed Ni-NTA Superflow column.",
+      "minimum_tier_required": "Bronze",
+      "matcher": {
+        "tool_name": "run_nta_purification",
+        "argument": "flow_rate_ml_per_min",
+        "occurrence": "all"
+      },
+      "acceptable_values": {
+        "type": "range",
+        "min": 0.5,
+        "max": 1.0
+      },
+      "scoring_rule": "binary",
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "The official native Ni-NTA Superflow protocol directs users to start loading clarified lysate at 0.5-1 mL/min."
         }
       ]
     }
   ],
   "failure_diagnosis_map": {
-    "wrong_resin": {
-      "canonical_diagnosis": "Resin chosen is not a Ni-NTA / immobilised-Ni affinity medium; His-tag capture cannot proceed.",
+    "load_imidazole_out_of_range": {
+      "canonical_diagnosis": "Load imidazole is outside the supported 10-20 mM native binding window.",
       "acceptable_variants": [
-        "His-tag purification requires Ni-NTA or a close variant; the chosen resin is not compatible.",
-        "The chosen resin has no Ni2+ immobilisation and cannot capture His-tagged protein."
+        "The binding-buffer imidazole concentration is outside 10-20 mM.",
+        "Use 10-20 mM imidazole during loading for this fixed native Ni-NTA workflow."
       ],
-      "judge_strategy": "substring_any",
-      "minimum_tier_required": "Silver",
-      "citations": [
-        {
-          "authors": "Bornhorst JA, Falke JJ",
-          "title": "Purification of proteins using polyhistidine affinity tags",
-          "journal": "Methods in Enzymology",
-          "year": 2000,
-          "doi": "10.1016/S0076-6879(00)26058-8",
-          "canonical_url": "https://doi.org/10.1016/S0076-6879(00)26058-8",
-          "tier": "Silver",
-          "tier_justification": "Bornhorst 2000 on His-tag affinity resins."
-        }
-      ]
-    },
-    "weak_elution": {
-      "canonical_diagnosis": "Elution imidazole is too low; target remains bound to the column.",
-      "acceptable_variants": [
-        "At least 200 mM imidazole is needed to elute His-tagged protein.",
-        "The chosen elution concentration is insufficient to displace the target from Ni-NTA."
-      ],
-      "judge_strategy": "substring_any",
+      "judge_strategy": "substring_any_or_semantic_groups",
       "minimum_tier_required": "Bronze",
       "citations": [
         {
-          "title": "QIAGEN QIAexpressionist Handbook (5th ed.)",
-          "canonical_url": "https://www.qiagen.com/us/resources/resourcedetail?id=79ca2f7d-42fe-4d62-8676-4cfa948c9435",
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
           "tier": "Bronze",
-          "tier_justification": "QIAexpressionist on elution imidazole concentrations."
+          "tier_justification": "The official handbook uses 10-20 mM imidazole in native lysis/binding buffer."
+        }
+      ]
+    },
+    "wash_imidazole_out_of_range": {
+      "canonical_diagnosis": "Wash imidazole does not match the fixed 20 mM native wash recipe.",
+      "acceptable_variants": [
+        "The wash-buffer imidazole concentration must be 20 mM for this workflow.",
+        "The submitted wash condition is outside the fixed QIAGEN native Ni-NTA contract."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "The official native wash-buffer recipe contains 20 mM imidazole."
+        }
+      ]
+    },
+    "elution_imidazole_out_of_range": {
+      "canonical_diagnosis": "Elution imidazole does not match the fixed 250 mM native elution recipe.",
+      "acceptable_variants": [
+        "The elution-buffer imidazole concentration must be 250 mM for this workflow.",
+        "The submitted elution condition is outside the fixed QIAGEN native Ni-NTA contract."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "The official native elution-buffer recipe contains 250 mM imidazole."
+        }
+      ]
+    },
+    "flow_rate_out_of_range": {
+      "canonical_diagnosis": "The loading flow rate is outside the supported 0.5-1.0 mL/min starting range.",
+      "acceptable_variants": [
+        "Load the clarified lysate at 0.5-1.0 mL/min for this fixed workflow.",
+        "The submitted flow rate is outside the supported Ni-NTA Superflow loading range."
+      ],
+      "judge_strategy": "substring_any_or_semantic_groups",
+      "minimum_tier_required": "Bronze",
+      "citations": [
+        {
+          "authors": "QIAGEN",
+          "title": "The QIAexpressionist, Fifth Edition",
+          "year": 2003,
+          "canonical_url": "https://www.qiagen.com/en-us/resources/download/kithandbook/en-the-qiaexpressionist",
+          "tier": "Bronze",
+          "tier_justification": "The official native Ni-NTA Superflow protocol starts clarified-lysate loading at 0.5-1 mL/min."
         }
       ]
     }
   },
   "efficiency_reference": {
     "optimal_tool_calls": 1,
-    "max_reasonable_tool_calls": 5,
+    "max_reasonable_tool_calls": 1,
     "reagent_budget": {
       "purification_runs": 1
-    }
+    },
+    "counted_calls": "run_nta_purification only; optional reference and safety lookups are not experimental retries"
   }
 }

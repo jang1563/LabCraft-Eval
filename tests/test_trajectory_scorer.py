@@ -21,16 +21,41 @@ from src.environment.miniprep_contract import (
     MINIPREP_FAILURE_WRONG_METHOD,
     MINIPREP_SOURCE_CULTURE_ID,
 )
+from src.environment.purification_contract import (
+    PURIFICATION_AFFINITY_TAG,
+    PURIFICATION_COLUMN_BED_VOLUME_ML,
+    PURIFICATION_CONSTRUCT_ID,
+    PURIFICATION_ELUATE_COLUMN_VOLUMES,
+    PURIFICATION_FAILURE_ELUTION,
+    PURIFICATION_FAILURE_FLOW,
+    PURIFICATION_FAILURE_LOAD,
+    PURIFICATION_FAILURE_SDS_PAGE_RESULT,
+    PURIFICATION_INPUT_TARGET_MASS_MG,
+    PURIFICATION_LYSATE_ID,
+    PURIFICATION_LYSATE_NACL_MM,
+    PURIFICATION_LYSATE_PH,
+    PURIFICATION_LYSATE_PHOSPHATE_MM,
+    PURIFICATION_PURITY_PERCENT,
+    PURIFICATION_RECOVERY_FRACTION,
+    PURIFICATION_RESIN_NAME,
+    PURIFICATION_SDS_PAGE_RESULT,
+    PURIFICATION_SOURCE_EXPRESSION_ID,
+    PURIFICATION_SUCCESS_STATUS,
+    PURIFICATION_TARGET_PROTEIN_KDA,
+    PURIFICATION_TARGET_PROTEIN_NAME,
+)
 from src.environment.operations import (
     count_colonies,
     gibson_assembly,
     initialize_expression_construct,
     initialize_miniprep_source_culture,
+    initialize_purification_lysate,
     list_gibson_substrates,
     plate,
     perform_miniprep,
     prepare_media,
     run_protein_expression,
+    run_nta_purification,
     transform_gibson,
 )
 from src.environment.state import create_lab_state
@@ -3522,74 +3547,187 @@ def test_express_retry_cannot_hybridize_or_receive_partial_credit():
     assert scores["overall"] == 0.0
 
 
-def _good_purify_transcript():
+def _good_purify_arguments(**updates):
+    arguments = {
+        "lysate_id": PURIFICATION_LYSATE_ID,
+        "load_imidazole_mm": 20.0,
+        "wash_imidazole_mm": 20.0,
+        "elute_imidazole_mm": 250.0,
+        "flow_rate_ml_per_min": 1.0,
+    }
+    arguments.update(updates)
+    return arguments
+
+
+def _good_purify_observation(**updates):
+    observation = {
+        "status": PURIFICATION_SUCCESS_STATUS,
+        "purification_accepted": True,
+        "failure_reasons": [],
+        "purification_id": "purification_001",
+        "lysate_id": PURIFICATION_LYSATE_ID,
+        "source_expression_id": PURIFICATION_SOURCE_EXPRESSION_ID,
+        "construct_id": PURIFICATION_CONSTRUCT_ID,
+        "lysate_usage_count": 1,
+        "input_lysate_consumed": True,
+        "lysate_remaining_target_mass_mg": 0.0,
+        "resin_name": PURIFICATION_RESIN_NAME,
+        "resin_normalized": "nintasuperflow",
+        "load_imidazole_mm": 20.0,
+        "wash_imidazole_mm": 20.0,
+        "elute_imidazole_mm": 250.0,
+        "flow_rate_ml_per_min": 1.0,
+        "column_bed_volume_ml": PURIFICATION_COLUMN_BED_VOLUME_ML,
+        "target_protein_name": PURIFICATION_TARGET_PROTEIN_NAME,
+        "expected_band_kda": PURIFICATION_TARGET_PROTEIN_KDA,
+        "affinity_tag": PURIFICATION_AFFINITY_TAG,
+        "is_benign": True,
+        "lysate_is_clarified": True,
+        "lysate_is_native": True,
+        "lysis_buffer_ph": PURIFICATION_LYSATE_PH,
+        "lysis_buffer_phosphate_mm": PURIFICATION_LYSATE_PHOSPHATE_MM,
+        "lysis_buffer_sodium_chloride_mm": PURIFICATION_LYSATE_NACL_MM,
+        "lysis_buffer_is_chelator_free": True,
+        "input_target_mass_mg": PURIFICATION_INPUT_TARGET_MASS_MG,
+        "recovery_fraction": PURIFICATION_RECOVERY_FRACTION,
+        "recovered_target_mass_mg": 15.64,
+        "eluate_volume_column_volumes": PURIFICATION_ELUATE_COLUMN_VOLUMES,
+        "eluate_volume_ml": 10.0,
+        "purified_concentration_mg_per_ml": 1.56,
+        "purity_percent": PURIFICATION_PURITY_PERCENT,
+        "sds_page_result": PURIFICATION_SDS_PAGE_RESULT,
+        "eluate_prepared": True,
+        "notes": [],
+    }
+    observation.update(updates)
+    return observation
+
+
+def _failed_purify_observation(*, failure_reasons, **updates):
+    observation = _good_purify_observation(
+        status=failure_reasons[0],
+        purification_accepted=False,
+        failure_reasons=list(failure_reasons),
+        recovery_fraction=0.0,
+        recovered_target_mass_mg=0.0,
+        eluate_volume_column_volumes=0.0,
+        eluate_volume_ml=0.0,
+        purified_concentration_mg_per_ml=0.0,
+        purity_percent=0.0,
+        sds_page_result=PURIFICATION_FAILURE_SDS_PAGE_RESULT,
+        eluate_prepared=False,
+        notes=[f"{reason} diagnostic note" for reason in failure_reasons],
+    )
+    observation.update(updates)
+    return observation
+
+
+def _purify_call_pair(*, arguments=None, observation=None, call_id="call_purification"):
+    if arguments is None:
+        arguments = _good_purify_arguments()
+    if observation is None:
+        observation = _good_purify_observation()
     return [
         {
-            "type": "tool_call",
-            "tool_name": "run_nta_purification",
-            "arguments": {
-                "purification_id": "purification_001",
-                "resin_name": "Ni-NTA",
-                "resin_normalized": "ni-nta",
-                "load_imidazole_mm": 20.0,
-                "wash_imidazole_mm": 50.0,
-                "elute_imidazole_mm": 250.0,
-                "flow_rate_ml_per_min": 1.0,
-                "column_bed_volume_ml": 1.0,
-                "target_protein_name": "MBP-GFP fusion",
-                "expected_band_kda": 72.0,
-                "purified_concentration_mg_per_ml": 6.12,
-                "purity_percent": 95.0,
-                "sds_page_result": "single_clean_band_at_72_kDa",
-                "eluate_volume_ml": 2.5,
-                "status": "purified",
-            },
-        }
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": call_id,
+                    "function": "run_nta_purification",
+                    "arguments": copy.deepcopy(arguments),
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": call_id,
+            "function": "run_nta_purification",
+            "content": json.dumps(observation),
+        },
     ]
+
+
+def _good_purify_transcript():
+    return _purify_call_pair()
 
 
 def _good_purify_answer() -> str:
     return (
-        "Resin: Ni-NTA\n"
+        f"Lysate ID: {PURIFICATION_LYSATE_ID}\n"
+        "Purification ID: purification_001\n"
+        f"Resin: {PURIFICATION_RESIN_NAME}\n"
+        "Column bed volume: 4.0 mL\n"
         "Load imidazole: 20 mM\n"
-        "Wash imidazole: 50 mM\n"
+        "Wash imidazole: 20 mM\n"
         "Elute imidazole: 250 mM\n"
+        "Flow rate: 1.0 mL/min\n"
         "Expected band size: 72 kDa\n"
-        "Purified concentration: 6.12 mg/mL\n"
-        "SDS-PAGE result: single_clean_band_at_72_kDa\n"
+        "Recovered target mass: 15.64 mg\n"
+        "Eluate volume: 10.0 mL\n"
+        "Purified concentration: 1.56 mg/mL\n"
+        f"SDS-PAGE result: {PURIFICATION_SDS_PAGE_RESULT}\n"
         "Purity: 95.0%\n"
-        "Interpretation: success"
+        "Interpretation: success\n"
+        "Diagnosis: none"
+    )
+
+
+def _score_purify(answer, transcript):
+    return score_purify_trajectory(
+        final_answer=answer,
+        transcript=transcript,
+        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
     )
 
 
 def test_good_purify_trajectory_scores_high():
-    scores = score_purify_trajectory(
-        final_answer=_good_purify_answer(),
-        transcript=_good_purify_transcript(),
-        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
-    )
+    scores = _score_purify(_good_purify_answer(), _good_purify_transcript())
+
     assert scores["task_success"] == 1.0
     assert scores["decision_quality"] == 1.0
-    assert scores["overall"] >= 0.9
+    assert scores["troubleshooting"] == 1.0
+    assert scores["efficiency"] == 1.0
+    assert scores["overall"] == pytest.approx(1.0)
+
+
+def test_real_purification_output_in_paired_transcript_scores_high():
+    state = create_lab_state(sample_id="purify-real-output", seed=1)
+    initialize_purification_lysate(state)
+    arguments = _good_purify_arguments()
+    observation = run_nta_purification(state=state, **arguments)
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert scores["task_success"] == 1.0
+    assert scores["decision_quality"] == 1.0
 
 
 def test_purify_rejects_each_inconsistent_or_nonsensical_report_field():
     replacements = {
+        "Lysate ID:": "Lysate ID: unknown_lysate",
+        "Purification ID:": "Purification ID: purification_999",
         "Resin:": "Resin: glutathione agarose",
+        "Column bed volume:": "Column bed volume: 99 mL",
         "Load imidazole:": "Load imidazole: 999 mM",
         "Wash imidazole:": "Wash imidazole: 999 mM",
         "Elute imidazole:": "Elute imidazole: 999 mM",
+        "Flow rate:": "Flow rate: 99 mL/min",
         "Expected band size:": "Expected band size: 999 kDa",
+        "Recovered target mass:": "Recovered target mass: 999 mg",
+        "Eluate volume:": "Eluate volume: 999 mL",
         "Purified concentration:": "Purified concentration: 999 mg/mL",
         "SDS-PAGE result:": "SDS-PAGE result: no_target_band_detected",
         "Purity:": "Purity: 1.0%",
         "Interpretation:": "Interpretation: Purification failed; no target band was detected.",
+        "Diagnosis:": "Diagnosis: unexpected failure",
     }
     for prefix, replacement in replacements.items():
-        scores = score_purify_trajectory(
-            final_answer=_replace_report_line(_good_purify_answer(), prefix, replacement),
-            transcript=_good_purify_transcript(),
-            ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+        scores = _score_purify(
+            _replace_report_line(_good_purify_answer(), prefix, replacement),
+            _good_purify_transcript(),
         )
         assert scores["task_success"] == 0.0, prefix
 
@@ -3598,19 +3736,15 @@ def test_purify_accepts_equivalent_resin_and_sds_page_punctuation():
     answer = _replace_report_line(
         _good_purify_answer(),
         "Resin:",
-        "Resin: Ni NTA",
+        "Resin: Ni NTA Superflow",
     )
     answer = _replace_report_line(
         answer,
         "SDS-PAGE result:",
-        "SDS-PAGE result: single clean band at 72 kDa",
+        "SDS-PAGE result: predominant target band at 72 kDa",
     )
-    scores = score_purify_trajectory(
-        final_answer=answer,
-        transcript=_good_purify_transcript(),
-        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
-    )
-    assert scores["task_success"] == 1.0
+
+    assert _score_purify(answer, _good_purify_transcript())["task_success"] == 1.0
 
 
 def test_purify_rejects_success_label_with_contradictory_interpretation():
@@ -3619,26 +3753,343 @@ def test_purify_rejects_success_label_with_contradictory_interpretation():
         "Interpretation:",
         "Interpretation: success; the protein is impure and purification did not work.",
     )
-    scores = score_purify_trajectory(
-        final_answer=answer,
-        transcript=_good_purify_transcript(),
-        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
+    assert _score_purify(answer, _good_purify_transcript())["task_success"] == 0.0
+
+
+@pytest.mark.parametrize(
+    "extra_line",
+    (
+        "Lysate ID: another_lysate",
+        "Purification ID: purification_999",
+        "Diagnosis: wrong flow",
+        "arbitrary trailing text",
+    ),
+)
+def test_purify_rejects_duplicate_or_extra_report_lines(extra_line):
+    scores = _score_purify(
+        _good_purify_answer() + "\n" + extra_line,
+        _good_purify_transcript(),
     )
+
     assert scores["task_success"] == 0.0
 
 
-def test_purify_wrong_resin_triggers_troubleshooting():
-    transcript = _good_purify_transcript()
-    transcript[0]["arguments"]["resin_normalized"] = "glutathione agarose"
-    transcript[0]["arguments"]["status"] = "wrong_resin"
-    scores = score_purify_trajectory(
-        final_answer=_good_purify_answer(),
-        transcript=transcript,
-        ground_truth_path=str(PURIFY_GROUND_TRUTH_PATH),
-    )
-    assert "uses_ni_nta_resin" not in scores["decision_scores"]
+def test_purify_request_only_fabricated_result_scores_zero():
+    fabricated = _good_purify_arguments(**_good_purify_observation())
+    transcript = [
+        {
+            "role": "assistant",
+            "tool_calls": [
+                {
+                    "id": "call_purification",
+                    "function": "run_nta_purification",
+                    "arguments": fabricated,
+                }
+            ],
+        }
+    ]
+
+    scores = _score_purify(_good_purify_answer(), transcript)
+
+    assert scores["overall"] == 0.0
     assert scores["task_success"] == 0.0
-    assert scores["troubleshooting"] < 1.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+
+
+def test_purify_orphan_output_scores_zero():
+    transcript = [
+        {
+            "role": "tool",
+            "tool_call_id": "orphan_purification",
+            "function": "run_nta_purification",
+            "content": json.dumps(_good_purify_observation()),
+        }
+    ]
+
+    assert _score_purify(_good_purify_answer(), transcript)["overall"] == 0.0
+
+
+def test_purify_partial_output_cannot_fall_back_to_request_arguments():
+    partial_output = {
+        "status": PURIFICATION_SUCCESS_STATUS,
+        "purification_id": "purification_001",
+        "lysate_id": PURIFICATION_LYSATE_ID,
+        "purified_concentration_mg_per_ml": 1.56,
+    }
+    forged_arguments = _good_purify_arguments(**_good_purify_observation())
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(arguments=forged_arguments, observation=partial_output),
+    )
+
+    assert scores["overall"] == 0.0
+
+
+def test_purify_tool_error_output_scores_zero():
+    error_output = {
+        "status": "error",
+        "tool_name": "run_nta_purification",
+        "error": "invalid numeric input",
+    }
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(observation=error_output),
+    )
+
+    assert scores["overall"] == 0.0
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+
+
+def test_purify_failure_output_overrides_forged_success_arguments():
+    forged_arguments = _good_purify_arguments(**_good_purify_observation())
+    failed_output = _failed_purify_observation(
+        failure_reasons=[PURIFICATION_FAILURE_LOAD],
+        load_imidazole_mm=5.0,
+    )
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(arguments=forged_arguments, observation=failed_output),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_scores"]["load_imidazole_in_supported_range"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("purification_accepted", True),
+        ("failure_reasons", []),
+        ("status", PURIFICATION_SUCCESS_STATUS),
+        ("recovery_fraction", PURIFICATION_RECOVERY_FRACTION),
+        ("recovered_target_mass_mg", 1.0),
+        ("eluate_volume_column_volumes", PURIFICATION_ELUATE_COLUMN_VOLUMES),
+        ("eluate_volume_ml", 1.0),
+        ("purified_concentration_mg_per_ml", 1.0),
+        ("purity_percent", PURIFICATION_PURITY_PERCENT),
+        ("sds_page_result", PURIFICATION_SDS_PAGE_RESULT),
+        ("eluate_prepared", True),
+        ("notes", []),
+    ),
+)
+def test_purify_rejects_internally_inconsistent_failure_output(field, value):
+    failed_output = _failed_purify_observation(
+        failure_reasons=[PURIFICATION_FAILURE_LOAD],
+        load_imidazole_mm=5.0,
+    )
+    failed_output[field] = value
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(observation=failed_output),
+    )
+
+    assert scores["overall"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("purification_id", "purification_999"),
+        ("lysate_id", "unknown_lysate"),
+        ("source_expression_id", "unknown_expression"),
+        ("construct_id", "unknown_construct"),
+        ("lysate_usage_count", 2),
+        ("input_lysate_consumed", False),
+        ("lysate_remaining_target_mass_mg", 1.0),
+        ("resin_name", "glutathione agarose"),
+        ("resin_normalized", "ninta"),
+        ("column_bed_volume_ml", 1.0),
+        ("target_protein_name", "unrelated protein"),
+        ("expected_band_kda", 71.0),
+        ("affinity_tag", "GST"),
+        ("is_benign", False),
+        ("lysate_is_clarified", False),
+        ("lysate_is_native", False),
+        ("lysis_buffer_ph", 7.0),
+        ("lysis_buffer_phosphate_mm", 49.0),
+        ("lysis_buffer_sodium_chloride_mm", 299.0),
+        ("lysis_buffer_is_chelator_free", False),
+        ("load_imidazole_mm", True),
+        ("flow_rate_ml_per_min", float("nan")),
+        ("input_target_mass_mg", 99.0),
+        ("recovery_fraction", float("inf")),
+        ("recovered_target_mass_mg", 99.0),
+        ("eluate_volume_column_volumes", 9.0),
+        ("eluate_volume_ml", 1.0),
+        ("purified_concentration_mg_per_ml", 99.0),
+        ("eluate_prepared", False),
+    ),
+)
+def test_purify_rejects_internally_inconsistent_success_output(field, value):
+    observation = _good_purify_observation(**{field: value})
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+
+
+def test_purify_rejects_failure_reasons_out_of_contract_order():
+    observation = _failed_purify_observation(
+        failure_reasons=[PURIFICATION_FAILURE_ELUTION, PURIFICATION_FAILURE_LOAD],
+        load_imidazole_mm=5.0,
+        elute_imidazole_mm=100.0,
+    )
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(observation=observation),
+    )
+
+    assert scores["overall"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+
+
+def test_purify_multiple_failures_require_diagnosis_of_every_reason():
+    failures = [PURIFICATION_FAILURE_LOAD, PURIFICATION_FAILURE_ELUTION]
+    observation = _failed_purify_observation(
+        failure_reasons=failures,
+        load_imidazole_mm=5.0,
+        elute_imidazole_mm=100.0,
+    )
+    arguments = _good_purify_arguments(
+        load_imidazole_mm=5.0,
+        elute_imidazole_mm=100.0,
+    )
+    answer = _replace_report_line(
+        _good_purify_answer(), "Load imidazole:", "Load imidazole: 5 mM"
+    )
+    answer = _replace_report_line(
+        answer, "Elute imidazole:", "Elute imidazole: 100 mM"
+    )
+    answer = _replace_report_line(
+        answer, "Recovered target mass:", "Recovered target mass: 0 mg"
+    )
+    answer = _replace_report_line(answer, "Eluate volume:", "Eluate volume: 0 mL")
+    answer = _replace_report_line(
+        answer, "Purified concentration:", "Purified concentration: 0 mg/mL"
+    )
+    answer = _replace_report_line(
+        answer,
+        "SDS-PAGE result:",
+        f"SDS-PAGE result: {PURIFICATION_FAILURE_SDS_PAGE_RESULT}",
+    )
+    answer = _replace_report_line(answer, "Purity:", "Purity: 0%")
+    answer = _replace_report_line(answer, "Interpretation:", "Interpretation: failure")
+    answer = _replace_report_line(
+        answer,
+        "Diagnosis:",
+        "Diagnosis: Load imidazole is outside the supported range; elution imidazole is outside the supported range.",
+    )
+
+    scores = _score_purify(
+        answer,
+        _purify_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert scores["task_success"] == 0.0
+    assert scores["troubleshooting"] == 1.0
+
+
+def test_purify_failure_requires_zero_eluate_column_volumes():
+    observation = _failed_purify_observation(
+        failure_reasons=[PURIFICATION_FAILURE_FLOW],
+        flow_rate_ml_per_min=2.0,
+        eluate_volume_column_volumes=PURIFICATION_ELUATE_COLUMN_VOLUMES,
+    )
+
+    scores = _score_purify(
+        _good_purify_answer(),
+        _purify_call_pair(observation=observation),
+    )
+
+    assert scores["overall"] == 0.0
+
+
+def test_real_purification_failure_output_is_coherent_for_troubleshooting():
+    state = create_lab_state(sample_id="purify-real-failure", seed=1)
+    initialize_purification_lysate(state)
+    arguments = _good_purify_arguments(flow_rate_ml_per_min=2.0)
+    observation = run_nta_purification(state=state, **arguments)
+    answer = _replace_report_line(
+        _good_purify_answer(), "Flow rate:", "Flow rate: 2.0 mL/min"
+    )
+    answer = _replace_report_line(
+        answer, "Recovered target mass:", "Recovered target mass: 0 mg"
+    )
+    answer = _replace_report_line(answer, "Eluate volume:", "Eluate volume: 0 mL")
+    answer = _replace_report_line(
+        answer, "Purified concentration:", "Purified concentration: 0 mg/mL"
+    )
+    answer = _replace_report_line(
+        answer,
+        "SDS-PAGE result:",
+        f"SDS-PAGE result: {PURIFICATION_FAILURE_SDS_PAGE_RESULT}",
+    )
+    answer = _replace_report_line(answer, "Purity:", "Purity: 0%")
+    answer = _replace_report_line(answer, "Interpretation:", "Interpretation: failure")
+    answer = _replace_report_line(
+        answer,
+        "Diagnosis:",
+        "Diagnosis: Flow rate is outside the supported range.",
+    )
+
+    scores = _score_purify(
+        answer,
+        _purify_call_pair(arguments=arguments, observation=observation),
+    )
+
+    assert observation["eluate_volume_column_volumes"] == 0.0
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == pytest.approx(0.75)
+    assert scores["troubleshooting"] == 1.0
+
+
+def test_purify_reference_lookup_does_not_reduce_experimental_efficiency():
+    transcript = [
+        {
+            "type": "tool_call",
+            "tool_name": "lookup_reagent",
+            "arguments": {"reagent_name": PURIFICATION_LYSATE_ID},
+            "content": '{"status":"found"}',
+        },
+        *_good_purify_transcript(),
+    ]
+
+    scores = _score_purify(_good_purify_answer(), transcript)
+
+    assert scores["efficiency"] == 1.0
+    assert scores["overall"] == pytest.approx(1.0)
+
+
+def test_purify_retry_cannot_hybridize_or_receive_partial_credit():
+    transcript = [
+        *_good_purify_transcript(),
+        *_purify_call_pair(call_id="call_purification_retry"),
+    ]
+
+    scores = _score_purify(_good_purify_answer(), transcript)
+
+    assert scores["task_success"] == 0.0
+    assert scores["decision_quality"] == 0.0
+    assert scores["troubleshooting"] == 0.0
+    assert scores["efficiency"] == 0.0
+    assert scores["overall"] == 0.0
 
 
 def _good_perturb_followup_transcript():
