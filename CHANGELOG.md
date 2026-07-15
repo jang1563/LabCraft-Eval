@@ -27,6 +27,11 @@ recorded rather than silently rewriting history.
   to one causal BsaI assembly, transformation, countable selection plate, and
   colony-count path; and stop rewarding disclosed fragment count as an
   independent protocol decision.
+- Make `gibson_01` substrate-specific and fail closed: separate Gibson and
+  NEBuilder sources, allowlist supported mixes and report-method labels,
+  validate the fixed fragments, overlap, temperature, duration, and Amp100
+  selection contract, and bind every success report to one assembled,
+  transformed, plated, countable colony path without retry hybridization.
 
 ## 0.1.2 - 2026-07-12
 

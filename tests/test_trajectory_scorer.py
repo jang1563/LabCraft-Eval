@@ -2038,6 +2038,41 @@ def test_good_gibson_trajectory_scores_high():
     assert scores["overall"] >= 0.9
 
 
+@pytest.mark.parametrize(
+    "method",
+    (
+        "Gibson",
+        "Gibson Assembly",
+        "Gibson isothermal assembly",
+        "Gibson overlap assembly",
+        "Gibson isothermal overlap assembly",
+        "Isothermal Gibson assembly",
+        "Isothermal Gibson overlap assembly",
+    ),
+)
+def test_gibson_report_accepts_explicit_method_aliases(method):
+    answer = _good_gibson_answer().replace("Assembly method: Gibson", f"Assembly method: {method}")
+
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 1.0
+
+
+@pytest.mark.parametrize(
+    "method",
+    (
+        "not Gibson",
+        "not Gibson Assembly",
+        "Gibson Assembly failed",
+        "Gibson Assembly Master Mix",
+        "isothermal overlap assembly",
+        "Golden Gate",
+    ),
+)
+def test_gibson_report_rejects_unallowlisted_or_negated_method_labels(method):
+    answer = _good_gibson_answer().replace("Assembly method: Gibson", f"Assembly method: {method}")
+
+    assert _score_gibson_task(_good_gibson_transcript(), answer) == 0.0
+
+
 def test_gibson_real_simulator_payload_completes_the_scorer_contract():
     state = create_lab_state(sample_id="gibson-scorer-integration", seed=1)
     substrates = list_gibson_substrates(state=state)

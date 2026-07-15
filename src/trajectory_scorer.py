@@ -16,6 +16,7 @@ from src.environment.gibson_contract import (
     GIBSON_MIN_DURATION_MINUTES,
     GIBSON_OVERLAP_LENGTH_BP,
     GIBSON_TEMPERATURE_C,
+    canonicalize_gibson_method,
     canonicalize_gibson_master_mix,
 )
 from src.tools.discovery import (
@@ -2301,7 +2302,7 @@ def _reconstruct_gibson_results(tool_calls: List[Dict[str, Any]]) -> Dict[str, A
 
 def _gibson_report_matches_path(reported: Dict[str, Any], path: Dict[str, Any]) -> bool:
     assembly = path["assembly"]
-    if _normalize_reported_text(reported.get("assembly_method")) != "gibson":
+    if canonicalize_gibson_method(reported.get("assembly_method")) is None:
         return False
     if canonicalize_gibson_master_mix(reported.get("master_mix")) != canonicalize_gibson_master_mix(
         assembly.get("master_mix_canonical")
