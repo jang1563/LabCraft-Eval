@@ -1,15 +1,15 @@
 # LabCraft-Eval
 
-_Formerly **BioProtocolBench**; renamed 2026-05-31 to avoid a name collision with the unrelated [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) NLP corpus (Liu et al. 2025). The old GitHub URL auto-redirects here._
+_Formerly **BioProtocolBench**, this project was renamed on May 31, 2026, to avoid a name collision with the unrelated [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) NLP corpus (Liu et al., 2025). The old GitHub URL automatically redirects here._
 
 [![Code License: Apache-2.0](https://img.shields.io/badge/code%20license-Apache--2.0-blue.svg)](LICENSE)
 [![Benchmark Content: CC BY-NC 4.0](https://img.shields.io/badge/benchmark%20content-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE-DATA)
 [![CI](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml/badge.svg)](https://github.com/jang1563/LabCraft-Eval/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jang1563/LabCraft-Eval/actions/workflows/codeql.yml/badge.svg)](https://github.com/jang1563/LabCraft-Eval/actions/workflows/codeql.yml)
 
-An [Inspect AI](https://inspect.aisi.org.uk/) evaluation environment for measuring how well AI agents execute benign molecular-microbiology protocols inside a seeded laboratory simulator with task-dependent stochasticity.
+LabCraft-Eval is an [Inspect AI](https://inspect.aisi.org.uk/) evaluation environment designed to measure how well AI agents execute benign molecular microbiology protocols in a seeded laboratory simulator with task-dependent stochasticity.
 
-Built on **LabCraft**, the underlying framework in [`src/`](src/). Each task places the agent in a seeded environment with a fixed tool set, a public protocol, and citation metadata for its task contract.
+The environment is built on **LabCraft**, the underlying framework implemented in [`src/`](src/). Each task places the agent in a seeded environment with a fixed tool set, a public protocol, and citation metadata for its task contract.
 
 > Not to be confused with [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) (Liu et al., 2025), an NLP corpus of 556K instances. LabCraft-Eval is an agent evaluation environment with four-axis trajectory scoring.
 
@@ -17,18 +17,18 @@ Built on **LabCraft**, the underlying framework in [`src/`](src/). Each task pla
 
 Each task gives the agent:
 
-- A **protocol prompt** (e.g., "measure transformation efficiency across four plasmid inputs")
-- Access to lab-operation tools (`prepare_media`, `transform`, `plate`, `incubate`, `count_colonies`, ...) and reference tools (`lookup_reagent`, `lookup_enzyme`, `check_safety`)
-- A sample state seeded per run, with task-dependent deterministic operations and seeded stochastic operations such as plating and colony counts.
+- A **protocol prompt** (e.g., "measure transformation efficiency across four plasmid inputs").
+- Access to lab-operation tools (including `prepare_media`, `transform`, `plate`, `incubate`, and `count_colonies`) and reference tools (including `lookup_reagent`, `lookup_enzyme`, and `check_safety`).
+- A sample state seeded for each run, with task-dependent deterministic and seeded stochastic operations, including plating and colony counting.
 
-The agent must plan the experiment, call tools in the right order, interpret observations, and report quantitative results. In v0.1.x, a deterministic hard-coded trajectory scorer inspects the full interaction and computes four fixed-weight axes. The checked-in JSON rubrics document the intended hierarchy but do not drive runtime scoring.
+The agent must plan the experiment, call tools in the right order, interpret observations, and report quantitative results. In v0.1.x, a deterministic, hard-coded trajectory scorer inspects the full interaction and produces scores on four axes with fixed weights. The checked-in JSON rubrics document the intended hierarchy but do not drive runtime scoring.
 
 ## Current status
 
-- **Implemented surface:** 14 runnable simulator and discovery-decision tasks, plus the separate `safety_case_01` safeguard-quality track.
-- **Frozen scored snapshot:** 100 sample rows across 5 tasks, 4 frontier models, and 5 seed-labelled repetitions from April 2026. These v0.1.1 results are historical, provisional benchmark-development evidence—not a validated model ranking.
-- **Current release:** the Hugging Face dataset `main` branch is a metadata-only v0.1.2 integrity release. The scored leaderboard intentionally remains pinned to the frozen v0.1.1 artifact.
-- **Evidence trail:** raw frozen trajectories, per-sample scores, failure-mode analysis, and release/provenance documentation are linked below.
+- **Implemented surface:** 14 runnable tasks across the simulator and discovery-decision tracks, plus the separate `safety_case_01` safeguard-quality evaluation track.
+- **Frozen scored snapshot:** The April 2026 snapshot contains 100 sample rows spanning five tasks and four frontier models, with five seed-labeled repetitions per task–model cell. These v0.1.1 results provide historical, provisional evidence from benchmark development; they do not constitute a validated model ranking.
+- **Current release:** The `main` branch of the Hugging Face dataset is a metadata-only v0.1.2 integrity release. The scored leaderboard intentionally remains pinned to the frozen v0.1.1 artifact.
+- **Evidence trail:** Raw frozen trajectories, per-sample scores, failure-mode analysis, and release and provenance documentation are linked below.
 
 ## Quickstart
 
@@ -47,10 +47,10 @@ python3 examples/hf_quickstart.py
 
 ## Read these limitations first
 
-- The frozen v0.1.1 scorecard predates prompt/scorer leakage remediation and is not a leakage-free capability comparison.
-- Five repetitions per cell are exploratory; the observed differences were not tested inferentially.
-- Runtime scoring in v0.1.x is deterministic hard-coded matching rather than LLM-as-judge or JSON-rubric-driven, so final-answer parsing is brittle.
-- Newer wet-lab, discovery, and safety-case tracks are reported separately and are not merged into the frozen leaderboard.
+- The frozen v0.1.1 scorecard predates remediation for prompt and scorer leakage and is not a leakage-free capability comparison.
+- Results based on five repetitions per cell are exploratory; the observed differences were not subjected to inferential testing.
+- Runtime scoring in v0.1.x uses deterministic, hard-coded matching. It uses neither an LLM judge nor the checked-in JSON rubrics, so final-answer parsing remains brittle.
+- Newer wet-lab, discovery-decision, and safety-case tracks are reported separately and are not merged into the frozen leaderboard.
 
 See [Key findings and limitations](#key-findings-and-limitations) for the full analysis before interpreting the numbers.
 
