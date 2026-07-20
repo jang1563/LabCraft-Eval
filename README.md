@@ -13,7 +13,48 @@ Built on **LabCraft**, the underlying framework in [`src/`](src/). Each task pla
 
 > Not to be confused with [BioProBench](https://github.com/YuyangSunshine/bioprotocolbench) (Liu et al., 2025), an NLP corpus of 556K instances. LabCraft-Eval is an agent evaluation environment with four-axis trajectory scoring.
 
-Public release surfaces:
+## What the agent does
+
+Each task gives the agent:
+
+- A **protocol prompt** (e.g., "measure transformation efficiency across four plasmid inputs")
+- Access to lab-operation tools (`prepare_media`, `transform`, `plate`, `incubate`, `count_colonies`, ...) and reference tools (`lookup_reagent`, `lookup_enzyme`, `check_safety`)
+- A sample state seeded per run, with task-dependent deterministic operations and seeded stochastic operations such as plating and colony counts.
+
+The agent must plan the experiment, call tools in the right order, interpret observations, and report quantitative results. In v0.1.x, a deterministic hard-coded trajectory scorer inspects the full interaction and computes four fixed-weight axes. The checked-in JSON rubrics document the intended hierarchy but do not drive runtime scoring.
+
+## Current status
+
+- **Implemented surface:** 14 runnable simulator and discovery-decision tasks, plus the separate `safety_case_01` safeguard-quality track.
+- **Frozen scored snapshot:** 100 sample rows across 5 tasks, 4 frontier models, and 5 seed-labelled repetitions from April 2026. These v0.1.1 results are historical, provisional benchmark-development evidence—not a validated model ranking.
+- **Current release:** the Hugging Face dataset `main` branch is a metadata-only v0.1.2 integrity release. The scored leaderboard intentionally remains pinned to the frozen v0.1.1 artifact.
+- **Evidence trail:** raw frozen trajectories, per-sample scores, failure-mode analysis, and release/provenance documentation are linked below.
+
+## Quickstart
+
+```bash
+git clone https://github.com/jang1563/LabCraft-Eval.git
+cd LabCraft-Eval
+pip install -e ".[dev,analysis,providers]"
+inspect eval src/inspect_task.py@transform_01 --model openai/gpt-5.6-sol
+```
+
+See [Installation](#installation) and [Running](#running) for the full task and provider matrix, or inspect the public snapshot without extra dependencies:
+
+```bash
+python3 examples/hf_quickstart.py
+```
+
+## Read these limitations first
+
+- The frozen v0.1.1 scorecard predates prompt/scorer leakage remediation and is not a leakage-free capability comparison.
+- Five repetitions per cell are exploratory; the observed differences were not tested inferentially.
+- Runtime scoring in v0.1.x is deterministic hard-coded matching rather than LLM-as-judge or JSON-rubric-driven, so final-answer parsing is brittle.
+- Newer wet-lab, discovery, and safety-case tracks are reported separately and are not merged into the frozen leaderboard.
+
+See [Key findings and limitations](#key-findings-and-limitations) for the full analysis before interpreting the numbers.
+
+## Public artifacts and release tooling
 
 | Surface | Link |
 |---------|------|
@@ -97,16 +138,6 @@ Quickly inspect the public Hugging Face snapshot without extra dependencies:
 python3 examples/hf_quickstart.py
 python3 examples/hf_quickstart.py --snapshot-dir build/hf_dataset
 ```
-
-## What the agent does
-
-Each task gives the agent:
-
-- A **protocol prompt** (e.g., "measure transformation efficiency across four plasmid inputs")
-- Access to lab-operation tools (`prepare_media`, `transform`, `plate`, `incubate`, `count_colonies`, ...) and reference tools (`lookup_reagent`, `lookup_enzyme`, `check_safety`)
-- A sample state seeded per run, with task-dependent deterministic operations and seeded stochastic operations such as plating and colony counts.
-
-The agent must plan the experiment, call tools in the right order, interpret observations, and report quantitative results. In v0.1.x, a deterministic hard-coded trajectory scorer inspects the full interaction and computes four fixed-weight axes. The checked-in JSON rubrics document the intended hierarchy but do not drive runtime scoring.
 
 ## Discovery Decision Track
 
